@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SwitchWise — Smart Phone Comparison &amp; Switching Advisor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ink: {
+              950: '#07090f',
+              900: '#0b0e17',
+              850: '#0f1320',
+              800: '#141a2b',
+              700: '#1c2438',
+              600: '#2a3350',
+              500: '#3b4670',
+            },
+            accent: {
+              DEFAULT: '#7c5cff',
+              soft: '#a892ff',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.35s ease-out',
+            'slide-up': 'slideUp 0.4s ease-out',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+            slideUp: {
+              '0%': { opacity: 0, transform: 'translateY(8px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' },
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    html, body { background: #07090f; color: #e6e9f2; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: #0b0e17; }
+    ::-webkit-scrollbar-thumb { background: #2a3350; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3b4670; }
+    input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px; background: #1c2438; border-radius: 999px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      height: 18px; width: 18px; margin-top: -6px;
+      background: #7c5cff; border-radius: 999px;
+      box-shadow: 0 0 0 4px rgba(124,92,255,0.15);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="dark">
+  <div id="root"></div>
+
+  <script id="app-source" type="text/plain">
+    const { useState, useMemo, useEffect } = React;
+
+    /* ---------------- Icons (inline SVG, Lucide-style) ---------------- */
+    const Icon = ({ children, className = 'w-4 h-4', ...rest }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+           className={className} {...rest}>{children}</svg>
+    );
+    const Camera = (p) => <Icon {...p}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></Icon>;
+    const Battery = (p) => <Icon {...p}><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="13" x2="23" y2="11"/><line x1="6" y1="10" x2="6" y2="14"/><line x1="10" y1="10" x2="10" y2="14"/><line x1="14" y1="10" x2="14" y2="14"/></Icon>;
+    const Cpu = (p) => <Icon {...p}><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></Icon>;
+    const Monitor = (p) => <Icon {...p}><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></Icon>;
+    const Package = (p) => <Icon {...p}><path d="M16.5 9.4l-9-5.19"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></Icon>;
+    const Sparkles = (p) => <Icon {...p}><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></Icon>;
+    const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></Icon>;
+    const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12"/></Icon>;
+    const X = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Icon>;
+    const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
+    const RefreshCw = (p) => <Icon {...p}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></Icon>;
+    const TrendingUp = (p) => <Icon {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></Icon>;
+    const DollarSign = (p) => <Icon {...p}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></Icon>;
+    const Award = (p) => <Icon {...p}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></Icon>;
+    const Info = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></Icon>;
+    const Layers = (p) => <Icon {...p}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></Icon>;
+    const ArrowRight = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Icon>;
+    const Smartphone = (p) => <Icon {...p}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></Icon>;
+    const Star = (p) => <Icon {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Icon>;
+    const ChevronDown = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>;
+    const Zap = (p) => <Icon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+
+    /* ---------------- Mock Data ---------------- */
+    // Each phone: normalized 0-100 spec scores drive the algorithm.
+    // displayInfo holds human-readable values for the comparison matrix.
+    const PHONES = [
+      { id: 'iphone-15', brand: 'Apple', model: 'iPhone 15', tier: 'flagship', year: 2023, price: 599,
+        ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
+        specs: { camera: 82, battery: 78, performance: 88, display: 87, build: 92 },
+        displayInfo: { cameraMP: '48MP main + 12MP ultra', batteryMah: '3,349 mAh', chipset: 'A16 Bionic',
+          display: '6.1" OLED', refreshRate: '60Hz', ram: '6GB', storage: '128/256/512GB' },
+        ecosystemFeatures: ['iMessage', 'FaceTime', 'AirDrop', 'Continuity', 'iCloud', 'App Store'],
+        sentimentScore: 82,
+        pros: ['Great cameras for the price', 'USB-C finally', 'Long software support (~6 years)'],
+        cons: ['Still 60Hz display', 'Only 6GB RAM', 'Slower charging than rivals'] },
+
+      { id: 'iphone-16', brand: 'Apple', model: 'iPhone 16', tier: 'flagship', year: 2024, price: 799,
+        ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
+        specs: { camera: 86, battery: 82, performance: 91, display: 88, build: 92 },
+        displayInfo: { cameraMP: '48MP main + 12MP ultra', batteryMah: '3,561 mAh', chipset: 'A18',
+          display: '6.1" OLED', refreshRate: '60Hz', ram: '8GB', storage: '128/256/512GB' },
+        ecosystemFeatures: ['iMessage', 'FaceTime', 'AirDrop', 'Continuity', 'iCloud', 'Apple Intelligence'],
+        sentimentScore: 86,
+        pros: ['Apple Intelligence support', 'Camera Control button is genuinely useful', 'Improved battery life'],
+        cons: ['Still 60Hz base display', 'Incremental over iPhone 15', 'Pricing crept up worldwide'] },
+
+      { id: 'iphone-17', brand: 'Apple', model: 'iPhone 17', tier: 'flagship', year: 2025, price: 899,
+        ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
+        specs: { camera: 90, battery: 85, performance: 95, display: 92, build: 93 },
+        displayInfo: { cameraMP: '48MP fusion + 12MP ultra', batteryMah: '3,750 mAh', chipset: 'A19',
+          display: '6.3" ProMotion OLED', refreshRate: '120Hz', ram: '8GB', storage: '128/256/512GB/1TB' },
+        ecosystemFeatures: ['iMessage', 'FaceTime', 'AirDrop', 'Continuity', 'iCloud', 'Apple Intelligence'],
+        sentimentScore: 89,
+        pros: ['ProMotion 120Hz on base model at last', 'Best-in-class SoC efficiency', 'Meaningful battery improvement'],
+        cons: ['Camera hardware unchanged from Pro-lite spec', 'Still no telephoto', 'Base storage should be 256GB at this price'] },
+
+      { id: 'iphone-17-pro-max', brand: 'Apple', model: 'iPhone 17 Pro Max', tier: 'flagship-plus', year: 2025, price: 1299,
+        ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
+        specs: { camera: 96, battery: 92, performance: 98, display: 96, build: 95 },
+        displayInfo: { cameraMP: '48MP + 48MP ultra + 5x tetraprism', batteryMah: '4,850 mAh', chipset: 'A19 Pro',
+          display: '6.9" ProMotion LTPO OLED', refreshRate: '120Hz', ram: '12GB', storage: '256GB/512GB/1TB/2TB' },
+        ecosystemFeatures: ['iMessage', 'FaceTime', 'AirDrop', 'Continuity', 'iCloud', 'Apple Intelligence', 'ProRes'],
+        sentimentScore: 93,
+        pros: ['Best-in-class video recording', 'Titanium frame, thinnest bezel yet', 'All-day battery even for power users'],
+        cons: ['Very expensive', 'Heavy at 227g', 'Charging speed still trails Chinese flagships'] },
+
+      { id: 'galaxy-s24', brand: 'Samsung', model: 'Galaxy S24', tier: 'flagship', year: 2024, price: 599,
+        ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
+        specs: { camera: 84, battery: 79, performance: 89, display: 91, build: 89 },
+        displayInfo: { cameraMP: '50MP main + 12MP ultra + 10MP 3x', batteryMah: '4,000 mAh', chipset: 'Snapdragon 8 Gen 3',
+          display: '6.2" AMOLED', refreshRate: '120Hz', ram: '8GB', storage: '128/256/512GB' },
+        ecosystemFeatures: ['Samsung DeX', 'Samsung Cloud', 'Bixby', 'Good Lock', 'Galaxy AI', 'SmartThings'],
+        sentimentScore: 84,
+        pros: ['Galaxy AI features shipped early', 'Compact flagship form-factor', '7 years of updates'],
+        cons: ['Battery capacity is smallest in flagship tier', 'One UI can feel cluttered', 'Charging is only 25W'] },
+
+      { id: 'galaxy-s25', brand: 'Samsung', model: 'Galaxy S25', tier: 'flagship', year: 2025, price: 849,
+        ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
+        specs: { camera: 88, battery: 83, performance: 93, display: 93, build: 90 },
+        displayInfo: { cameraMP: '50MP main + 12MP ultra + 10MP 3x', batteryMah: '4,000 mAh', chipset: 'Snapdragon 8 Elite',
+          display: '6.2" QHD+ AMOLED', refreshRate: '120Hz', ram: '12GB', storage: '256/512GB' },
+        ecosystemFeatures: ['Samsung DeX', 'Samsung Cloud', 'Galaxy AI 2', 'Good Lock', 'SmartThings'],
+        sentimentScore: 87,
+        pros: ['Snapdragon 8 Elite is a huge perf jump', '12GB RAM base', 'Refined Galaxy AI'],
+        cons: ['Same 4,000 mAh battery as S24', 'Barely-changed camera hardware', 'No major design refresh'] },
+
+      { id: 'galaxy-s26-ultra', brand: 'Samsung', model: 'Galaxy S26 Ultra', tier: 'flagship-plus', year: 2026, price: 1399,
+        ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
+        specs: { camera: 97, battery: 90, performance: 96, display: 97, build: 94 },
+        displayInfo: { cameraMP: '200MP main + 50MP 5x periscope + 12MP ultra', batteryMah: '5,200 mAh', chipset: 'Snapdragon 8 Elite Gen 2',
+          display: '6.9" QHD+ AMOLED', refreshRate: '1-144Hz LTPO', ram: '16GB', storage: '256GB/512GB/1TB' },
+        ecosystemFeatures: ['Samsung DeX', 'S Pen', 'Samsung Cloud', 'Galaxy AI 3', 'Good Lock', 'SmartThings'],
+        sentimentScore: 92,
+        pros: ['Class-leading 200MP camera system', 'S Pen productivity is unmatched', 'Beefy 5,200 mAh battery'],
+        cons: ['Very expensive', '218g is heavy', 'Charging still only 45W in 2026'] },
+
+      { id: 'pixel-9', brand: 'Google', model: 'Pixel 9', tier: 'flagship', year: 2024, price: 649,
+        ecosystem: 'Pixel', ecosystemFamily: 'Android', accent: '#fbbf77',
+        specs: { camera: 92, battery: 80, performance: 84, display: 88, build: 86 },
+        displayInfo: { cameraMP: '50MP main + 48MP ultra', batteryMah: '4,700 mAh', chipset: 'Tensor G4',
+          display: '6.3" OLED', refreshRate: '120Hz', ram: '12GB', storage: '128/256GB' },
+        ecosystemFeatures: ['Google Photos unlimited AI edits', 'Call Screen', 'Recorder transcripts', 'Gemini Nano', 'Pixel Watch integration'],
+        sentimentScore: 88,
+        pros: ['Best-in-class computational photography', 'Cleanest Android experience', 'Fastest update commitments (7 years)'],
+        cons: ['Tensor G4 lags Snapdragon in raw perf & thermals', 'No telephoto on base model', 'Battery only average for size'] },
+
+      { id: 'pixel-10-pro', brand: 'Google', model: 'Pixel 10 Pro', tier: 'flagship', year: 2025, price: 999,
+        ecosystem: 'Pixel', ecosystemFamily: 'Android', accent: '#fbbf77',
+        specs: { camera: 96, battery: 84, performance: 90, display: 92, build: 88 },
+        displayInfo: { cameraMP: '50MP main + 48MP 5x + 48MP ultra', batteryMah: '5,100 mAh', chipset: 'Tensor G5',
+          display: '6.3" LTPO OLED', refreshRate: '1-120Hz', ram: '16GB', storage: '256/512GB/1TB' },
+        ecosystemFeatures: ['Google Photos AI edits', 'Gemini Live', 'Call Screen', 'Recorder', 'Pixel Watch integration', 'Magic Editor'],
+        sentimentScore: 91,
+        pros: ['Camera system is genuinely the best if you like Google\'s look', 'Tensor G5 finally competitive on perf', '5,100 mAh battery is a big upgrade'],
+        cons: ['Still runs hotter than Snapdragon rivals', 'Charging tops out at 30W', 'Availability limited in some regions'] },
+
+      { id: 'xiaomi-14', brand: 'Xiaomi', model: 'Xiaomi 14', tier: 'flagship', year: 2024, price: 749,
+        ecosystem: 'Xiaomi', ecosystemFamily: 'Android', accent: '#ff9a76',
+        specs: { camera: 89, battery: 86, performance: 92, display: 90, build: 87 },
+        displayInfo: { cameraMP: '50MP Leica main + 50MP 3x + 50MP ultra', batteryMah: '4,610 mAh', chipset: 'Snapdragon 8 Gen 3',
+          display: '6.36" LTPO AMOLED', refreshRate: '1-120Hz', ram: '12GB', storage: '256/512GB/1TB' },
+        ecosystemFeatures: ['Mi Cloud', 'Xiaomi HyperOS Connect', 'Mi Home', 'Redmi Buds Pro pairing'],
+        sentimentScore: 85,
+        pros: ['Leica camera tuning is superb', '90W charging is class-leading', 'Great value in Asia/Europe'],
+        cons: ['MIUI/HyperOS has learning curve', 'Bloatware in some regions', 'Limited US availability'] },
+
+      { id: 'xiaomi-15-ultra', brand: 'Xiaomi', model: 'Xiaomi 15 Ultra', tier: 'flagship-plus', year: 2025, price: 1199,
+        ecosystem: 'Xiaomi', ecosystemFamily: 'Android', accent: '#ff9a76',
+        specs: { camera: 95, battery: 91, performance: 95, display: 94, build: 90 },
+        displayInfo: { cameraMP: '50MP Leica + 200MP periscope + 50MP 3x + 50MP ultra', batteryMah: '5,410 mAh', chipset: 'Snapdragon 8 Elite',
+          display: '6.73" LTPO AMOLED', refreshRate: '1-120Hz', ram: '16GB', storage: '512GB/1TB' },
+        ecosystemFeatures: ['Mi Cloud', 'HyperOS Connect', 'Photography Kit accessory', 'Mi Home'],
+        sentimentScore: 89,
+        pros: ['Best zoom camera on the market', '90W wired + 80W wireless charging', 'Massive 5,410 mAh battery'],
+        cons: ['Very expensive', 'Camera bump is enormous', 'US carrier support is essentially nil'] },
+
+      { id: 'oneplus-12', brand: 'OnePlus', model: 'OnePlus 12', tier: 'flagship', year: 2024, price: 649,
+        ecosystem: 'OnePlus', ecosystemFamily: 'Android', accent: '#f97a7a',
+        specs: { camera: 82, battery: 90, performance: 94, display: 92, build: 87 },
+        displayInfo: { cameraMP: '50MP Hasselblad + 64MP 3x + 48MP ultra', batteryMah: '5,400 mAh', chipset: 'Snapdragon 8 Gen 3',
+          display: '6.82" LTPO AMOLED', refreshRate: '1-120Hz', ram: '12GB', storage: '256/512GB' },
+        ecosystemFeatures: ['OxygenOS', 'OnePlus Buds pairing', 'Cross-device clipboard'],
+        sentimentScore: 87,
+        pros: ['100W SUPERVOOC full charge in ~26 min', 'Massive battery, still svelte', 'Snappy OxygenOS is well-loved'],
+        cons: ['Camera trails Samsung/Google in low light', 'Only 4 major OS updates', 'Software update cadence has slipped'] },
+
+      { id: 'oneplus-13', brand: 'OnePlus', model: 'OnePlus 13', tier: 'flagship', year: 2025, price: 899,
+        ecosystem: 'OnePlus', ecosystemFamily: 'Android', accent: '#f97a7a',
+        specs: { camera: 86, battery: 92, performance: 96, display: 93, build: 88 },
+        displayInfo: { cameraMP: '50MP Hasselblad + 50MP 3x + 50MP ultra', batteryMah: '6,000 mAh', chipset: 'Snapdragon 8 Elite',
+          display: '6.82" LTPO AMOLED', refreshRate: '1-120Hz', ram: '12/16/24GB', storage: '256GB/512GB/1TB' },
+        ecosystemFeatures: ['OxygenOS 15', 'OnePlus Buds', 'AI Notes', 'Cross-device'],
+        sentimentScore: 90,
+        pros: ['6,000 mAh silicon-carbon battery, still thin', '100W wired + 50W wireless', 'Best-in-class perf per dollar'],
+        cons: ['Cameras improved but not top-3', 'Update policy still not Samsung-tier', 'AI features feel bolted on'] },
+
+      { id: 'nothing-phone-3', brand: 'Nothing', model: 'Nothing Phone 3', tier: 'mid-range', year: 2025, price: 649,
+        ecosystem: 'Nothing', ecosystemFamily: 'Android', accent: '#c8c8c8',
+        specs: { camera: 78, battery: 84, performance: 82, display: 86, build: 84 },
+        displayInfo: { cameraMP: '50MP main + 50MP 3x + 50MP ultra', batteryMah: '5,000 mAh', chipset: 'Snapdragon 8s Gen 4',
+          display: '6.77" LTPO AMOLED', refreshRate: '1-120Hz', ram: '12/16GB', storage: '256/512GB' },
+        ecosystemFeatures: ['Nothing OS', 'Glyph Interface', 'Essential Space AI', 'Nothing Ear pairing'],
+        sentimentScore: 83,
+        pros: ['Unique design still stands out', 'Clean Nothing OS with genuine differentiation', 'Great value flagship-adjacent specs'],
+        cons: ['Cameras trail true flagships', 'Glyph is more novelty than utility', 'Limited carrier availability in US'] },
+    ];
+
+    /* ---------------- Scoring Algorithm ---------------- */
+    /*
+     * scorePhone(phone, priorities, currentPhone)
+     *   priorities = { camera, battery, performance, display } each 0-100.
+     *   Returns { raw, adjusted, penalty, contributions }.
+     *
+     * raw score        = weighted average of the four normalized spec scores
+     * ecosystem penalty:
+     *     0  if same ecosystem (e.g. Samsung -> Samsung)
+     *     5  if same family, different brand (Samsung -> Pixel)
+     *    15  if crossing iOS <-> Android (bigger friction: iMessage/AirDrop/DeX loss)
+     * adjusted score   = raw - penalty
+     * contributions[i] = weight_i * spec_i / totalWeight (used to explain "why this phone")
+     */
+    function scorePhone(phone, priorities, currentPhone) {
+      const keys = ['camera', 'battery', 'performance', 'display'];
+      const totalWeight = keys.reduce((s, k) => s + priorities[k], 0);
+      if (totalWeight === 0) return { raw: 0, adjusted: 0, penalty: 0, contributions: {} };
+
+      let raw = 0;
+      const contributions = {};
+      keys.forEach((k) => {
+        const c = (priorities[k] * phone.specs[k]) / totalWeight;
+        contributions[k] = c;
+        raw += c;
+      });
+
+      let penalty = 0;
+      if (currentPhone && currentPhone.id !== phone.id) {
+        if (currentPhone.ecosystem === phone.ecosystem) penalty = 0;
+        else if (currentPhone.ecosystemFamily === phone.ecosystemFamily) penalty = 5;
+        else penalty = 15;
+      }
+
+      return {
+        raw: Math.round(raw * 10) / 10,
+        adjusted: Math.round((raw - penalty) * 10) / 10,
+        penalty,
+        contributions,
+      };
+    }
+
+    function ecosystemDelta(currentPhone, candidate) {
+      // What does the user lose / gain if they switch?
+      if (!currentPhone || currentPhone.id === candidate.id) return { lost: [], gained: [] };
+      const cur = new Set(currentPhone.ecosystemFeatures);
+      const cand = new Set(candidate.ecosystemFeatures);
+      const lost = [...cur].filter((f) => !cand.has(f));
+      const gained = [...cand].filter((f) => !cur.has(f));
+      return { lost, gained };
+    }
+
+    function topPrioritiesForPhone(phone, priorities, contributions) {
+      // Rank the four dimensions by contribution and take the top two.
+      return Object.entries(contributions)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([k]) => k);
+    }
+
+    function verdictFor(currentScore, topScore) {
+      const diff = topScore - currentScore;
+      if (diff >= 8) return { label: 'Worth upgrading', tone: 'good',
+        text: `Top recommendation scores +${diff.toFixed(1)} vs your current phone — a meaningful jump on your priorities.` };
+      if (diff >= 3) return { label: 'Marginal upgrade', tone: 'meh',
+        text: `Only +${diff.toFixed(1)} over your current phone. Worth it if you\'ll keep it 3+ years, otherwise wait.` };
+      return { label: 'Wait a generation', tone: 'bad',
+        text: `Your current phone still scores within ${Math.abs(diff).toFixed(1)} of the top pick for your priorities. Save the money.` };
+    }
+
+    /* ---------------- Small UI primitives ---------------- */
+    const cx = (...xs) => xs.filter(Boolean).join(' ');
+
+    const StatBar = ({ value, max = 100, color = '#7c5cff', label, sub, showValue = true }) => {
+      const pct = Math.max(0, Math.min(100, (value / max) * 100));
+      return (
+        <div>
+          <div className="flex items-baseline justify-between text-xs mb-1">
+            <span className="text-slate-400">{label}</span>
+            {showValue && <span className="text-slate-200 font-medium">{sub ?? value}</span>}
+          </div>
+          <div className="h-2 rounded-full bg-ink-800 overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500"
+                 style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}80, ${color})` }} />
+          </div>
+        </div>
+      );
+    };
+
+    const Pill = ({ children, tone = 'default' }) => {
+      const tones = {
+        default: 'bg-ink-700 text-slate-300 ring-ink-600',
+        good:    'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30',
+        meh:     'bg-amber-500/15 text-amber-300 ring-amber-500/30',
+        bad:     'bg-rose-500/15 text-rose-300 ring-rose-500/30',
+        accent:  'bg-accent/15 text-accent-soft ring-accent/40',
+      };
+      return <span className={cx('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ring-1', tones[tone])}>{children}</span>;
+    };
+
+    const Card = ({ className = '', children, onClick }) => (
+      <div onClick={onClick}
+           className={cx('bg-ink-850 ring-1 ring-ink-700 rounded-2xl', onClick && 'cursor-pointer hover:ring-accent/50 transition', className)}>
+        {children}
+      </div>
+    );
+
+    const SectionTitle = ({ eyebrow, title, subtitle, icon: I }) => (
+      <div className="mb-6">
+        {eyebrow && <div className="text-[11px] uppercase tracking-widest text-accent-soft/80 mb-2 flex items-center gap-2">
+          {I && <I className="w-3.5 h-3.5" />}{eyebrow}
+        </div>}
+        <h2 className="text-2xl md:text-3xl font-bold text-slate-50">{title}</h2>
+        {subtitle && <p className="text-slate-400 mt-1 max-w-2xl">{subtitle}</p>}
+      </div>
+    );
+
+    /* ---------------- Phone card (used in Browse + Compare picker) ---------------- */
+    const PhoneCard = ({ phone, selected, onClick, disabled, showPrice = true }) => (
+      <Card className={cx('p-4 relative animate-fade-in', selected && 'ring-2 ring-accent', disabled && 'opacity-40 pointer-events-none')}
+            onClick={onClick}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-14 rounded-lg flex items-center justify-center shrink-0"
+               style={{ background: `${phone.accent}22`, border: `1px solid ${phone.accent}66` }}>
+            <Smartphone className="w-5 h-5" style={{ color: phone.accent }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs text-slate-400">{phone.brand}</div>
+            <div className="text-slate-100 font-semibold truncate">{phone.model}</div>
+            <div className="flex items-center gap-2 mt-1">
+              <Pill>{phone.tier}</Pill>
+              {showPrice && <span className="text-xs text-slate-400">${phone.price}</span>}
+            </div>
+          </div>
+          {selected && (
+            <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center shrink-0">
+              <Check className="w-3.5 h-3.5 text-ink-950" />
+            </div>
+          )}
+        </div>
+        <div className="mt-3">
+          <StatBar label="Sentiment" value={phone.sentimentScore} sub={`${phone.sentimentScore}%`} color={phone.accent} />
+        </div>
+      </Card>
+    );
+
+    /* ---------------- Browse view ---------------- */
+    const BrowseView = ({ shortlist, onToggle }) => {
+      const [query, setQuery] = useState('');
+      const [brand, setBrand] = useState('All');
+      const [tier, setTier] = useState('All');
+      const [sort, setSort] = useState('sentiment');
+
+      const brands = ['All', ...Array.from(new Set(PHONES.map(p => p.brand)))];
+      const tiers = ['All', ...Array.from(new Set(PHONES.map(p => p.tier)))];
+
+      const list = useMemo(() => {
+        let out = PHONES.filter(p =>
+          (brand === 'All' || p.brand === brand) &&
+          (tier === 'All' || p.tier === tier) &&
+          (query.trim() === '' || (p.brand + ' ' + p.model).toLowerCase().includes(query.toLowerCase()))
+        );
+        if (sort === 'sentiment') out = out.sort((a,b)=>b.sentimentScore-a.sentimentScore);
+        if (sort === 'price-asc') out = out.sort((a,b)=>a.price-b.price);
+        if (sort === 'price-desc') out = out.sort((a,b)=>b.price-a.price);
+        if (sort === 'year') out = out.sort((a,b)=>b.year-a.year);
+        return out;
+      }, [query, brand, tier, sort]);
+
+      return (
+        <div className="animate-fade-in">
+          <SectionTitle eyebrow="Catalog" icon={Layers}
+            title="Browse phones"
+            subtitle={`${PHONES.length} devices across ${brands.length-1} brands and every tier from 2023 to 2026. Tap a card to add it to your comparison shortlist.`} />
+
+          <Card className="p-3 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-2">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search brand or model..."
+                  className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-9 pr-3 py-2 text-sm text-slate-100 placeholder:text-slate-500" />
+              </div>
+              <Selector value={brand} onChange={setBrand} options={brands} label="Brand" />
+              <Selector value={tier} onChange={setTier} options={tiers} label="Tier" />
+              <Selector value={sort} onChange={setSort}
+                options={['sentiment','price-asc','price-desc','year']}
+                labels={{sentiment:'Top sentiment', 'price-asc':'Price ↑','price-desc':'Price ↓', year:'Newest'}}
+                label="Sort" />
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {list.map(p => (
+              <PhoneCard key={p.id} phone={p} selected={shortlist.includes(p.id)} onClick={() => onToggle(p.id)} />
+            ))}
+            {list.length === 0 && (
+              <div className="col-span-full text-center text-slate-500 py-12">No phones match your filters.</div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const Selector = ({ value, onChange, options, labels, label }) => (
+      <div className="relative">
+        <label className="absolute -top-2 left-2 px-1 text-[10px] uppercase tracking-wider text-slate-500 bg-ink-850">{label}</label>
+        <select value={value} onChange={e=>onChange(e.target.value)}
+                className="bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-3 pr-8 py-2 text-sm text-slate-100 appearance-none">
+          {options.map(o => <option key={o} value={o}>{labels?.[o] ?? o}</option>)}
+        </select>
+        <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+      </div>
+    );
+
+    /* ---------------- Compare view ---------------- */
+    const CompareView = ({ shortlist, setShortlist, onGoBrowse }) => {
+      const picked = shortlist.map(id => PHONES.find(p => p.id === id)).filter(Boolean);
+      const canAddMore = picked.length < 3;
+
+      if (picked.length < 2) {
+        return (
+          <div className="animate-fade-in">
+            <SectionTitle eyebrow="Compare" icon={Layers}
+              title="Side-by-side spec matrix"
+              subtitle="Pick 2 or 3 phones from the catalog to compare specs, sentiment, and pros/cons." />
+            <Card className="p-8 text-center">
+              <div className="text-slate-400 mb-4">You have {picked.length} phone{picked.length === 1 ? '' : 's'} selected. Add {2 - picked.length} more to start comparing.</div>
+              <button onClick={onGoBrowse}
+                className="inline-flex items-center gap-2 bg-accent hover:bg-accent-soft text-ink-950 font-semibold rounded-lg px-4 py-2 transition">
+                Browse phones <ArrowRight className="w-4 h-4" />
+              </button>
+            </Card>
+          </div>
+        );
+      }
+
+      const specRows = [
+        { key: 'sentimentScore', label: 'Sentiment', get: (p) => `${p.sentimentScore}%`, cmp: (a,b) => a.sentimentScore - b.sentimentScore, icon: Star },
+        { key: 'price', label: 'Price', get: (p) => `$${p.price}`, cmp: (a,b) => b.price - a.price, icon: DollarSign }, // lower price wins
+        { key: 'year', label: 'Released', get: (p) => p.year, cmp: (a,b) => a.year - b.year },
+        { key: 'chipset', label: 'Chipset', get: (p) => p.displayInfo.chipset, cmp: (a,b) => a.specs.performance - b.specs.performance, icon: Cpu },
+        { key: 'display', label: 'Display', get: (p) => `${p.displayInfo.display} · ${p.displayInfo.refreshRate}`, cmp: (a,b) => a.specs.display - b.specs.display, icon: Monitor },
+        { key: 'camera', label: 'Camera', get: (p) => p.displayInfo.cameraMP, cmp: (a,b) => a.specs.camera - b.specs.camera, icon: Camera },
+        { key: 'battery', label: 'Battery', get: (p) => p.displayInfo.batteryMah, cmp: (a,b) => a.specs.battery - b.specs.battery, icon: Battery },
+        { key: 'ram', label: 'RAM / Storage', get: (p) => `${p.displayInfo.ram} · ${p.displayInfo.storage}` },
+        { key: 'ecosystem', label: 'Ecosystem', get: (p) => p.ecosystem, icon: Package },
+      ];
+
+      return (
+        <div className="animate-fade-in">
+          <SectionTitle eyebrow="Compare" icon={Layers}
+            title="Side-by-side comparison"
+            subtitle="Green rows highlight the winner on each dimension." />
+
+          {/* Phone chips row */}
+          <div className={cx('grid gap-3 mb-6', picked.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
+            {picked.map(p => (
+              <Card key={p.id} className="p-4 relative">
+                <button onClick={() => setShortlist(shortlist.filter(id => id !== p.id))}
+                        className="absolute top-3 right-3 text-slate-500 hover:text-rose-400" title="Remove">
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-14 rounded-lg flex items-center justify-center shrink-0"
+                       style={{ background: `${p.accent}22`, border: `1px solid ${p.accent}66` }}>
+                    <Smartphone className="w-5 h-5" style={{ color: p.accent }} />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">{p.brand}</div>
+                    <div className="text-slate-100 font-semibold">{p.model}</div>
+                    <div className="text-xs text-slate-400">${p.price} · {p.year}</div>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  <StatBar label="Camera" value={p.specs.camera} color={p.accent} sub={p.specs.camera} />
+                  <StatBar label="Battery" value={p.specs.battery} color={p.accent} sub={p.specs.battery} />
+                  <StatBar label="Performance" value={p.specs.performance} color={p.accent} sub={p.specs.performance} />
+                  <StatBar label="Display" value={p.specs.display} color={p.accent} sub={p.specs.display} />
+                </div>
+              </Card>
+            ))}
+            {canAddMore && (
+              <Card className="p-4 border-2 border-dashed border-ink-700 flex items-center justify-center text-slate-500 hover:text-accent-soft hover:border-accent/50 cursor-pointer"
+                    onClick={onGoBrowse}>
+                <div className="text-center">
+                  <Plus className="w-6 h-6 mx-auto mb-1" />
+                  <div className="text-sm">Add another phone</div>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          {/* Spec matrix */}
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-ink-800/60 text-slate-400 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium">Spec</th>
+                    {picked.map(p => (
+                      <th key={p.id} className="text-left px-4 py-3 font-medium text-slate-200">{p.brand} {p.model}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {specRows.map((row, i) => {
+                    let winnerId = null;
+                    if (row.cmp) {
+                      const sorted = [...picked].sort(row.cmp);
+                      winnerId = sorted[sorted.length - 1].id;
+                    }
+                    const I = row.icon;
+                    return (
+                      <tr key={row.key} className={cx(i % 2 === 0 ? 'bg-ink-850' : 'bg-ink-900/60')}>
+                        <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-2">
+                            {I && <I className="w-4 h-4 text-slate-500" />}
+                            {row.label}
+                          </span>
+                        </td>
+                        {picked.map(p => (
+                          <td key={p.id}
+                              className={cx('px-4 py-3', winnerId === p.id && 'text-emerald-300 font-medium')}>
+                            <span className="inline-flex items-center gap-2">
+                              {row.get(p)}
+                              {winnerId === p.id && <Award className="w-3.5 h-3.5" />}
+                            </span>
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Pros/cons columns */}
+          <div className={cx('grid gap-3 mt-6', picked.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
+            {picked.map(p => (
+              <Card key={p.id} className="p-4">
+                <div className="text-slate-200 font-semibold mb-3">{p.brand} {p.model}</div>
+                <div className="mb-3">
+                  <div className="text-xs uppercase tracking-wider text-emerald-400/80 mb-2 flex items-center gap-1"><Check className="w-3 h-3" /> Pros</div>
+                  <ul className="space-y-1.5">
+                    {p.pros.map((s, i) => <li key={i} className="text-sm text-slate-300 flex gap-2"><span className="text-emerald-400 mt-0.5">+</span>{s}</li>)}
+                  </ul>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-rose-400/80 mb-2 flex items-center gap-1"><X className="w-3 h-3" /> Cons</div>
+                  <ul className="space-y-1.5">
+                    {p.cons.map((s, i) => <li key={i} className="text-sm text-slate-300 flex gap-2"><span className="text-rose-400 mt-0.5">−</span>{s}</li>)}
+                  </ul>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    /* ---------------- Advisor view ---------------- */
+    const PRIORITY_LABELS = { camera: 'Camera', battery: 'Battery life', performance: 'Performance', display: 'Display' };
+    const PRIORITY_ICONS = { camera: Camera, battery: Battery, performance: Cpu, display: Monitor };
+    const DEFAULT_PRIORITIES = { camera: 70, battery: 70, performance: 50, display: 50 };
+
+    const AdvisorView = () => {
+      const [currentId, setCurrentId] = useState('galaxy-s24');
+      const [budget, setBudget] = useState(1000);
+      const [priorities, setPriorities] = useState(DEFAULT_PRIORITIES);
+      const [submitted, setSubmitted] = useState(false);
+
+      const currentPhone = PHONES.find(p => p.id === currentId);
+
+      const results = useMemo(() => {
+        const currentScore = scorePhone(currentPhone, priorities, null);
+        // Score every phone within budget (or slightly above), exclude the current phone from ranking
+        const candidates = PHONES
+          .filter(p => p.id !== currentId && p.price <= budget)
+          .map(p => {
+            const s = scorePhone(p, priorities, currentPhone);
+            const eco = ecosystemDelta(currentPhone, p);
+            const topPri = topPrioritiesForPhone(p, priorities, s.contributions);
+            return { phone: p, score: s, eco, topPri };
+          })
+          .sort((a, b) => b.score.adjusted - a.score.adjusted)
+          .slice(0, 3);
+
+        const verdict = candidates.length
+          ? verdictFor(currentScore.raw, candidates[0].score.adjusted)
+          : { label: 'No matches', tone: 'meh', text: 'No phones fit your budget. Raise the budget or adjust priorities.' };
+
+        return { currentScore: currentScore.raw, candidates, verdict };
+      }, [currentId, budget, priorities, currentPhone]);
+
+      const resetForm = () => {
+        setPriorities(DEFAULT_PRIORITIES);
+        setBudget(1000);
+        setCurrentId('galaxy-s24');
+        setSubmitted(false);
+      };
+
+      return (
+        <div className="animate-fade-in">
+          <SectionTitle eyebrow="Switching advisor" icon={Sparkles}
+            title="Should you upgrade — or switch brands?"
+            subtitle="Tell us what you carry today, what you care about, and what you can spend. We'll weigh spec scores against your priorities, apply an ecosystem-friction penalty for cross-brand switches, and tell you if the upgrade is actually worth it." />
+
+          <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6">
+            {/* Form */}
+            <Card className="p-5 h-fit lg:sticky lg:top-4">
+              <div className="text-sm uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                <Info className="w-4 h-4" /> Your setup
+              </div>
+
+              <div className="mb-5">
+                <label className="text-xs text-slate-400 block mb-1.5">Current phone</label>
+                <div className="relative">
+                  <select value={currentId} onChange={e=>setCurrentId(e.target.value)}
+                          className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-3 pr-8 py-2 text-sm text-slate-100 appearance-none">
+                    {PHONES.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} ({p.year})</option>)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                {currentPhone && (
+                  <div className="mt-2 text-xs text-slate-500">
+                    Ecosystem: <span className="text-slate-300">{currentPhone.ecosystem}</span> · Score for your priorities: <span className="text-slate-300">{results.currentScore.toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-5">
+                <label className="text-xs text-slate-400 flex items-center justify-between mb-1.5">
+                  <span>Budget</span><span className="text-slate-200 font-medium">${budget}</span>
+                </label>
+                <input type="range" min="400" max="1600" step="50" value={budget}
+                       onChange={e=>setBudget(parseInt(e.target.value))} className="w-full" />
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1"><span>$400</span><span>$1,600</span></div>
+              </div>
+
+              <div className="mb-5">
+                <div className="text-xs text-slate-400 mb-2">Priorities</div>
+                <div className="space-y-3">
+                  {Object.entries(PRIORITY_LABELS).map(([k, label]) => {
+                    const I = PRIORITY_ICONS[k];
+                    return (
+                      <div key={k}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="inline-flex items-center gap-1.5 text-slate-300"><I className="w-3.5 h-3.5 text-slate-400" /> {label}</span>
+                          <span className="text-slate-200 font-medium">{priorities[k]}</span>
+                        </div>
+                        <input type="range" min="0" max="100" step="5" value={priorities[k]}
+                               onChange={e=>setPriorities({...priorities, [k]: parseInt(e.target.value)})} className="w-full" />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => setSubmitted(true)}
+                        className="flex-1 inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-soft text-ink-950 font-semibold rounded-lg px-4 py-2 transition">
+                  <Sparkles className="w-4 h-4" /> Get recommendations
+                </button>
+                <button onClick={resetForm}
+                        className="inline-flex items-center gap-2 bg-ink-800 hover:bg-ink-700 text-slate-300 rounded-lg px-3 py-2 text-sm transition"
+                        title="Reset form">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 text-[11px] text-slate-500 leading-relaxed">
+                Results update live as you tweak. Hitting the button just highlights the verdict banner.
+              </div>
+            </Card>
+
+            {/* Results */}
+            <div>
+              {/* Verdict banner */}
+              <Card className={cx('p-5 mb-5 border',
+                results.verdict.tone === 'good' && 'border-emerald-500/30 bg-emerald-500/5',
+                results.verdict.tone === 'meh'  && 'border-amber-500/30 bg-amber-500/5',
+                results.verdict.tone === 'bad'  && 'border-rose-500/30 bg-rose-500/5')}>
+                <div className="flex items-start gap-3">
+                  <div className={cx('w-9 h-9 rounded-full flex items-center justify-center shrink-0',
+                    results.verdict.tone === 'good' && 'bg-emerald-500/20 text-emerald-300',
+                    results.verdict.tone === 'meh'  && 'bg-amber-500/20 text-amber-300',
+                    results.verdict.tone === 'bad'  && 'bg-rose-500/20 text-rose-300')}>
+                    {results.verdict.tone === 'good' ? <TrendingUp className="w-5 h-5" /> :
+                     results.verdict.tone === 'meh'  ? <Info className="w-5 h-5" /> :
+                                                       <RefreshCw className="w-5 h-5" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs uppercase tracking-widest text-slate-400">Verdict</div>
+                    <div className="text-lg font-semibold text-slate-100">{results.verdict.label}</div>
+                    <div className="text-sm text-slate-300 mt-1">{results.verdict.text}</div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Recommendations */}
+              <div className="space-y-4">
+                {results.candidates.map(({ phone, score, eco, topPri }, idx) => (
+                  <Card key={phone.id} className={cx('p-5 animate-slide-up', idx === 0 && 'ring-2 ring-accent/50')}>
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-16 rounded-lg flex items-center justify-center shrink-0"
+                           style={{ background: `${phone.accent}22`, border: `1px solid ${phone.accent}66` }}>
+                        <Smartphone className="w-6 h-6" style={{ color: phone.accent }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-lg font-semibold text-slate-100">{phone.brand} {phone.model}</div>
+                              {idx === 0 && <Pill tone="accent"><Award className="w-3 h-3" /> Top pick</Pill>}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-0.5">${phone.price} · {phone.tier} · {phone.ecosystem}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-slate-400">Match score</div>
+                            <div className="text-2xl font-bold text-slate-100 leading-none">{score.adjusted.toFixed(1)}</div>
+                            {score.penalty > 0 && (
+                              <div className="text-[10px] text-amber-300 mt-1">raw {score.raw.toFixed(1)} − {score.penalty} eco friction</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <StatBar label="Match" value={score.adjusted} sub={`${score.adjusted.toFixed(1)}/100`} color={phone.accent} />
+                        </div>
+
+                        <div className="mt-3 text-sm text-slate-300">
+                          Best fit for your <span className="text-accent-soft">{topPri.map(k => PRIORITY_LABELS[k].toLowerCase()).join(' & ')}</span> priorities.
+                          {' '}Sentiment {phone.sentimentScore}%.
+                        </div>
+
+                        {(eco.lost.length > 0 || eco.gained.length > 0) && (
+                          <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                            {eco.lost.length > 0 && (
+                              <div className="text-xs">
+                                <div className="text-rose-400/80 uppercase tracking-wider mb-1">You'd lose</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {eco.lost.slice(0, 5).map(f => <Pill key={f} tone="bad">{f}</Pill>)}
+                                </div>
+                              </div>
+                            )}
+                            {eco.gained.length > 0 && (
+                              <div className="text-xs">
+                                <div className="text-emerald-400/80 uppercase tracking-wider mb-1">You'd gain</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {eco.gained.slice(0, 5).map(f => <Pill key={f} tone="good">{f}</Pill>)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {score.penalty >= 15 && (
+                          <div className="mt-3 text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 flex gap-2">
+                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <div>Cross-platform switch ({currentPhone.ecosystemFamily} → {phone.ecosystemFamily}). Expect a real learning curve and migration effort — messages, backups, and paid apps don't come with you.</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                {results.candidates.length === 0 && (
+                  <Card className="p-8 text-center text-slate-400">
+                    No phones fit under ${budget}. Try raising your budget.
+                  </Card>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    /* ---------------- App shell ---------------- */
+    const TABS = [
+      { id: 'browse',  label: 'Browse',  icon: Layers },
+      { id: 'compare', label: 'Compare', icon: Package },
+      { id: 'advisor', label: 'Advisor', icon: Sparkles },
+    ];
+
+    const App = () => {
+      const [tab, setTab] = useState('browse');
+      const [shortlist, setShortlist] = useState(['iphone-17-pro-max', 'galaxy-s26-ultra']);
+
+      const toggleShortlist = (id) => {
+        setShortlist(prev => {
+          if (prev.includes(id)) return prev.filter(x => x !== id);
+          if (prev.length >= 3) return [...prev.slice(1), id];
+          return [...prev, id];
+        });
+      };
+
+      return (
+        <div className="min-h-screen bg-ink-950">
+          {/* Ambient gradient */}
+          <div className="pointer-events-none fixed inset-0 overflow-hidden opacity-60">
+            <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(124,92,255,0.25), transparent 70%)' }} />
+            <div className="absolute top-1/3 -right-40 w-[500px] h-[500px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(94,234,212,0.15), transparent 70%)' }} />
+          </div>
+
+          <header className="relative border-b border-ink-800 bg-ink-950/70 backdrop-blur-md sticky top-0 z-20">
+            <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-teal-400 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-ink-950" />
+                </div>
+                <div>
+                  <div className="text-slate-100 font-semibold leading-tight">SwitchWise</div>
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 leading-tight">Phone advisor</div>
+                </div>
+              </div>
+
+              <nav className="ml-4 flex bg-ink-900 rounded-lg p-1 ring-1 ring-ink-800">
+                {TABS.map(({ id, label, icon: I }) => (
+                  <button key={id} onClick={() => setTab(id)}
+                          className={cx('px-3 py-1.5 text-sm rounded-md inline-flex items-center gap-1.5 transition',
+                            tab === id ? 'bg-ink-700 text-slate-100' : 'text-slate-400 hover:text-slate-200')}>
+                    <I className="w-4 h-4" /> {label}
+                    {id === 'compare' && shortlist.length > 0 && (
+                      <span className="ml-1 text-[10px] bg-accent text-ink-950 rounded-full px-1.5 leading-4 font-semibold">{shortlist.length}</span>
+                    )}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="ml-auto hidden md:flex items-center gap-2 text-xs text-slate-500">
+                <Star className="w-3.5 h-3.5" /> {PHONES.length} phones · updated for 2026
+              </div>
+            </div>
+          </header>
+
+          <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-8">
+            {tab === 'browse' &&
+              <BrowseView shortlist={shortlist} onToggle={toggleShortlist} />}
+            {tab === 'compare' &&
+              <CompareView shortlist={shortlist} setShortlist={setShortlist} onGoBrowse={() => setTab('browse')} />}
+            {tab === 'advisor' &&
+              <AdvisorView />}
+          </main>
+
+          <footer className="relative border-t border-ink-800 mt-16">
+            <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
+              <div>SwitchWise · mock data for demo, prices and specs are illustrative.</div>
+              <div className="flex items-center gap-3">
+                <span>Algorithm: weighted priority × ecosystem penalty</span>
+              </div>
+            </div>
+          </footer>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script>
+    // Manual Babel transform so we can pin runtime: 'classic' (the automatic
+    // runtime emits `import` statements that fail silently in a non-module script).
+    (function () {
+      var src = document.getElementById('app-source').textContent;
+      try {
+        var out = Babel.transform(src, {
+          presets: [['react', { runtime: 'classic' }]]
+        });
+        (0, eval)(out.code);
+      } catch (e) {
+        console.error('App bootstrap failed:', e);
+        document.getElementById('root').innerHTML =
+          '<pre style="color:#f87171;padding:16px;white-space:pre-wrap;">' +
+          String(e && e.stack || e) + '</pre>';
+      }
+    })();
+  </script>
+</body>
+</html>
