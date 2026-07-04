@@ -1,6 +1,6 @@
-# SwitchWise
+# LazyComparo
 
-**Smart phone comparison and switching advisor — weighs your priorities, budget, and ecosystem trade-offs to tell you whether to upgrade or switch brands.**
+**Smart phone comparison and switching advisor — we do the boring comparison work for you. Weighs your priorities, budget, and ecosystem trade-offs to tell you whether to upgrade or switch brands.**
 
 A dark-themed React web app for comparing 2025/26 flagships side-by-side, aggregating pros/cons and sentiment scores, and running a personalized "should I upgrade?" analysis that accounts for the real friction of leaving an ecosystem (iMessage, DeX, AirDrop, Samsung Cloud, etc.).
 
