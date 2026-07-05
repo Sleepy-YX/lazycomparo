@@ -1,20 +1,30 @@
 # LazyComparo
 
-**Smart phone comparison and switching advisor — we do the boring comparison work for you. Weighs your priorities, budget, and ecosystem trade-offs to tell you whether to upgrade or switch brands.**
+**"Lazy" comparison and buying advisors — we do the boring comparison work for you.** LazyComparo is a family of dark-themed React web apps, each weighing your priorities, budget, and trade-offs to tell you what's actually worth buying (or upgrading to) in a given category.
 
-A dark-themed React web app for comparing 2025/26 flagships side-by-side, aggregating pros/cons and sentiment scores, and running a personalized "should I upgrade?" analysis that accounts for the real friction of leaving an ecosystem (iMessage, DeX, AirDrop, Samsung Cloud, etc.).
+Two products live in this repo today:
 
-Currently a single-file demo. Roadmap: expand catalog, migrate to Next.js + Supabase, layer on a used-phone marketplace (Mister-Mobile-meets-Carousell shape).
+- **[mobile/](mobile/)** — smartphone comparison and switching advisor. Weighs priorities, budget, and ecosystem trade-offs (iMessage, DeX, AirDrop, Samsung Cloud, etc.) to tell you whether to upgrade or switch brands.
+- **[games/](games/)** — [PcGames.LazyComparo](https://pcgames.lazycomparo.com/), a Steam game comparison and value advisor. Compares games on price, rating, hours-to-beat, and co-op support to help you decide what's worth buying on sale.
+
+Currently both are single-file demos. Roadmap: expand catalogs, migrate to Next.js + Supabase, and (for mobile) layer on a used-phone marketplace (Mister-Mobile-meets-Carousell shape).
 
 ---
 
 ## Features
 
+### mobile — phone comparison & switching advisor
+
 - **Browse** — 14 phones across 6 brands (Apple, Samsung, Google, Xiaomi, OnePlus, Nothing) with filters, search, and multi-sort.
 - **Compare** — side-by-side spec matrix for 2–3 phones with per-row winner highlighting, sentiment bars, and pros/cons columns.
 - **Switching Advisor** — pick your current phone, set your budget and priority sliders (camera / battery / performance / display), and get ranked recommendations with an ecosystem-friction penalty applied for cross-brand and cross-platform switches. Includes a verdict banner (*Worth upgrading* / *Marginal* / *Wait a generation*).
 
-## Advisor algorithm
+### games — Steam game comparison & value advisor
+
+- **Browse & compare** — Steam co-op/single-player games side-by-side on price, Steam rating, hours-to-beat, player count, and platform.
+- **Value-focused** — built for the "what's actually worth buying on sale" question, with pros/cons per title (bugs, grind, playerbase size, etc.).
+
+## Advisor algorithm (mobile)
 
 ```
 For each candidate phone within budget:
@@ -34,19 +44,20 @@ Each recommendation surfaces: the two priorities the phone matches best, the eco
 
 ## Run it locally
 
-No build step. Just a single HTML file with React 18, Tailwind, and Babel loaded via CDN.
+No build step. Each product is a single HTML file with React 18, Tailwind, and Babel loaded via CDN.
 
 **Option A — open the file directly**
 
-Double-click `mobile/index.html`. Everything works offline as long as the CDNs load.
+Double-click `mobile/index.html` or `games/index.html`. Everything works offline as long as the CDNs load.
 
 **Option B — serve it (recommended, matches deployed behavior)**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .claude\serve.ps1 5173 mobile
+powershell -ExecutionPolicy Bypass -File .claude\serve.ps1 5174 games
 ```
 
-Then visit `http://127.0.0.1:5173`.
+Then visit `http://127.0.0.1:5173` (mobile) or `http://127.0.0.1:5174` (games).
 
 The included `.claude/serve.ps1` is a tiny static server built on `System.Net.HttpListener` — no Node or Python required.
 
