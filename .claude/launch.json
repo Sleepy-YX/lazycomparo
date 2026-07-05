@@ -12,6 +12,18 @@
         "."
       ],
       "port": 5173
+    },
+    {
+      "name": "pcgames-advisor",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", ".claude\\serve.ps1",
+        "5174",
+        "."
+      ],
+      "port": 5174
     }
   ]
 }
