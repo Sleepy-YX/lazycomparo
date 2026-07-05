@@ -107,7 +107,7 @@
     // Each phone: normalized 0-100 spec scores drive the algorithm.
     // displayInfo holds human-readable values for the comparison matrix.
     const PHONES = [
-      { id: 'iphone-15', brand: 'Apple', model: 'iPhone 15', tier: 'flagship', year: 2023, price: 599,
+      { id: 'iphone-15', brand: 'Apple', model: 'iPhone 15', tier: 'flagship', year: 2023, price: 799,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 82, battery: 78, performance: 88, display: 87, build: 92 },
         displayInfo: { cameraMP: '48MP main + 12MP ultra', batteryMah: '3,349 mAh', chipset: 'A16 Bionic',
@@ -117,7 +117,7 @@
         pros: ['Great cameras for the price', 'USB-C finally', 'Long software support (~6 years)'],
         cons: ['Still 60Hz display', 'Only 6GB RAM', 'Slower charging than rivals'] },
 
-      { id: 'iphone-16', brand: 'Apple', model: 'iPhone 16', tier: 'flagship', year: 2024, price: 799,
+      { id: 'iphone-16', brand: 'Apple', model: 'iPhone 16', tier: 'flagship', year: 2024, price: 1079,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 86, battery: 82, performance: 91, display: 88, build: 92 },
         displayInfo: { cameraMP: '48MP main + 12MP ultra', batteryMah: '3,561 mAh', chipset: 'A18',
@@ -127,7 +127,7 @@
         pros: ['Apple Intelligence support', 'Camera Control button is genuinely useful', 'Improved battery life'],
         cons: ['Still 60Hz base display', 'Incremental over iPhone 15', 'Pricing crept up worldwide'] },
 
-      { id: 'iphone-17', brand: 'Apple', model: 'iPhone 17', tier: 'flagship', year: 2025, price: 899,
+      { id: 'iphone-17', brand: 'Apple', model: 'iPhone 17', tier: 'flagship', year: 2025, price: 1299,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 90, battery: 85, performance: 95, display: 92, build: 93 },
         displayInfo: { cameraMP: '48MP fusion + 12MP ultra', batteryMah: '3,750 mAh', chipset: 'A19',
@@ -137,7 +137,7 @@
         pros: ['ProMotion 120Hz on base model at last', 'Best-in-class SoC efficiency', 'Meaningful battery improvement'],
         cons: ['Camera hardware unchanged from Pro-lite spec', 'Still no telephoto', 'Base storage should be 256GB at this price'] },
 
-      { id: 'iphone-17-pro-max', brand: 'Apple', model: 'iPhone 17 Pro Max', tier: 'flagship-plus', year: 2025, price: 1299,
+      { id: 'iphone-17-pro-max', brand: 'Apple', model: 'iPhone 17 Pro Max', tier: 'flagship-plus', year: 2025, price: 1749,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 96, battery: 92, performance: 98, display: 96, build: 95 },
         displayInfo: { cameraMP: '48MP + 48MP ultra + 5x tetraprism', batteryMah: '4,850 mAh', chipset: 'A19 Pro',
@@ -147,7 +147,7 @@
         pros: ['Best-in-class video recording', 'Titanium frame, thinnest bezel yet', 'All-day battery even for power users'],
         cons: ['Very expensive', 'Heavy at 227g', 'Charging speed still trails Chinese flagships'] },
 
-      { id: 'iphone-se-3', brand: 'Apple', model: 'iPhone SE (3rd gen)', tier: 'budget', year: 2022, price: 349,
+      { id: 'iphone-se-3', brand: 'Apple', model: 'iPhone SE (3rd gen)', tier: 'budget', year: 2022, price: 469,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 62, battery: 58, performance: 80, display: 58, build: 78 },
         displayInfo: { cameraMP: '12MP main only', batteryMah: '2,018 mAh', chipset: 'A15 Bionic',
@@ -157,7 +157,7 @@
         pros: ['Cheapest iPhone with modern silicon', 'Touch ID for glove/mask use', 'Compact 4.7" size still has fans'],
         cons: ['Dated 2017 design and bezels', 'Tiny 2,018 mAh battery', 'Single-lens camera, no Night mode'] },
 
-      { id: 'iphone-13', brand: 'Apple', model: 'iPhone 13', tier: 'flagship', year: 2021, price: 449,
+      { id: 'iphone-13', brand: 'Apple', model: 'iPhone 13', tier: 'flagship', year: 2021, price: 599,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 74, battery: 76, performance: 78, display: 78, build: 88 },
         displayInfo: { cameraMP: '12MP main + 12MP ultra', batteryMah: '3,240 mAh', chipset: 'A15 Bionic',
@@ -167,7 +167,7 @@
         pros: ['Best used/refurb value in the iPhone lineup', 'Still gets iOS updates through ~2027', 'Solid battery life vs iPhone 12'],
         cons: ['60Hz display feels dated', 'Lightning port only', 'No Apple Intelligence support'] },
 
-      { id: 'iphone-14', brand: 'Apple', model: 'iPhone 14', tier: 'flagship', year: 2022, price: 529,
+      { id: 'iphone-14', brand: 'Apple', model: 'iPhone 14', tier: 'flagship', year: 2022, price: 709,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 78, battery: 78, performance: 82, display: 80, build: 90 },
         displayInfo: { cameraMP: '12MP main + 12MP ultra', batteryMah: '3,279 mAh', chipset: 'A15 Bionic',
@@ -177,7 +177,7 @@
         pros: ['Emergency SOS via satellite (US/CA)', 'Larger battery than iPhone 13', 'Great secondhand pick'],
         cons: ['Still 60Hz and Lightning', 'Barely changed from iPhone 13', 'No Apple Intelligence'] },
 
-      { id: 'iphone-15-pro-max', brand: 'Apple', model: 'iPhone 15 Pro Max', tier: 'flagship-plus', year: 2023, price: 999,
+      { id: 'iphone-15-pro-max', brand: 'Apple', model: 'iPhone 15 Pro Max', tier: 'flagship-plus', year: 2023, price: 1349,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 92, battery: 88, performance: 94, display: 94, build: 94 },
         displayInfo: { cameraMP: '48MP main + 12MP ultra + 12MP 5x tetraprism', batteryMah: '4,422 mAh', chipset: 'A17 Pro',
@@ -187,7 +187,7 @@
         pros: ['Titanium frame — noticeably lighter than 14 Pro Max', 'First tetraprism 5x on iPhone', 'A17 Pro is still class-leading'],
         cons: ['USB-C is only USB 2 without pro cable', 'Action Button is niche', 'Runs warm under sustained load'] },
 
-      { id: 'iphone-16-plus', brand: 'Apple', model: 'iPhone 16 Plus', tier: 'flagship', year: 2024, price: 849,
+      { id: 'iphone-16-plus', brand: 'Apple', model: 'iPhone 16 Plus', tier: 'flagship', year: 2024, price: 1149,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 86, battery: 90, performance: 91, display: 90, build: 92 },
         displayInfo: { cameraMP: '48MP main + 12MP ultra', batteryMah: '4,674 mAh', chipset: 'A18',
@@ -197,7 +197,7 @@
         pros: ['Biggest battery of the non-Pro iPhones', 'Big screen without Pro Max price', 'Camera Control button'],
         cons: ['Still 60Hz — hurts at this screen size', 'No telephoto lens', '128GB base is stingy for 6.7"'] },
 
-      { id: 'iphone-16-pro', brand: 'Apple', model: 'iPhone 16 Pro', tier: 'flagship-plus', year: 2024, price: 949,
+      { id: 'iphone-16-pro', brand: 'Apple', model: 'iPhone 16 Pro', tier: 'flagship-plus', year: 2024, price: 1279,
         ecosystem: 'iOS', ecosystemFamily: 'iOS', accent: '#8ecfff',
         specs: { camera: 93, battery: 86, performance: 95, display: 94, build: 94 },
         displayInfo: { cameraMP: '48MP main + 48MP ultra + 12MP 5x tetraprism', batteryMah: '3,582 mAh', chipset: 'A18 Pro',
@@ -207,7 +207,7 @@
         pros: ['5x tetraprism trickled down to the smaller Pro', '48MP ultrawide is a real upgrade', 'A18 Pro is still very fast'],
         cons: ['Titanium finish scratches easily', 'Battery smaller than Pro Max', 'Apple Intelligence rollout was slow'] },
 
-      { id: 'galaxy-s24', brand: 'Samsung', model: 'Galaxy S24', tier: 'flagship', year: 2024, price: 599,
+      { id: 'galaxy-s24', brand: 'Samsung', model: 'Galaxy S24', tier: 'flagship', year: 2024, price: 799,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 84, battery: 79, performance: 89, display: 91, build: 89 },
         displayInfo: { cameraMP: '50MP main + 12MP ultra + 10MP 3x', batteryMah: '4,000 mAh', chipset: 'Snapdragon 8 Gen 3',
@@ -217,7 +217,7 @@
         pros: ['Galaxy AI features shipped early', 'Compact flagship form-factor', '7 years of updates'],
         cons: ['Battery capacity is smallest in flagship tier', 'One UI can feel cluttered', 'Charging is only 25W'] },
 
-      { id: 'galaxy-s25', brand: 'Samsung', model: 'Galaxy S25', tier: 'flagship', year: 2025, price: 849,
+      { id: 'galaxy-s25', brand: 'Samsung', model: 'Galaxy S25', tier: 'flagship', year: 2025, price: 1149,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 88, battery: 83, performance: 93, display: 93, build: 90 },
         displayInfo: { cameraMP: '50MP main + 12MP ultra + 10MP 3x', batteryMah: '4,000 mAh', chipset: 'Snapdragon 8 Elite',
@@ -227,7 +227,17 @@
         pros: ['Snapdragon 8 Elite is a huge perf jump', '12GB RAM base', 'Refined Galaxy AI'],
         cons: ['Same 4,000 mAh battery as S24', 'Barely-changed camera hardware', 'No major design refresh'] },
 
-      { id: 'galaxy-s26-ultra', brand: 'Samsung', model: 'Galaxy S26 Ultra', tier: 'flagship-plus', year: 2026, price: 1399,
+      { id: 'galaxy-s26', brand: 'Samsung', model: 'Galaxy S26', tier: 'flagship', year: 2026, price: 1438,
+        ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
+        specs: { camera: 89, battery: 86, performance: 95, display: 94, build: 91 },
+        displayInfo: { cameraMP: '50MP main + 12MP ultra + 10MP 3x', batteryMah: '4,300 mAh', chipset: 'Snapdragon 8 Elite Gen 2',
+          display: '6.3" QHD+ AMOLED', refreshRate: '120Hz', ram: '12GB', storage: '256/512GB' },
+        ecosystemFeatures: ['Samsung DeX', 'Samsung Cloud', 'Galaxy AI 3', 'Good Lock', 'SmartThings'],
+        sentimentScore: 88,
+        pros: ['Bigger 4,300 mAh battery at last', 'Same Snapdragon 8 Elite Gen 2 as the Ultra', '7 years of updates'],
+        cons: ['S$1,438 launch price is a big jump over S25', 'Camera hardware barely moved', 'Charging still 25W'] },
+
+      { id: 'galaxy-s26-ultra', brand: 'Samsung', model: 'Galaxy S26 Ultra', tier: 'flagship-plus', year: 2026, price: 1828,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 97, battery: 90, performance: 96, display: 97, build: 94 },
         displayInfo: { cameraMP: '200MP main + 50MP 5x periscope + 12MP ultra', batteryMah: '5,200 mAh', chipset: 'Snapdragon 8 Elite Gen 2',
@@ -237,7 +247,7 @@
         pros: ['Class-leading 200MP camera system', 'S Pen productivity is unmatched', 'Beefy 5,200 mAh battery'],
         cons: ['Very expensive', '218g is heavy', 'Charging still only 45W in 2026'] },
 
-      { id: 'galaxy-s22', brand: 'Samsung', model: 'Galaxy S22', tier: 'flagship', year: 2022, price: 379,
+      { id: 'galaxy-s22', brand: 'Samsung', model: 'Galaxy S22', tier: 'flagship', year: 2022, price: 509,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 76, battery: 66, performance: 78, display: 84, build: 84 },
         displayInfo: { cameraMP: '50MP main + 12MP ultra + 10MP 3x', batteryMah: '3,700 mAh', chipset: 'Snapdragon 8 Gen 1',
@@ -247,7 +257,7 @@
         pros: ['Compact 6.1" flagship footprint', 'Still on 4-year One UI updates', 'Great used-market value'],
         cons: ['SD 8 Gen 1 runs hot and hurts battery', 'Small 3,700 mAh battery', 'No Galaxy AI support'] },
 
-      { id: 'galaxy-s23', brand: 'Samsung', model: 'Galaxy S23', tier: 'flagship', year: 2023, price: 499,
+      { id: 'galaxy-s23', brand: 'Samsung', model: 'Galaxy S23', tier: 'flagship', year: 2023, price: 669,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 82, battery: 76, performance: 86, display: 88, build: 88 },
         displayInfo: { cameraMP: '50MP main + 12MP ultra + 10MP 3x', batteryMah: '3,900 mAh', chipset: 'Snapdragon 8 Gen 2 for Galaxy',
@@ -257,7 +267,7 @@
         pros: ['SD 8 Gen 2 for Galaxy is cool and efficient', 'Small-flagship king of 2023', 'Received Galaxy AI in later updates'],
         cons: ['Battery still on the small side', 'Base 128GB storage', 'Design barely changed from S22'] },
 
-      { id: 'galaxy-s23-ultra', brand: 'Samsung', model: 'Galaxy S23 Ultra', tier: 'flagship-plus', year: 2023, price: 799,
+      { id: 'galaxy-s23-ultra', brand: 'Samsung', model: 'Galaxy S23 Ultra', tier: 'flagship-plus', year: 2023, price: 1079,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 93, battery: 86, performance: 88, display: 94, build: 91 },
         displayInfo: { cameraMP: '200MP main + 12MP ultra + 10MP 3x + 10MP 10x periscope', batteryMah: '5,000 mAh', chipset: 'Snapdragon 8 Gen 2 for Galaxy',
@@ -267,7 +277,7 @@
         pros: ['200MP main sensor debuted here', 'True 10x optical periscope is still rare', 'S Pen inside — productivity edge intact'],
         cons: ['Heavy at 234g', 'Boxy design is polarising', 'Charging still only 45W'] },
 
-      { id: 'galaxy-a35', brand: 'Samsung', model: 'Galaxy A35 5G', tier: 'mid-range', year: 2024, price: 279,
+      { id: 'galaxy-a35', brand: 'Samsung', model: 'Galaxy A35 5G', tier: 'mid-range', year: 2024, price: 379,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 62, battery: 78, performance: 58, display: 72, build: 74 },
         displayInfo: { cameraMP: '50MP main + 8MP ultra + 5MP macro', batteryMah: '5,000 mAh', chipset: 'Exynos 1380',
@@ -277,7 +287,7 @@
         pros: ['Super AMOLED 120Hz at this price', 'Solid 5,000 mAh all-day battery', '4 major OS updates promised'],
         cons: ['Exynos 1380 is only okay for the price', 'Ultrawide + macro cameras are weak', 'Slow 25W charging'] },
 
-      { id: 'galaxy-a55', brand: 'Samsung', model: 'Galaxy A55 5G', tier: 'mid-range', year: 2024, price: 379,
+      { id: 'galaxy-a55', brand: 'Samsung', model: 'Galaxy A55 5G', tier: 'mid-range', year: 2024, price: 509,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 70, battery: 80, performance: 66, display: 78, build: 78 },
         displayInfo: { cameraMP: '50MP OIS main + 12MP ultra + 5MP macro', batteryMah: '5,000 mAh', chipset: 'Exynos 1480',
@@ -287,7 +297,7 @@
         pros: ['Feels premium — metal frame, Gorilla Glass Victus+', 'Sharp Super AMOLED with 120Hz', 'Best-in-class 4 OS updates for mid-range'],
         cons: ['Perf trails Chinese mid-rangers at the same price', 'Camera is fine, not great', '25W charging is slow in 2024'] },
 
-      { id: 'galaxy-s25-ultra', brand: 'Samsung', model: 'Galaxy S25 Ultra', tier: 'flagship-plus', year: 2025, price: 1199,
+      { id: 'galaxy-s25-ultra', brand: 'Samsung', model: 'Galaxy S25 Ultra', tier: 'flagship-plus', year: 2025, price: 1619,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 95, battery: 89, performance: 95, display: 96, build: 93 },
         displayInfo: { cameraMP: '200MP main + 50MP 5x periscope + 50MP ultra + 10MP 3x', batteryMah: '5,000 mAh', chipset: 'Snapdragon 8 Elite for Galaxy',
@@ -297,7 +307,7 @@
         pros: ['Rounded corners at last, still 6.9" screen', 'Ultrawide bumped to 50MP', 'SD 8 Elite for Galaxy is a big perf jump'],
         cons: ['S Pen lost Bluetooth remote features', 'Same 5,000 mAh battery as S23 Ultra', 'Still 45W charging'] },
 
-      { id: 'galaxy-a56', brand: 'Samsung', model: 'Galaxy A56 5G', tier: 'mid-range', year: 2025, price: 429,
+      { id: 'galaxy-a56', brand: 'Samsung', model: 'Galaxy A56 5G', tier: 'mid-range', year: 2025, price: 579,
         ecosystem: 'Samsung', ecosystemFamily: 'Android', accent: '#5eead4',
         specs: { camera: 74, battery: 82, performance: 72, display: 82, build: 80 },
         displayInfo: { cameraMP: '50MP OIS main + 12MP ultra + 5MP macro', batteryMah: '5,000 mAh', chipset: 'Exynos 1580',
@@ -307,7 +317,7 @@
         pros: ['45W charging on a mid-ranger', 'Galaxy AI features trickled down', 'Thinner and lighter than A55'],
         cons: ['Exynos 1580 still trails equivalent Snapdragon', 'Ultrawide is still just 12MP', 'Selfie camera underwhelms'] },
 
-      { id: 'pixel-9', brand: 'Google', model: 'Pixel 9', tier: 'flagship', year: 2024, price: 649,
+      { id: 'pixel-9', brand: 'Google', model: 'Pixel 9', tier: 'flagship', year: 2024, price: 879,
         ecosystem: 'Pixel', ecosystemFamily: 'Android', accent: '#fbbf77',
         specs: { camera: 92, battery: 80, performance: 84, display: 88, build: 86 },
         displayInfo: { cameraMP: '50MP main + 48MP ultra', batteryMah: '4,700 mAh', chipset: 'Tensor G4',
@@ -317,7 +327,7 @@
         pros: ['Best-in-class computational photography', 'Cleanest Android experience', 'Fastest update commitments (7 years)'],
         cons: ['Tensor G4 lags Snapdragon in raw perf & thermals', 'No telephoto on base model', 'Battery only average for size'] },
 
-      { id: 'pixel-10-pro', brand: 'Google', model: 'Pixel 10 Pro', tier: 'flagship', year: 2025, price: 999,
+      { id: 'pixel-10-pro', brand: 'Google', model: 'Pixel 10 Pro', tier: 'flagship', year: 2025, price: 1349,
         ecosystem: 'Pixel', ecosystemFamily: 'Android', accent: '#fbbf77',
         specs: { camera: 96, battery: 84, performance: 90, display: 92, build: 88 },
         displayInfo: { cameraMP: '50MP main + 48MP 5x + 48MP ultra', batteryMah: '5,100 mAh', chipset: 'Tensor G5',
@@ -327,7 +337,7 @@
         pros: ['Camera system is genuinely the best if you like Google\'s look', 'Tensor G5 finally competitive on perf', '5,100 mAh battery is a big upgrade'],
         cons: ['Still runs hotter than Snapdragon rivals', 'Charging tops out at 30W', 'Availability limited in some regions'] },
 
-      { id: 'xiaomi-14', brand: 'Xiaomi', model: 'Xiaomi 14', tier: 'flagship', year: 2024, price: 749,
+      { id: 'xiaomi-14', brand: 'Xiaomi', model: 'Xiaomi 14', tier: 'flagship', year: 2024, price: 999,
         ecosystem: 'Xiaomi', ecosystemFamily: 'Android', accent: '#ff9a76',
         specs: { camera: 89, battery: 86, performance: 92, display: 90, build: 87 },
         displayInfo: { cameraMP: '50MP Leica main + 50MP 3x + 50MP ultra', batteryMah: '4,610 mAh', chipset: 'Snapdragon 8 Gen 3',
@@ -337,7 +347,7 @@
         pros: ['Leica camera tuning is superb', '90W charging is class-leading', 'Great value in Asia/Europe'],
         cons: ['MIUI/HyperOS has learning curve', 'Bloatware in some regions', 'Limited US availability'] },
 
-      { id: 'xiaomi-15-ultra', brand: 'Xiaomi', model: 'Xiaomi 15 Ultra', tier: 'flagship-plus', year: 2025, price: 1199,
+      { id: 'xiaomi-15-ultra', brand: 'Xiaomi', model: 'Xiaomi 15 Ultra', tier: 'flagship-plus', year: 2025, price: 1619,
         ecosystem: 'Xiaomi', ecosystemFamily: 'Android', accent: '#ff9a76',
         specs: { camera: 95, battery: 91, performance: 95, display: 94, build: 90 },
         displayInfo: { cameraMP: '50MP Leica + 200MP periscope + 50MP 3x + 50MP ultra', batteryMah: '5,410 mAh', chipset: 'Snapdragon 8 Elite',
@@ -347,7 +357,7 @@
         pros: ['Best zoom camera on the market', '90W wired + 80W wireless charging', 'Massive 5,410 mAh battery'],
         cons: ['Very expensive', 'Camera bump is enormous', 'US carrier support is essentially nil'] },
 
-      { id: 'oneplus-12', brand: 'OnePlus', model: 'OnePlus 12', tier: 'flagship', year: 2024, price: 649,
+      { id: 'oneplus-12', brand: 'OnePlus', model: 'OnePlus 12', tier: 'flagship', year: 2024, price: 879,
         ecosystem: 'OnePlus', ecosystemFamily: 'Android', accent: '#f97a7a',
         specs: { camera: 82, battery: 90, performance: 94, display: 92, build: 87 },
         displayInfo: { cameraMP: '50MP Hasselblad + 64MP 3x + 48MP ultra', batteryMah: '5,400 mAh', chipset: 'Snapdragon 8 Gen 3',
@@ -357,7 +367,7 @@
         pros: ['100W SUPERVOOC full charge in around 26 min', 'Massive battery, still svelte', 'Snappy OxygenOS is well-loved'],
         cons: ['Camera trails Samsung/Google in low light', 'Only 4 major OS updates', 'Software update cadence has slipped'] },
 
-      { id: 'oneplus-13', brand: 'OnePlus', model: 'OnePlus 13', tier: 'flagship', year: 2025, price: 899,
+      { id: 'oneplus-13', brand: 'OnePlus', model: 'OnePlus 13', tier: 'flagship', year: 2025, price: 1099,
         ecosystem: 'OnePlus', ecosystemFamily: 'Android', accent: '#f97a7a',
         specs: { camera: 86, battery: 92, performance: 96, display: 93, build: 88 },
         displayInfo: { cameraMP: '50MP Hasselblad + 50MP 3x + 50MP ultra', batteryMah: '6,000 mAh', chipset: 'Snapdragon 8 Elite',
@@ -367,7 +377,7 @@
         pros: ['6,000 mAh silicon-carbon battery, still thin', '100W wired + 50W wireless', 'Best-in-class perf per dollar'],
         cons: ['Cameras improved but not top-3', 'Update policy still not Samsung-tier', 'AI features feel bolted on'] },
 
-      { id: 'oppo-a79-5g', brand: 'Oppo', model: 'Oppo A79 5G', tier: 'budget', year: 2024, price: 229,
+      { id: 'oppo-a79-5g', brand: 'Oppo', model: 'Oppo A79 5G', tier: 'budget', year: 2024, price: 309,
         ecosystem: 'Oppo', ecosystemFamily: 'Android', accent: '#4ade80',
         specs: { camera: 54, battery: 74, performance: 56, display: 62, build: 68 },
         displayInfo: { cameraMP: '50MP main + 2MP depth', batteryMah: '5,000 mAh', chipset: 'MediaTek Dimensity 6020',
@@ -377,7 +387,7 @@
         pros: ['33W charging is fast for a budget phone', 'Big 6.72" screen for content', 'Reliable ColorOS experience'],
         cons: ['LCD panel is dim and colours look flat', 'Dimensity 6020 is entry-level', 'Only 2 OS updates promised'] },
 
-      { id: 'oppo-reno-12-pro', brand: 'Oppo', model: 'Oppo Reno 12 Pro', tier: 'mid-range', year: 2024, price: 549,
+      { id: 'oppo-reno-12-pro', brand: 'Oppo', model: 'Oppo Reno 12 Pro', tier: 'mid-range', year: 2024, price: 739,
         ecosystem: 'Oppo', ecosystemFamily: 'Android', accent: '#4ade80',
         specs: { camera: 76, battery: 80, performance: 76, display: 82, build: 80 },
         displayInfo: { cameraMP: '50MP main + 50MP 2x portrait + 8MP ultra', batteryMah: '5,000 mAh', chipset: 'MediaTek Dimensity 7300 Energy',
@@ -387,7 +397,7 @@
         pros: ['Genuinely nice curved AMOLED display', 'AI photo eraser and toolkit are useful', '80W charging fills up fast'],
         cons: ['Dimensity 7300 is only mid-tier performance', 'No wireless charging', 'ColorOS pushes ads in some regions'] },
 
-      { id: 'oppo-find-x7-ultra', brand: 'Oppo', model: 'Oppo Find X7 Ultra', tier: 'flagship-plus', year: 2024, price: 999,
+      { id: 'oppo-find-x7-ultra', brand: 'Oppo', model: 'Oppo Find X7 Ultra', tier: 'flagship-plus', year: 2024, price: 1349,
         ecosystem: 'Oppo', ecosystemFamily: 'Android', accent: '#4ade80',
         specs: { camera: 92, battery: 87, performance: 92, display: 91, build: 88 },
         displayInfo: { cameraMP: '50MP Hasselblad + 50MP 3x + 50MP 6x periscope + 50MP ultra', batteryMah: '5,000 mAh', chipset: 'Snapdragon 8 Gen 3',
@@ -397,7 +407,7 @@
         pros: ['World-first dual periscope (3x + 6x)', 'Hasselblad colour science is excellent', 'Real one-inch-class main sensor'],
         cons: ['China-first launch — grey imports only in SG', 'ColorOS is not everyone\'s favourite', 'Slippery glass back'] },
 
-      { id: 'oppo-reno-13-pro', brand: 'Oppo', model: 'Oppo Reno 13 Pro', tier: 'mid-range', year: 2025, price: 599,
+      { id: 'oppo-reno-13-pro', brand: 'Oppo', model: 'Oppo Reno 13 Pro', tier: 'mid-range', year: 2025, price: 799,
         ecosystem: 'Oppo', ecosystemFamily: 'Android', accent: '#4ade80',
         specs: { camera: 80, battery: 82, performance: 78, display: 84, build: 82 },
         displayInfo: { cameraMP: '50MP main + 50MP 3.5x telephoto + 8MP ultra', batteryMah: '5,800 mAh', chipset: 'MediaTek Dimensity 8350',
@@ -407,7 +417,7 @@
         pros: ['5,800 mAh silicon-carbon battery in a slim body', '80W SUPERVOOC charging', 'IP68/IP69 rating — genuinely durable'],
         cons: ['Dimensity 8350 lags true flagship silicon', 'Ultrawide is only 8MP', 'AI features are more marketing than magic'] },
 
-      { id: 'oppo-find-x8-pro', brand: 'Oppo', model: 'Oppo Find X8 Pro', tier: 'flagship-plus', year: 2025, price: 1099,
+      { id: 'oppo-find-x8-pro', brand: 'Oppo', model: 'Oppo Find X8 Pro', tier: 'flagship-plus', year: 2025, price: 1479,
         ecosystem: 'Oppo', ecosystemFamily: 'Android', accent: '#4ade80',
         specs: { camera: 93, battery: 91, performance: 93, display: 93, build: 90 },
         displayInfo: { cameraMP: '50MP Hasselblad + 50MP 3x + 50MP 6x periscope + 50MP ultra', batteryMah: '5,910 mAh', chipset: 'MediaTek Dimensity 9400',
@@ -417,7 +427,7 @@
         pros: ['Both 3x and 6x periscopes at flagship quality', 'Massive 5,910 mAh + 80W wired + 50W wireless', 'Flat display with IP68/IP69 durability'],
         cons: ['ColorOS keeps chasing iOS-lookalike animations', 'No AT&T/Verizon support in the US', 'Big camera bump'] },
 
-      { id: 'nothing-phone-3', brand: 'Nothing', model: 'Nothing Phone 3', tier: 'mid-range', year: 2025, price: 649,
+      { id: 'nothing-phone-3', brand: 'Nothing', model: 'Nothing Phone 3', tier: 'mid-range', year: 2025, price: 879,
         ecosystem: 'Nothing', ecosystemFamily: 'Android', accent: '#c8c8c8',
         specs: { camera: 78, battery: 84, performance: 82, display: 86, build: 84 },
         displayInfo: { cameraMP: '50MP main + 50MP 3x + 50MP ultra', batteryMah: '5,000 mAh', chipset: 'Snapdragon 8s Gen 4',
@@ -559,7 +569,7 @@
             <div className="text-slate-100 font-semibold truncate">{phone.model}</div>
             <div className="flex items-center gap-2 mt-1">
               <Pill>{phone.tier}</Pill>
-              {showPrice && <span className="text-xs text-slate-400">${phone.price}</span>}
+              {showPrice && <span className="text-xs text-slate-400">S${phone.price}</span>}
             </div>
           </div>
           {selected && (
@@ -666,7 +676,7 @@
 
       const specRows = [
         { key: 'sentimentScore', label: 'Sentiment', get: (p) => `${p.sentimentScore}%`, cmp: (a,b) => a.sentimentScore - b.sentimentScore, icon: Star },
-        { key: 'price', label: 'Price', get: (p) => `$${p.price}`, cmp: (a,b) => b.price - a.price, icon: DollarSign }, // lower price wins
+        { key: 'price', label: 'Price', get: (p) => `S$${p.price}`, cmp: (a,b) => b.price - a.price, icon: DollarSign }, // lower price wins
         { key: 'year', label: 'Released', get: (p) => p.year, cmp: (a,b) => a.year - b.year },
         { key: 'chipset', label: 'Chipset', get: (p) => p.displayInfo.chipset, cmp: (a,b) => a.specs.performance - b.specs.performance, icon: Cpu },
         { key: 'display', label: 'Display', get: (p) => `${p.displayInfo.display} · ${p.displayInfo.refreshRate}`, cmp: (a,b) => a.specs.display - b.specs.display, icon: Monitor },
@@ -698,7 +708,7 @@
                   <div>
                     <div className="text-xs text-slate-400">{p.brand}</div>
                     <div className="text-slate-100 font-semibold">{p.model}</div>
-                    <div className="text-xs text-slate-400">${p.price} · {p.year}</div>
+                    <div className="text-xs text-slate-400">S${p.price} · {p.year}</div>
                   </div>
                 </div>
                 <div className="mt-3 space-y-1.5">
@@ -796,7 +806,7 @@
 
     const AdvisorView = () => {
       const [currentId, setCurrentId] = useState('galaxy-s24');
-      const [budget, setBudget] = useState(1000);
+      const [budget, setBudget] = useState(1400);
       const [priorities, setPriorities] = useState(DEFAULT_PRIORITIES);
       const [submitted, setSubmitted] = useState(false);
 
@@ -825,7 +835,7 @@
 
       const resetForm = () => {
         setPriorities(DEFAULT_PRIORITIES);
-        setBudget(1000);
+        setBudget(1400);
         setCurrentId('galaxy-s24');
         setSubmitted(false);
       };
@@ -861,11 +871,11 @@
 
               <div className="mb-5">
                 <label className="text-xs text-slate-400 flex items-center justify-between mb-1.5">
-                  <span>Budget</span><span className="text-slate-200 font-medium">${budget}</span>
+                  <span>Budget</span><span className="text-slate-200 font-medium">S${budget}</span>
                 </label>
-                <input type="range" min="400" max="1600" step="50" value={budget}
+                <input type="range" min="300" max="2000" step="50" value={budget}
                        onChange={e=>setBudget(parseInt(e.target.value))} className="w-full" />
-                <div className="flex justify-between text-[10px] text-slate-500 mt-1"><span>$400</span><span>$1,600</span></div>
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1"><span>S$300</span><span>S$2,000</span></div>
               </div>
 
               <div className="mb-5">
@@ -944,7 +954,7 @@
                               <div className="text-lg font-semibold text-slate-100">{phone.brand} {phone.model}</div>
                               {idx === 0 && <Pill tone="accent"><Award className="w-3 h-3" /> Top pick</Pill>}
                             </div>
-                            <div className="text-xs text-slate-400 mt-0.5">${phone.price} · {phone.tier} · {phone.ecosystem}</div>
+                            <div className="text-xs text-slate-400 mt-0.5">S${phone.price} · {phone.tier} · {phone.ecosystem}</div>
                           </div>
                           <div className="text-right">
                             <div className="text-xs text-slate-400">Match score</div>
@@ -997,7 +1007,7 @@
                 ))}
                 {results.candidates.length === 0 && (
                   <Card className="p-8 text-center text-slate-400">
-                    No phones fit under ${budget}. Try raising your budget.
+                    No phones fit under S${budget}. Try raising your budget.
                   </Card>
                 )}
               </div>
@@ -1076,7 +1086,7 @@
 
           <footer className="relative border-t border-ink-800 mt-16">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
-              <div>LazyComparo · we do the boring comparison work · mock data for demo, prices and specs are illustrative.</div>
+              <div>LazyComparo · we do the boring comparison work · mock data for demo — prices in S$ (Singapore market), illustrative.</div>
               <div className="flex items-center gap-3">
                 <span>Algorithm: weighted priority × ecosystem penalty</span>
               </div>
