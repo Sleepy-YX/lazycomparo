@@ -2,26 +2,26 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "phone-advisor",
+      "name": "mobile-advisor",
       "runtimeExecutable": "powershell",
       "runtimeArgs": [
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
         "-File", ".claude\\serve.ps1",
         "5173",
-        "."
+        "mobile"
       ],
       "port": 5173
     },
     {
-      "name": "pcgames-advisor",
+      "name": "games-advisor",
       "runtimeExecutable": "powershell",
       "runtimeArgs": [
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
         "-File", ".claude\\serve.ps1",
         "5174",
-        "."
+        "games"
       ],
       "port": 5174
     }

@@ -2,6 +2,8 @@
 
 _Last updated: 2026-07-05. Update this file whenever state changes materially._
 
+**2026-07-05:** Restructured repo into `mobile/` (phone comparator) and `games/` (Steam comparator) subfolders ahead of deploying pcgames.lazycomparo.com, so future product lines have a consistent home. Local folder renamed `Phone_Project` → `Lazycomparo`. Cloudflare Pages root-directory setting needs updating before next push (see Repo structure section).
+
 > **How to resume in a new Claude session:** paste this whole file into your first message, or say "read `PROJECT_STATE.md`". Everything Claude needs to continue is here.
 
 ---
@@ -17,7 +19,7 @@ Smart phone comparison + switching advisor web app. Currently Phase 1 (static va
 | Live app | https://lazycomparo.pages.dev |
 | GitHub repo | https://github.com/Sleepy-YX/lazycomparo |
 | Local dev | http://127.0.0.1:5173 (via `.claude/serve.ps1`) |
-| Local path | `C:\Users\yeowy\Claude\Phone_Project` |
+| Local path | `C:\Users\yeowy\Claude\Lazycomparo` |
 
 ## Current tech stack
 
@@ -35,15 +37,23 @@ Every `git push origin main` → Cloudflare Pages redeploys in ~30 seconds. Zero
 ## Repo structure
 
 ```
-Phone_Project/
-├── index.html            # the whole app (~1000 lines)
-├── README.md             # public-facing project description
-├── PROJECT_STATE.md      # this file
-├── .gitignore            # Node preset (for future Next.js migration)
+Lazycomparo/
+├── mobile/                # lazycomparo.com — phone comparator (flagship product)
+│   ├── index.html         # the whole app (~1000 lines)
+│   ├── robots.txt
+│   ├── sitemap.xml
+│   └── youtube/           # marketing video assets/scripts for the phone-advisor video
+├── games/                 # pcgames.lazycomparo.com — Steam game comparator (not yet deployed)
+│   └── index.html
+├── README.md              # public-facing project description
+├── PROJECT_STATE.md       # this file
+├── .gitignore             # Node preset (for future Next.js migration)
 └── .claude/
-    ├── serve.ps1         # PowerShell static server
-    └── launch.json       # Claude Code preview config
+    ├── serve.ps1          # PowerShell static server
+    └── launch.json        # Claude Code preview config (mobile:5173, games:5174)
 ```
+
+**Cloudflare Pages note:** each site is now in its own subfolder, so each Pages project's "Build output directory" (a.k.a. root directory) must be set to the matching folder name (`mobile` for lazycomparo.com, `games` for pcgames.lazycomparo.com) instead of `/`. The existing `lazycomparo` Pages project (serving lazycomparo.com) needs this setting updated before the next push, or the live site will 404 on `index.html`.
 
 ## Switching Advisor algorithm
 
@@ -148,15 +158,15 @@ Every other phone comparison site just ranks by specs. The 5/15 point penalty fo
 ## Quick reference — how to work on this project
 
 **Add a phone:**
-1. Edit `PHONES` array in `index.html` around line 178
+1. Edit `PHONES` array in `mobile/index.html` around line 178
 2. Commit + push → auto-deploys in ~30s
 3. Or ask Claude "add a Galaxy A55 phone" and Claude does it
 
 **Change UI:**
-1. Edit `index.html`
-2. Test locally: `powershell -File .claude\serve.ps1 5173 .` then `http://127.0.0.1:5173`
+1. Edit `mobile/index.html`
+2. Test locally: `powershell -File .claude\serve.ps1 5173 mobile` then `http://127.0.0.1:5173`
 3. Commit + push
 
-**Rename or rebrand:** grep for `LazyComparo` — appears in 3 places in `index.html` and 1 in `README.md`.
+**Rename or rebrand:** grep for `LazyComparo` — appears in 3 places in `mobile/index.html` and 1 in `README.md`.
 
 **Get Claude up to speed:** paste this file in first message of a new session.

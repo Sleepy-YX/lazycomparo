@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Profile picture — capture the 800x800 frame</title>
+<style>
+  body { margin: 0; background: #334155; font-family: 'Segoe UI', system-ui, sans-serif;
+    display: grid; place-items: center; min-height: 100vh; gap: 16px; padding: 24px 0; }
+  .pfp { width: 800px; height: 800px; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 35% 30%, #2a3350 0%, #141a2b 45%, #07090f 100%);
+    display: grid; place-items: center; }
+
+  /* purple ring — reads as a badge even after YouTube's circle crop */
+  .ring { position: absolute; inset: 40px; border-radius: 50%;
+    border: 14px solid #7c5cff; opacity: .9; }
+  .ring2 { position: absolute; inset: 68px; border-radius: 50%;
+    border: 3px solid #3b4670; }
+
+  .mark { position: relative; text-align: center; }
+  .lc { font-size: 330px; font-weight: 900; letter-spacing: -18px; line-height: 1;
+    color: #e6e9f2; }
+  .lc span { color: #a892ff; }
+  /* the brand gesture: a struck-out price under the mark */
+  .price { margin-top: 8px; font-size: 64px; font-weight: 800; color: #94a3b8;
+    text-decoration: line-through; text-decoration-color: #f43f5e;
+    text-decoration-thickness: 7px; letter-spacing: 2px; }
+
+  /* circle-crop guide — hide before screenshotting */
+  .guide { position: absolute; inset: 0; border-radius: 50%;
+    outline: 3px dashed #f43f5e; pointer-events: none; }
+  .hidden { display: none; }
+  button { font-size: 16px; padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; }
+  /* ?capture — bare frame at top-left for headless screenshot */
+  body.capture { display: block; padding: 0; }
+  body.capture button { display: none; }
+</style>
+</head>
+<body>
+  <script>if (location.search.includes('capture')) document.body.classList.add('capture');</script>
+  <button onclick="document.querySelector('.guide').classList.toggle('hidden')">Toggle circle-crop guide (hide before screenshot)</button>
+  <div class="pfp">
+    <div class="ring"></div>
+    <div class="ring2"></div>
+    <div class="mark">
+      <div class="lc">L<span>C</span></div>
+      <div class="price">S$1,438</div>
+    </div>
+    <div class="guide hidden"></div>
+  </div>
+</body>
+</html>

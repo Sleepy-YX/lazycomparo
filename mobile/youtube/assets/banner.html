@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Channel banner — capture the 2048x1152 frame</title>
+<style>
+  body { margin: 0; background: #334155; font-family: 'Segoe UI', system-ui, sans-serif;
+    display: grid; place-items: center; min-height: 100vh; gap: 16px; padding: 24px 0; }
+  .banner { width: 2048px; height: 1152px; position: relative; overflow: hidden;
+    background: radial-gradient(ellipse 1400px 900px at 50% 45%, #141a2b 0%, #0b0e17 55%, #07090f 100%); }
+
+  /* faint price texture outside the safe area */
+  .tex { position: absolute; font-weight: 900; color: #2a3350; opacity: .5; white-space: nowrap; }
+  .tex.struck { text-decoration: line-through; text-decoration-color: #f43f5e55; text-decoration-thickness: 6px; }
+  .t1 { top: 90px; left: 120px; font-size: 90px; transform: rotate(-6deg); }
+  .t2 { top: 140px; right: 160px; font-size: 74px; transform: rotate(4deg); }
+  .t3 { bottom: 110px; left: 220px; font-size: 68px; transform: rotate(3deg); }
+  .t4 { bottom: 130px; right: 140px; font-size: 96px; transform: rotate(-4deg); }
+  .t5 { top: 60px; left: 46%; font-size: 56px; transform: rotate(-2deg); }
+
+  /* everything important lives in the 1546x423 centered safe area */
+  .safe { position: absolute; left: 50%; top: 50%; width: 1546px; height: 423px;
+    transform: translate(-50%, -50%); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px; }
+  .wordmark { font-size: 128px; font-weight: 900; letter-spacing: -4px; line-height: 1;
+    color: #e6e9f2; }
+  .wordmark span { color: #a892ff; }
+  .tagline { font-size: 46px; font-weight: 700; color: #cbd5e1; }
+  .tagline .struckword { color: #94a3b8; text-decoration: line-through;
+    text-decoration-color: #f43f5e; text-decoration-thickness: 5px; }
+  .pill { margin-top: 10px; background: #1c2438; border: 2px solid #3b4670; color: #94a3b8;
+    font-size: 30px; font-weight: 600; padding: 12px 36px; border-radius: 999px;
+    letter-spacing: .04em; }
+  .pill b { color: #a892ff; font-weight: 800; }
+
+  /* safe-area guide — hide before screenshotting */
+  .guide { position: absolute; left: 50%; top: 50%; width: 1546px; height: 423px;
+    transform: translate(-50%, -50%); border: 3px dashed #f43f5e; pointer-events: none; }
+  .hidden { display: none; }
+  button { font-size: 16px; padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; }
+  /* ?capture — bare frame at top-left for headless screenshot */
+  body.capture { display: block; padding: 0; }
+  body.capture button { display: none; }
+</style>
+</head>
+<body>
+  <script>if (location.search.includes('capture')) document.body.classList.add('capture');</script>
+  <button onclick="document.querySelector('.guide').classList.toggle('hidden')">Toggle safe-area guide (hide before screenshot)</button>
+  <div class="banner">
+    <div class="tex struck t1">S$1,438</div>
+    <div class="tex t2">S$838</div>
+    <div class="tex struck t3">S$1,299</div>
+    <div class="tex t4">S$519</div>
+    <div class="tex struck t5">S$68/mth</div>
+    <div class="safe">
+      <div class="wordmark">Lazy<span>Comparo</span></div>
+      <div class="tagline">The <span class="struckword">sticker price</span> is not the price.</div>
+      <div class="pill">Phones · Telco · Games — <b>real cost, in SGD</b></div>
+    </div>
+    <div class="guide hidden"></div>
+  </div>
+</body>
+</html>

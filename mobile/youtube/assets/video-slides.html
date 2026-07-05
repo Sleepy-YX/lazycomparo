@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Video render slides — open with ?slide=1..8</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: #0b1120; overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif; color: #e2e8f0; }
+  .slide { position: absolute; inset: 0; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3.2vh; padding: 6vh 8vw; text-align: center; }
+  .slide.active { display: flex; }
+  .eyebrow { color: #5eead4; font-size: 2.4vh; letter-spacing: .35em; text-transform: uppercase; font-weight: 600; }
+  h1 { font-size: 7.5vh; line-height: 1.15; max-width: 84vw; }
+  h1 .hl { color: #5eead4; }
+  h2 { font-size: 5.5vh; max-width: 80vw; }
+  .sub { color: #94a3b8; font-size: 3vh; max-width: 70vw; line-height: 1.5; }
+  .vs-row { display: flex; gap: 4vw; align-items: stretch; margin-top: 1vh; }
+  .phone-card { background: #131c31; border: 1px solid #1e293b; border-radius: 2vh; padding: 4vh 4vw; min-width: 28vw; }
+  .phone-card .brand { color: #94a3b8; font-size: 2.4vh; }
+  .phone-card .model { font-size: 3.8vh; font-weight: 700; margin: 1vh 0 2vh; }
+  .phone-card .big { font-size: 7vh; font-weight: 800; }
+  .phone-card.apple .big { color: #8ecfff; }
+  .phone-card.samsung .big { color: #5eead4; }
+  .phone-card .note { color: #64748b; font-size: 2.2vh; margin-top: 1.5vh; }
+  .badge { display: inline-block; background: #f43f5e22; color: #fb7185; border: 1px solid #fb718555;
+    border-radius: 1.2vh; padding: 1.4vh 2.4vw; font-size: 3vh; font-weight: 700; }
+  .badge.good { background: #10b98122; color: #34d399; border-color: #34d39955; }
+  table { border-collapse: collapse; font-size: 3.2vh; margin-top: 1vh; }
+  th, td { padding: 2vh 2.6vw; border-bottom: 1px solid #1e293b; text-align: right; }
+  th:first-child, td:first-child { text-align: left; color: #94a3b8; font-weight: 400; }
+  th { color: #e2e8f0; font-size: 2.8vh; border-bottom: 2px solid #334155; }
+  td.apple { color: #8ecfff; font-weight: 700; }
+  td.samsung { color: #5eead4; font-weight: 700; }
+  tr.total td { border-top: 2px solid #334155; border-bottom: none; font-size: 3.8vh; padding-top: 2.6vh; }
+  .bars { display: flex; gap: 7vw; align-items: flex-end; height: 36vh; margin-top: 1vh; }
+  .bar-group { display: flex; flex-direction: column; align-items: center; gap: 1.6vh; }
+  .bar { width: 14vw; border-radius: 1.2vh 1.2vh 0 0; display: flex; align-items: flex-start;
+    justify-content: center; padding-top: 1.6vh; font-size: 3.8vh; font-weight: 800; }
+  .bar.apple { background: linear-gradient(180deg, #8ecfff, #3b82f6); height: 31vh; color: #0b1120; }
+  .bar.samsung { background: linear-gradient(180deg, #5eead4, #0d9488); height: 21vh; color: #0b1120; }
+  .bar-label { color: #94a3b8; font-size: 2.5vh; line-height: 1.4; }
+  .formula { background: #131c31; border: 1px solid #1e293b; border-radius: 2vh;
+    padding: 3.5vh 3.5vw; font-size: 3.4vh; line-height: 1.9; text-align: left; }
+  .formula .op { color: #5eead4; font-weight: 800; }
+  .formula .vs { text-align: center; color: #f43f5e; font-weight: 800; font-size: 3vh;
+    letter-spacing: .3em; margin: 1vh 0; }
+  .fineprint { color: #475569; font-size: 1.9vh; }
+  .brandmark { position: fixed; bottom: 3vh; right: 3vw; color: #475569; font-size: 2.2vh; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- 1 · Title -->
+<section class="slide">
+  <div class="eyebrow">LazyComparo · Singapore</div>
+  <h1>iPhone 17 vs Galaxy S26<br><span class="hl">what they ACTUALLY cost</span></h1>
+  <p class="sub">sticker price − trade-in games − contract math + resale value</p>
+</section>
+
+<!-- 2 · Sticker prices -->
+<section class="slide">
+  <div class="eyebrow">Round 1 · Sticker price</div>
+  <div class="vs-row">
+    <div class="phone-card apple"><div class="brand">Apple</div><div class="model">iPhone 17 · 256GB</div>
+      <div class="big">S$1,299</div><div class="note">apple.com/sg</div></div>
+    <div class="phone-card samsung"><div class="brand">Samsung</div><div class="model">Galaxy S26 · 256GB</div>
+      <div class="big">S$1,438</div><div class="note">samsung.com/sg</div></div>
+  </div>
+  <div class="badge">Samsung asks S$139 more</div>
+</section>
+
+<!-- 3 · Trade-in game -->
+<section class="slide">
+  <div class="eyebrow">Round 2 · The trade-in game</div>
+  <h2>"Up to S$1,200" — what a 2.5-year-old iPhone 15 really fetches</h2>
+  <table>
+    <tr><th>Where you sell it</th><th>What you get</th></tr>
+    <tr><td>Telco trade-in portal</td><td class="apple">quote hidden until you enter your IMEI</td></tr>
+    <tr><td>Carousell instant buy-back</td><td class="apple">S$788</td></tr>
+    <tr><td>Sell it yourself</td><td class="apple">usually the most</td></tr>
+  </table>
+  <div class="badge">"Up to" is doing a LOT of work</div>
+</section>
+
+<!-- 4 · Contract formula -->
+<section class="slide">
+  <div class="eyebrow">Round 3 · The "S$0 upfront" phone</div>
+  <h2>The only formula you need</h2>
+  <div class="formula">
+    <div>Telco bundle: upfront <span class="op">+</span> monthly <span class="op">× 24</span></div>
+    <div class="vs">— versus —</div>
+    <div>Buy outright <span class="op">+</span> SIM-only plan <span class="op">× 24</span></div>
+  </div>
+  <div class="badge">Same phone · same network · often hundreds apart</div>
+</section>
+
+<!-- 5 · Resale retention -->
+<section class="slide">
+  <div class="eyebrow">Round 4 · Two years later</div>
+  <h2>Value kept after ~2.5 years</h2>
+  <div class="bars">
+    <div class="bar-group"><div class="bar apple">60%</div><div class="bar-label">iPhone 15<br>S$1,311 → S$788</div></div>
+    <div class="bar-group"><div class="bar samsung">41%</div><div class="bar-label">Galaxy S24 Ultra<br>S$1,928 → ~S$800</div></div>
+  </div>
+  <p class="fineprint">buy-back / used-market prices, Singapore, July 2026</p>
+</section>
+
+<!-- 6 · Verdict table -->
+<section class="slide">
+  <div class="eyebrow">The verdict</div>
+  <h2>Real cost of ownership · 2 years</h2>
+  <table>
+    <tr><th></th><th>iPhone 17</th><th>Galaxy S26</th></tr>
+    <tr><td>Buy today</td><td class="apple">−S$1,299</td><td class="samsung">−S$1,438</td></tr>
+    <tr><td>Sell in 2 years (est.)</td><td class="apple">+S$780</td><td class="samsung">+S$600</td></tr>
+    <tr class="total"><td>Real cost</td><td class="apple">S$519</td><td class="samsung">S$838</td></tr>
+    <tr><td>Per month of ownership</td><td class="apple">S$22/mo</td><td class="samsung">S$35/mo</td></tr>
+  </table>
+  <p class="fineprint">estimates · based on typical 2-year value retention · July 2026</p>
+</section>
+
+<!-- 7 · The flip -->
+<section class="slide">
+  <div class="eyebrow">The flip</div>
+  <h1>S$139 cheaper at the counter<br><span class="hl">≈ S$320 cheaper again</span> to own</h1>
+  <p class="sub">a strong trade-in promo can narrow this — run the numbers before the shelf price fools you</p>
+</section>
+
+<!-- 8 · CTA -->
+<section class="slide">
+  <div class="eyebrow">Full comparison, free</div>
+  <h1><span class="hl">LazyComparo</span></h1>
+  <p class="sub">we do the boring comparison work · built for Singapore buyers</p>
+  <div class="badge good">link in the description</div>
+</section>
+
+<div class="brandmark">lazycomparo</div>
+
+<script>
+  const n = parseInt(new URLSearchParams(location.search).get('slide') || '1', 10);
+  const slides = document.querySelectorAll('.slide');
+  slides[Math.min(Math.max(n, 1), slides.length) - 1].classList.add('active');
+</script>
+</body>
+</html>

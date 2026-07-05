@@ -38,12 +38,12 @@ No build step. Just a single HTML file with React 18, Tailwind, and Babel loaded
 
 **Option A — open the file directly**
 
-Double-click `index.html`. Everything works offline as long as the CDNs load.
+Double-click `mobile/index.html`. Everything works offline as long as the CDNs load.
 
 **Option B — serve it (recommended, matches deployed behavior)**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .claude\serve.ps1 5173 .
+powershell -ExecutionPolicy Bypass -File .claude\serve.ps1 5173 mobile
 ```
 
 Then visit `http://127.0.0.1:5173`.
