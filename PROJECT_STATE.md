@@ -1,6 +1,8 @@
 # LazyComparo — Project State
 
-_Last updated: 2026-07-05. Update this file whenever state changes materially._
+_Last updated: 2026-07-08. Update this file whenever state changes materially._
+
+**2026-07-08:** Games site upgraded from static mock data to **live Steam data**. Added a Cloudflare Pages Function at `games/functions/api/steam.js` (route `/api/steam?ids=...`) that server-side-fetches real SGD prices (incl. current sale price + discount %) and review scores from Steam's store API — needed because Steam blocks browser CORS. The front-end (`useSteamLive` hook + `GamesContext`) requests ids in chunks of 15 to stay under Cloudflare's 50-subrequest/invocation cap (2 subrequests per game), edge-caches 30 min, and falls back to built-in reference data when the endpoint is unreachable (e.g. local dev, which has no Functions). Catalog grown 16 → **30 games, newest-first**, each with a verified Steam `appId`. New UI: sale badges (`PriceTag`), "On sale" sort, "View on Steam" deep-links, live/reference status pill in the header. **Not yet committed/deployed.** Gotcha: the `functions/` dir must sit at the Pages *root directory* — since this project's root is `games/`, it lives at `games/functions/`; `serve.ps1` can't run Functions, so live prices only appear on the deployed site.
 
 **2026-07-05:** Restructured repo into `mobile/` (phone comparator) and `games/` (Steam comparator) subfolders ahead of deploying pcgames.lazycomparo.com, so future product lines have a consistent home. Local folder renamed `Phone_Project` → `Lazycomparo`. Cloudflare Pages root-directory setting needs updating before next push (see Repo structure section).
 
