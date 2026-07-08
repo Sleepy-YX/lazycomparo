@@ -42,13 +42,12 @@ Every `git push origin main` → Cloudflare Pages redeploys in ~30 seconds. Zero
 
 ```
 Lazycomparo/
-├── mobile/                # lazycomparo.com — phone comparator (flagship product)
+├── games/                 # pcgames.lazycomparo.com — PC game comparator (current focus)
+│   └── index.html
+├── mobile/                # lazycomparo.com — phone comparator (secondary)
 │   ├── index.html         # the whole app (~1000 lines)
 │   ├── robots.txt
-│   ├── sitemap.xml
-│   └── youtube/           # marketing video assets/scripts for the phone-advisor video
-├── games/                 # pcgames.lazycomparo.com — Steam game comparator (not yet deployed)
-│   └── index.html
+│   └── sitemap.xml
 ├── README.md              # public-facing project description
 ├── PROJECT_STATE.md       # this file
 ├── .gitignore             # Node preset (for future Next.js migration)

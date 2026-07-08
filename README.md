@@ -2,30 +2,30 @@
 
 **"Lazy" comparison and buying advisors — we do the boring comparison work for you.** LazyComparo is a family of dark-themed React web apps, each weighing your priorities, budget, and trade-offs to tell you what's actually worth buying (or upgrading to) in a given category.
 
-Two products live in this repo today:
+Two products live in this repo today. **Games is the current focus; mobile is secondary.**
 
-- **[mobile/](mobile/)** — smartphone comparison and switching advisor. Weighs priorities, budget, and ecosystem trade-offs (iMessage, DeX, AirDrop, Samsung Cloud, etc.) to tell you whether to upgrade or switch brands.
-- **[games/](games/)** — [PcGames.LazyComparo](https://pcgames.lazycomparo.com/), a PC game comparison and value advisor. Compares games on price, rating, hours-to-beat, and co-op support across **Steam, Epic and GOG** — including live free-game alerts and cross-store price comparison — to help you decide what's worth buying on sale (or claiming for free).
+- **[games/](games/)** — [PcGames.LazyComparo](https://pcgames.lazycomparo.com/), a PC game comparison and value advisor, and the product we're actively building out. Compares games on price, rating, hours-to-beat, and co-op support across **Steam, Epic and GOG** — including live free-game alerts and cross-store price comparison — to help you decide what's worth buying on sale (or claiming for free).
+- **[mobile/](mobile/)** — smartphone comparison and switching advisor (secondary). Weighs priorities, budget, and ecosystem trade-offs (iMessage, DeX, AirDrop, Samsung Cloud, etc.) to tell you whether to upgrade or switch brands.
 
-Currently both are single-file demos. Roadmap: expand catalogs, migrate to Next.js + Supabase, and (for mobile) layer on a used-phone marketplace (Mister-Mobile-meets-Carousell shape).
+Currently both are single-file demos. Roadmap: expand catalogs and migrate to Next.js + Supabase.
 
 ---
 
 ## Features
 
-### mobile — phone comparison & switching advisor
-
-- **Browse** — 14 phones across 6 brands (Apple, Samsung, Google, Xiaomi, OnePlus, Nothing) with filters, search, and multi-sort.
-- **Compare** — side-by-side spec matrix for 2–3 phones with per-row winner highlighting, sentiment bars, and pros/cons columns.
-- **Switching Advisor** — pick your current phone, set your budget and priority sliders (camera / battery / performance / display), and get ranked recommendations with an ecosystem-friction penalty applied for cross-brand and cross-platform switches. Includes a verdict banner (*Worth upgrading* / *Marginal* / *Wait a generation*).
-
-### games — PC game comparison & value advisor
+### games — PC game comparison & value advisor (primary focus)
 
 - **Browse & compare** — co-op/single-player games side-by-side on price, Steam rating, hours-to-beat, player count, and store availability (Steam / Epic / GOG badges with live per-store prices).
 - **Value-focused** — built for the "what's actually worth buying on sale" question, with pros/cons per title, $/hour ranking, all-time-low price flags, and a cheapest-store row in Compare.
 - **Free Games tab** — Epic's weekly freebies (current + upcoming, via Epic's own feed) plus Steam giveaways, with claim links and countdowns.
 - **Stores tab** — editorial Steam vs Epic vs GOG comparison (refunds, DRM, mods, family sharing, free-game cadence).
 - **Live data** — three Cloudflare Pages Functions: `/api/steam` (SGD prices + review scores), `/api/deals` (cross-store prices + historical lows via IsThereAnyDeal; needs an `ITAD_API_KEY` env var), and `/api/epic-free` (Epic free-games promo feed). Everything degrades gracefully to built-in reference data when offline.
+
+### mobile — phone comparison & switching advisor (secondary)
+
+- **Browse** — 14 phones across 6 brands (Apple, Samsung, Google, Xiaomi, OnePlus, Nothing) with filters, search, and multi-sort.
+- **Compare** — side-by-side spec matrix for 2–3 phones with per-row winner highlighting, sentiment bars, and pros/cons columns.
+- **Switching Advisor** — pick your current phone, set your budget and priority sliders (camera / battery / performance / display), and get ranked recommendations with an ecosystem-friction penalty applied for cross-brand and cross-platform switches. Includes a verdict banner (*Worth upgrading* / *Marginal* / *Wait a generation*).
 
 ## Advisor algorithm (mobile)
 
