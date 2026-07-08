@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PcGames.LazyComparo — Steam Game Comparison &amp; Value Advisor</title>
-  <meta name="description" content="Compare Steam games on price, rating, hours-to-beat, and co-op support — Valheim vs Icarus vs Remnant 2 and more, built for figuring out what to buy on sale." />
+  <title>PcGames.LazyComparo — Compare PC Games Across Steam, Epic &amp; GOG</title>
+  <meta name="description" content="Compare PC games on price, rating, hours-to-beat, and co-op support — see which store (Steam, Epic or GOG) is cheapest right now, plus this week's free Epic games." />
   <link rel="canonical" href="https://pcgames.lazycomparo.com/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="PcGames.LazyComparo — Steam Game Comparison &amp; Value Advisor" />
-  <meta property="og:description" content="Compare Steam games on price, rating, hours-to-beat, and co-op support — built for figuring out what's worth buying on sale." />
+  <meta property="og:title" content="PcGames.LazyComparo — Compare PC Games Across Steam, Epic &amp; GOG" />
+  <meta property="og:description" content="Compare PC games on price, rating, and hours-to-beat — see which store (Steam, Epic or GOG) is cheapest, plus this week's free Epic games." />
   <meta property="og:url" content="https://pcgames.lazycomparo.com/" />
   <meta name="twitter:card" content="summary_large_image" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -111,6 +111,9 @@
     const Zap = (p) => <Icon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
     const Gift = (p) => <Icon {...p}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></Icon>;
     const ExternalLink = (p) => <Icon {...p}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></Icon>;
+    const Store = (p) => <Icon {...p}><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 21v-6h6v6"/><path d="M3 9h18"/></Icon>;
+    const Calendar = (p) => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Icon>;
+    const Tag = (p) => <Icon {...p}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/></Icon>;
 
     /* ---------------- Game catalog ---------------- */
     // `appId` is the Steam AppID used to pull LIVE price + review data at runtime
@@ -330,6 +333,34 @@
         cons: ['2D pixel-art style is a turn-off for some', 'UI/crafting menus feel dated compared to newer survival games', 'Progression pacing assumes you look up a wiki eventually'] },
     ];
 
+    /* ---------------- Store availability (editorial fallback) ---------------- */
+    // Stores each game is sold on BESIDES Steam. Only used until live
+    // cross-store prices from /api/deals (IsThereAnyDeal) arrive — the live
+    // data overrides this list, including prices and store links.
+    const EXTRA_STORES = {
+      'black-myth-wukong': ['Epic'],
+      'hades-2': ['Epic'],
+      'space-marine-2': ['Epic'],
+      'frostpunk-2': ['Epic', 'GOG'],
+      'manor-lords': ['GOG'],
+      'pacific-drive': ['Epic'],
+      'satisfactory': ['Epic'],
+      'baldurs-gate-3': ['GOG'],
+      'remnant2': ['Epic'],
+      'it-takes-two': ['Epic'],
+      'hades': ['Epic'],
+      'stardew-valley': ['GOG'],
+      'terraria': ['GOG'],
+    };
+
+    // Store list for a game: live deals data (with prices/links) when we have
+    // it, otherwise Steam + the editorial extras above (names only).
+    function gameStores(game, deals) {
+      const d = deals && game.appId && deals[String(game.appId)];
+      if (d && d.stores && d.stores.length) return d.stores;
+      return ['Steam', ...(EXTRA_STORES[game.id] || [])].map(s => ({ store: s }));
+    }
+
     /* ---------------- Scoring Algorithm ---------------- */
     /*
      * scoreGame(game, priorities)
@@ -449,6 +480,154 @@
       return `${h}h ago`;
     }
 
+    /* ---------------- Live cross-store deals (IsThereAnyDeal) ---------------- */
+    // Steam vs Epic vs GOG prices + all-time historical lows via our
+    // /api/deals Pages Function (an ITAD proxy — needs ITAD_API_KEY set on the
+    // Cloudflare Pages project). One request covers the whole catalog; the
+    // function batches server-side. When unreachable or keyless the UI falls
+    // back to Steam-only pricing + the editorial EXTRA_STORES lists.
+    const DEALS_ENDPOINT = '/api/deals';
+
+    function useDeals(baseGames) {
+      const [deals, setDeals] = useState(null); // { [appId]: { stores:[...], historyLow } }
+      const [status, setStatus] = useState('loading'); // loading | live | offline
+
+      useEffect(() => {
+        let cancelled = false;
+        const ids = baseGames.map(g => g.appId).filter(Boolean).join(',');
+        (async () => {
+          try {
+            const res = await fetch(`${DEALS_ENDPOINT}?ids=${ids}`);
+            if (!res.ok) throw new Error('bad status ' + res.status);
+            const data = await res.json();
+            const games = (data && data.games) || {};
+            if (Object.keys(games).length === 0) throw new Error('empty');
+            if (!cancelled) { setDeals(games); setStatus('live'); }
+          } catch (e) {
+            if (!cancelled) setStatus('offline');
+          }
+        })();
+        return () => { cancelled = true; };
+      }, []);
+
+      return { deals, status };
+    }
+
+    const DealsContext = React.createContext({ deals: null, status: 'loading' });
+    const useDealsCtx = () => React.useContext(DealsContext);
+
+    /* ---------------- Free games (Epic official feed + GamerPower) ---------------- */
+    // Two live sources: /api/epic-free (Epic's own promo feed via our proxy —
+    // exact end dates, next week's drops, artwork) and the GamerPower API for
+    // Steam giveaways. GamerPower retries through a CORS proxy, then falls
+    // back to a static sample so the alert bar never breaks.
+    const EPICFREE_ENDPOINT = '/api/epic-free';
+    const FREEGAMES_API = 'https://www.gamerpower.com/api/filter?platform=epic-games-store.steam&type=game&sort-by=date';
+    const FALLBACK_FREEBIES = [
+      { id: 'f1', store: 'Epic',  title: 'Ghostwire: Tokyo',           worth: 'US$59.99', end: null, url: 'https://store.epicgames.com/en-US/free-games' },
+      { id: 'f2', store: 'Epic',  title: 'Escape Academy',             worth: 'US$19.99', end: null, url: 'https://store.epicgames.com/en-US/free-games' },
+      { id: 'f3', store: 'Steam', title: 'Warhammer 40,000: Gladius',  worth: 'US$39.99', end: null, url: 'https://store.steampowered.com/search/?maxprice=free&specials=1' },
+      { id: 'f4', store: 'Steam', title: 'Killing Floor 2',            worth: 'US$29.99', end: null, url: 'https://store.steampowered.com/search/?maxprice=free&specials=1' },
+    ];
+
+    // Title normalizer for matching freebies against the catalog / dedupe.
+    const normTitle = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+    function useFreebies() {
+      const [epic, setEpic] = useState({ current: [], upcoming: [], status: 'loading' });
+      const [gw, setGw] = useState({ items: [], status: 'loading' });
+
+      useEffect(() => {
+        let cancelled = false;
+
+        // 1) Epic's own feed via our Pages Function
+        (async () => {
+          try {
+            const res = await fetch(EPICFREE_ENDPOINT);
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            const current = (data && data.current) || [];
+            const upcoming = (data && data.upcoming) || [];
+            if (current.length + upcoming.length === 0) throw new Error();
+            if (!cancelled) setEpic({ current, upcoming, status: 'live' });
+          } catch (e) {
+            if (!cancelled) setEpic(s => ({ ...s, status: 'offline' }));
+          }
+        })();
+
+        // 2) GamerPower giveaways (Steam + Epic)
+        const clean = (t) => t.replace(/\s*\((Epic Games|Steam)[^)]*\)/i, '').replace(/\s*Giveaway!?$/i, '').trim();
+        const parse = (data) => (Array.isArray(data) ? data : [])
+          .filter(g => g.status === 'Active')
+          .slice(0, 8)
+          .map(g => ({
+            id: g.id,
+            title: clean(g.title || ''),
+            worth: g.worth && g.worth !== 'N/A' ? g.worth : null,
+            end: g.end_date && g.end_date !== 'N/A' ? g.end_date : null,
+            url: g.open_giveaway_url,
+            store: /epic/i.test(g.platforms || '') ? 'Epic' : 'Steam',
+          }));
+        (async () => {
+          const apply = (items) => {
+            if (!cancelled && items.length) { setGw({ items, status: 'live' }); return true; }
+            return false;
+          };
+          try {
+            const res = await fetch(FREEGAMES_API);
+            if (!res.ok || !apply(parse(await res.json()))) throw new Error();
+          } catch {
+            try {
+              const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(FREEGAMES_API));
+              if (!res.ok || !apply(parse(await res.json()))) throw new Error();
+            } catch {
+              if (!cancelled) setGw({ items: FALLBACK_FREEBIES, status: 'sample' });
+            }
+          }
+        })();
+
+        return () => { cancelled = true; };
+      }, []);
+
+      // Merged "free right now" list for the alert bar: Epic's official feed
+      // is the source of truth for Epic when live; GamerPower fills in Steam.
+      const nowFree = useMemo(() => {
+        const items = epic.current.map(f => ({ id: 'epic-' + f.id, store: 'Epic', title: f.title, worth: f.worth, end: f.end, url: f.url }));
+        gw.items.forEach(g => {
+          if (epic.status === 'live' && g.store === 'Epic') return;
+          if (items.some(i => normTitle(i.title) === normTitle(g.title))) return;
+          items.push(g);
+        });
+        return items.slice(0, 8);
+      }, [epic, gw]);
+
+      const status = (epic.status === 'live' || gw.status === 'live') ? 'live'
+        : (epic.status === 'loading' || gw.status === 'loading') ? 'loading' : 'sample';
+
+      return { epicCurrent: epic.current, epicUpcoming: epic.upcoming, epicStatus: epic.status, giveaways: gw.items, nowFree, status };
+    }
+
+    const FreebiesContext = React.createContext({ epicCurrent: [], epicUpcoming: [], epicStatus: 'loading', giveaways: [], nowFree: [], status: 'loading' });
+    const useFreebiesCtx = () => React.useContext(FreebiesContext);
+
+    // "ends in 2d" countdown; accepts ISO or GamerPower's "YYYY-MM-DD HH:mm:ss".
+    function endsIn(end) {
+      if (!end) return null;
+      const diff = new Date(String(end).replace(' ', 'T')) - Date.now();
+      if (diff <= 0) return null;
+      const d = Math.floor(diff / 86400000);
+      if (d >= 1) return `ends in ${d}d`;
+      const h = Math.floor(diff / 3600000);
+      return h >= 1 ? `ends in ${h}h` : 'ending soon';
+    }
+
+    // "16 Jul" — short date for upcoming freebies.
+    function fmtDay(iso) {
+      if (!iso) return null;
+      try { return new Date(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }); }
+      catch (e) { return null; }
+    }
+
     /* ---------------- Small UI primitives ---------------- */
     const cx = (...xs) => xs.filter(Boolean).join(' ');
 
@@ -500,6 +679,43 @@
       );
     };
 
+    /* ---------------- Store badges (Steam / Epic / GOG) ---------------- */
+    const STORE_STYLES = {
+      Steam: 'bg-sky-500/15 text-sky-300 ring-sky-500/30',
+      Epic:  'bg-slate-100/10 text-slate-200 ring-slate-400/30',
+      GOG:   'bg-purple-500/15 text-purple-300 ring-purple-500/30',
+    };
+
+    const fmtStorePrice = (p) => p === 0 ? 'Free' : `S$${p.toFixed(2)}`;
+
+    // Which stores sell this game. With live /api/deals data each badge shows
+    // that store's current price and links to it; the cheapest store gets an
+    // emerald ring. Without live data, plain availability badges.
+    const StoreBadges = ({ game }) => {
+      const { deals } = useDealsCtx();
+      const stores = gameStores(game, deals);
+      const priced = stores.filter(s => typeof s.price === 'number');
+      const cheapest = priced.length > 1 ? priced.reduce((a, b) => (b.price < a.price ? b : a)).store : null;
+      return (
+        <span className="inline-flex items-center gap-1 flex-wrap">
+          {stores.map(s => {
+            const inner = (
+              <span className={cx('inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ring-1 whitespace-nowrap',
+                                  STORE_STYLES[s.store] || STORE_STYLES.Steam,
+                                  cheapest === s.store && 'ring-emerald-400/70')}
+                    title={cheapest === s.store ? `Cheapest right now on ${s.store}` : `Available on ${s.store}`}>
+                {s.store}
+                {typeof s.price === 'number' && <span className="normal-case font-semibold text-slate-100">{fmtStorePrice(s.price)}</span>}
+              </span>
+            );
+            return s.url
+              ? <a key={s.store} href={s.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="hover:opacity-80 transition">{inner}</a>
+              : <span key={s.store}>{inner}</span>;
+          })}
+        </span>
+      );
+    };
+
     const Card = ({ className = '', children, onClick }) => (
       <div onClick={onClick}
            className={cx('bg-ink-850 ring-1 ring-ink-700 rounded-2xl', onClick && 'cursor-pointer hover:ring-accent/50 transition', className)}>
@@ -529,7 +745,17 @@
     );
 
     /* ---------------- Game card (used in Browse + Compare picker) ---------------- */
-    const GameCard = ({ game, selected, onClick, showPrice = true }) => (
+    const GameCard = ({ game, selected, onClick, showPrice = true }) => {
+      const { deals } = useDealsCtx();
+      const { epicCurrent, giveaways } = useFreebiesCtx();
+      const d = deals && game.appId && deals[String(game.appId)];
+      const low = d && d.historyLow;
+      // On sale AND matching the best price ever recorded -> shout about it.
+      const atLow = !!(low && typeof low.price === 'number' && game.discount > 0 && game.price <= low.price + 0.01);
+      const freeOnEpic =
+        epicCurrent.some(f => normTitle(f.title) === normTitle(game.title)) ||
+        giveaways.some(f => f.store === 'Epic' && normTitle(f.title) === normTitle(game.title));
+      return (
       <Card className={cx('p-4 relative animate-fade-in', selected && 'ring-2 ring-accent')}
             onClick={onClick}>
         <div className="flex items-center gap-3">
@@ -555,6 +781,11 @@
           <StatBar label={game.displayInfo.ratingDesc ? `Steam · ${game.displayInfo.ratingDesc}` : 'Steam rating'}
                    value={game.displayInfo.rating} sub={`${game.displayInfo.rating}%`} color={game.accent} />
         </div>
+        <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+          <StoreBadges game={game} />
+          {freeOnEpic && <Pill tone="good"><Gift className="w-3 h-3" /> FREE on Epic now</Pill>}
+          {atLow && <Pill tone="accent"><Tag className="w-3 h-3" /> lowest price ever</Pill>}
+        </div>
         {steamStoreUrl(game) && (
           <a href={steamStoreUrl(game)} target="_blank" rel="noopener noreferrer"
              onClick={(e) => e.stopPropagation()}
@@ -563,7 +794,8 @@
           </a>
         )}
       </Card>
-    );
+      );
+    };
 
     /* ---------------- Browse view ---------------- */
     const BrowseView = ({ shortlist, onToggle }) => {
@@ -594,7 +826,7 @@
         <div className="animate-fade-in">
           <SectionTitle eyebrow="Catalog" icon={Layers}
             title="Browse games"
-            subtitle={`${GAMES.length} Steam games across ${genres.length-1} genres, newest first. Prices and ratings are live from the Singapore Steam store. Tap a card to add it to your comparison shortlist.`} />
+            subtitle={`${GAMES.length} PC games across ${genres.length-1} genres, newest first. Steam prices and ratings are live from the Singapore store — with Epic and GOG prices on the store badges when the cross-store feed is up. Tap a card to add it to your comparison shortlist.`} />
 
           <Card className="p-3 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-2">
@@ -627,8 +859,16 @@
     /* ---------------- Compare view ---------------- */
     const CompareView = ({ shortlist, setShortlist, onGoBrowse }) => {
       const { games: GAMES } = useGames();
+      const { deals } = useDealsCtx();
       const picked = shortlist.map(id => GAMES.find(g => g.id === id)).filter(Boolean);
       const canAddMore = picked.length < 3;
+
+      // Cheapest store listing for a game (live deals data only).
+      const minStore = (g) => {
+        const priced = gameStores(g, deals).filter(s => typeof s.price === 'number');
+        if (!priced.length) return null;
+        return priced.reduce((a, b) => (b.price < a.price ? b : a));
+      };
 
       if (picked.length < 2) {
         return (
@@ -649,7 +889,26 @@
 
       const specRows = [
         { key: 'rating', label: 'Steam rating', get: (g) => `${g.displayInfo.rating}%`, cmp: (a,b) => a.displayInfo.rating - b.displayInfo.rating, icon: Star },
-        { key: 'price', label: 'Price', get: (g) => <PriceTag g={g} />, cmp: (a,b) => b.price - a.price, icon: DollarSign }, // lower price wins
+        { key: 'price', label: 'Price on Steam', get: (g) => <PriceTag g={g} />, cmp: (a,b) => b.price - a.price, icon: DollarSign }, // lower price wins
+        { key: 'stores', label: 'Available on', get: (g) => <StoreBadges game={g} />, icon: Store },
+        // Cross-store rows only make sense once live deals data has landed.
+        ...(deals ? [
+          { key: 'cheapest', label: 'Cheapest store', icon: Tag,
+            get: (g) => { const m = minStore(g); return m ? `${m.store} · ${fmtStorePrice(m.price)}` : '—'; },
+            cmp: (a, b) => { const pa = minStore(a), pb = minStore(b); return (pb ? pb.price : Infinity) - (pa ? pa.price : Infinity); } }, // lower wins
+          { key: 'alltimelow', label: 'All-time low price', icon: Clock,
+            get: (g) => {
+              const d = deals[String(g.appId)]; const low = d && d.historyLow;
+              if (!low || typeof low.price !== 'number') return '—';
+              return (
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  {fmtStorePrice(low.price)}
+                  {low.shop && <span className="text-slate-500 text-xs">on {low.shop}</span>}
+                  {g.price <= low.price + 0.01 && <Pill tone="good">at its low now</Pill>}
+                </span>
+              );
+            } },
+        ] : []),
         { key: 'value', label: '$ / hour', get: (g) => `S$${dollarsPerHour(g)}`, cmp: (a,b) => dollarsPerHour(b) - dollarsPerHour(a), icon: TrendingUp }, // lower wins
         { key: 'hours', label: 'Hours to beat', get: (g) => `${g.displayInfo.hoursToBeat}h`, cmp: (a,b) => a.displayInfo.hoursToBeat - b.displayInfo.hoursToBeat, icon: Clock },
         { key: 'year', label: 'Released', get: (g) => g.year, cmp: (a,b) => a.year - b.year },
@@ -956,70 +1215,11 @@
       );
     };
 
-    /* ---------------- Free Games Alert (Steam + Epic) ---------------- */
-    // Live giveaways from the free GamerPower API; retries through a CORS
-    // proxy, then falls back to a static sample list so the bar never breaks.
-    const FREEGAMES_API = 'https://www.gamerpower.com/api/filter?platform=epic-games-store.steam&type=game&sort-by=date';
-    const FALLBACK_FREEBIES = [
-      { id: 'f1', store: 'Epic',  title: 'Ghostwire: Tokyo',           worth: 'US$59.99', end: null, url: 'https://store.epicgames.com/en-US/free-games' },
-      { id: 'f2', store: 'Epic',  title: 'Escape Academy',             worth: 'US$19.99', end: null, url: 'https://store.epicgames.com/en-US/free-games' },
-      { id: 'f3', store: 'Steam', title: 'Warhammer 40,000: Gladius',  worth: 'US$39.99', end: null, url: 'https://store.steampowered.com/search/?maxprice=free&specials=1' },
-      { id: 'f4', store: 'Steam', title: 'Killing Floor 2',            worth: 'US$29.99', end: null, url: 'https://store.steampowered.com/search/?maxprice=free&specials=1' },
-    ];
-
-    const FreeGamesBar = () => {
-      const [games, setGames] = useState([]);
-      const [source, setSource] = useState('loading'); // 'loading' | 'live' | 'sample'
+    /* ---------------- Free Games Alert bar (Steam + Epic) ---------------- */
+    // Compact strip under the header; full detail lives in the Free Games tab.
+    const FreeGamesBar = ({ onSeeAll }) => {
+      const { nowFree, status } = useFreebiesCtx();
       const [open, setOpen] = useState(true);
-
-      useEffect(() => {
-        let cancelled = false;
-        const clean = (t) => t.replace(/\s*\((Epic Games|Steam)[^)]*\)/i, '').replace(/\s*Giveaway!?$/i, '').trim();
-        const parse = (data) => (Array.isArray(data) ? data : [])
-          .filter(g => g.status === 'Active')
-          .slice(0, 8)
-          .map(g => ({
-            id: g.id,
-            title: clean(g.title || ''),
-            worth: g.worth && g.worth !== 'N/A' ? g.worth : null,
-            end: g.end_date && g.end_date !== 'N/A' ? g.end_date : null,
-            url: g.open_giveaway_url,
-            store: /epic/i.test(g.platforms || '') ? 'Epic' : 'Steam',
-          }));
-        const apply = (items) => {
-          if (!cancelled && items.length) { setGames(items); setSource('live'); return true; }
-          return false;
-        };
-        (async () => {
-          try {
-            const res = await fetch(FREEGAMES_API);
-            if (!res.ok || !apply(parse(await res.json()))) throw new Error();
-          } catch {
-            try {
-              const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(FREEGAMES_API));
-              if (!res.ok || !apply(parse(await res.json()))) throw new Error();
-            } catch {
-              if (!cancelled) { setGames(FALLBACK_FREEBIES); setSource('sample'); }
-            }
-          }
-        })();
-        return () => { cancelled = true; };
-      }, []);
-
-      const endsIn = (end) => {
-        if (!end) return null;
-        const diff = new Date(end.replace(' ', 'T')) - Date.now();
-        if (diff <= 0) return null;
-        const d = Math.floor(diff / 86400000);
-        if (d >= 1) return `ends in ${d}d`;
-        const h = Math.floor(diff / 3600000);
-        return h >= 1 ? `ends in ${h}h` : 'ending soon';
-      };
-
-      const storeBadge = {
-        Steam: 'bg-sky-500/15 text-sky-300 ring-sky-500/30',
-        Epic:  'bg-slate-100/10 text-slate-200 ring-slate-400/30',
-      };
 
       return (
         <div className="relative border-b border-ink-800 bg-ink-900/40">
@@ -1029,18 +1229,22 @@
                 <Gift className="w-4 h-4 text-accent-soft" />
                 <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider">Free game alerts</span>
                 <span className="hidden sm:inline text-[10px] text-slate-500">Steam &amp; Epic</span>
-                {source === 'live' && (
+                {status === 'live' && (
                   <span className="inline-flex items-center gap-1 text-[10px] text-teal-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />live
                   </span>
                 )}
-                {source === 'sample' && <span className="text-[10px] text-slate-500">sample — live feed unreachable</span>}
+                {status === 'sample' && <span className="text-[10px] text-slate-500">sample — live feed unreachable</span>}
               </div>
-              {!open && games.length > 0 && (
-                <span className="text-xs text-slate-400 truncate">{games.length} free right now</span>
+              {!open && nowFree.length > 0 && (
+                <span className="text-xs text-slate-400 truncate">{nowFree.length} free right now</span>
               )}
+              <button onClick={onSeeAll}
+                      className="ml-auto shrink-0 inline-flex items-center gap-1 text-xs text-accent-soft hover:text-accent transition">
+                See all <ArrowRight className="w-3 h-3" />
+              </button>
               <button onClick={() => setOpen(o => !o)}
-                      className="ml-auto shrink-0 text-slate-500 hover:text-slate-300 transition"
+                      className="shrink-0 text-slate-500 hover:text-slate-300 transition"
                       aria-label={open ? 'Collapse free games' : 'Expand free games'}>
                 <ChevronDown className={cx('w-4 h-4 transition-transform', open && 'rotate-180')} />
               </button>
@@ -1048,13 +1252,13 @@
 
             {open && (
               <div className="mt-2 flex gap-2 overflow-x-auto pb-1 animate-fade-in">
-                {source === 'loading' && (
+                {status === 'loading' && (
                   <div className="text-xs text-slate-500 py-1.5">Checking Steam &amp; Epic for freebies…</div>
                 )}
-                {games.map(g => (
+                {nowFree.map(g => (
                   <a key={g.id} href={g.url} target="_blank" rel="noopener noreferrer"
                      className="shrink-0 flex items-center gap-2.5 bg-ink-850 hover:bg-ink-800 ring-1 ring-ink-700 hover:ring-ink-600 rounded-lg pl-2 pr-3 py-1.5 transition group">
-                    <span className={cx('text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ring-1', storeBadge[g.store])}>{g.store}</span>
+                    <span className={cx('text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ring-1', STORE_STYLES[g.store] || STORE_STYLES.Steam)}>{g.store}</span>
                     <span className="min-w-0">
                       <span className="block text-xs font-medium text-slate-200 group-hover:text-white truncate max-w-[180px]">{g.title}</span>
                       <span className="block text-[10px] text-slate-500">
@@ -1073,18 +1277,229 @@
       );
     };
 
+    /* ---------------- Free Games view ---------------- */
+    const StoreChip = ({ store }) => (
+      <span className={cx('text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ring-1', STORE_STYLES[store] || STORE_STYLES.Steam)}>{store}</span>
+    );
+
+    const FreeView = () => {
+      const { epicCurrent, epicUpcoming, epicStatus, giveaways, status } = useFreebiesCtx();
+
+      // Epic's own feed is authoritative; if it's unreachable (e.g. local
+      // dev), fall back to whatever GamerPower flagged as Epic.
+      const epicNow = epicStatus === 'live'
+        ? epicCurrent
+        : giveaways.filter(g => g.store === 'Epic').map(g => ({ id: g.id, title: g.title, url: g.url, image: null, worth: g.worth, end: g.end }));
+      const steamNow = giveaways.filter(g => g.store === 'Steam');
+
+      return (
+        <div className="animate-fade-in">
+          <SectionTitle eyebrow="Free games" icon={Gift}
+            title="Free right now on Epic & Steam"
+            subtitle="Epic gives away 1–2 PC games every Thursday (~11pm Singapore time) — claim them once and they're yours forever, even if you never install them. Steam giveaways are rarer but show up here too." />
+
+          {/* Epic — free now */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <StoreChip store="Epic" />
+              <h3 className="text-lg font-semibold text-slate-100">Free to claim now</h3>
+              {epicStatus === 'live' && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-teal-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />live from Epic
+                </span>
+              )}
+            </div>
+            {epicNow.length === 0 ? (
+              <Card className="p-6 text-sm text-slate-400">
+                {status === 'loading'
+                  ? 'Checking Epic for this week’s drop…'
+                  : <span>Couldn{'’'}t reach the Epic feed from here — check the store directly: <a className="text-accent-soft hover:underline" href="https://store.epicgames.com/en-US/free-games" target="_blank" rel="noopener noreferrer">Epic free games page <ExternalLink className="w-3 h-3 inline" /></a></span>}
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {epicNow.map(f => (
+                  <Card key={f.id} className="overflow-hidden">
+                    {f.image && <img src={f.image} alt={f.title} loading="lazy" className="w-full h-36 object-cover" />}
+                    <div className="p-4">
+                      <div className="text-slate-100 font-semibold">{f.title}</div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {f.worth && <s className="mr-1.5">{f.worth}</s>}
+                        <span className="text-teal-300 font-semibold">FREE</span>
+                        {endsIn(f.end) && <span className="text-amber-300"> · {endsIn(f.end)}</span>}
+                      </div>
+                      <a href={f.url} target="_blank" rel="noopener noreferrer"
+                         className="mt-3 inline-flex items-center gap-2 bg-accent hover:bg-accent-soft text-ink-950 text-sm font-semibold rounded-lg px-3 py-1.5 transition">
+                        Claim on Epic <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Epic — coming next */}
+          {epicUpcoming.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-3">
+                <Calendar className="w-4 h-4 text-accent-soft" />
+                <h3 className="text-lg font-semibold text-slate-100">Coming next on Epic</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {epicUpcoming.map(f => (
+                  <Card key={f.id} className="overflow-hidden opacity-90">
+                    {f.image && <img src={f.image} alt={f.title} loading="lazy" className="w-full h-36 object-cover" />}
+                    <div className="p-4">
+                      <div className="text-slate-100 font-semibold">{f.title}</div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {f.worth && <span className="mr-1.5">{f.worth}</span>}
+                        <span className="text-accent-soft font-semibold">free from {fmtDay(f.start)}</span>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Steam giveaways */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <StoreChip store="Steam" />
+              <h3 className="text-lg font-semibold text-slate-100">Steam giveaways</h3>
+              {status === 'sample' && <span className="text-[10px] text-slate-500">sample — live feed unreachable</span>}
+            </div>
+            {steamNow.length === 0 ? (
+              <Card className="p-6 text-sm text-slate-400">
+                No Steam giveaways running right now — Epic is the reliable weekly source. <a className="text-accent-soft hover:underline" href="https://store.steampowered.com/search/?maxprice=free&specials=1" target="_blank" rel="noopener noreferrer">Check Steam{'’'}s free specials <ExternalLink className="w-3 h-3 inline" /></a>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {steamNow.map(f => (
+                  <Card key={f.id} className="p-4">
+                    <div className="text-slate-100 font-semibold">{f.title}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {f.worth && <s className="mr-1.5">{f.worth}</s>}
+                      <span className="text-teal-300 font-semibold">FREE</span>
+                      {endsIn(f.end) && <span> · {endsIn(f.end)}</span>}
+                    </div>
+                    <a href={f.url} target="_blank" rel="noopener noreferrer"
+                       className="mt-3 inline-flex items-center gap-2 bg-ink-700 hover:bg-ink-600 text-slate-100 text-sm font-semibold rounded-lg px-3 py-1.5 transition">
+                      Claim on Steam <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 text-xs text-slate-500 flex items-start gap-2">
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <div>Claimed games stay in your library forever — you don{'’'}t need to install or play them right away. Epic{'’'}s lineup rotates every Thursday around 11pm SGT.</div>
+          </div>
+        </div>
+      );
+    };
+
+    /* ---------------- Stores view (Steam vs Epic vs GOG editorial) ---------------- */
+    const STORE_MATRIX = [
+      { label: 'Free games', win: 'Epic',
+        steam: 'Occasional giveaways + free weekends', epic: '1–2 free games every single week', gog: 'Occasional giveaways' },
+      { label: 'Refund policy', win: 'GOG',
+        steam: '14 days, under 2 hours played', epic: '14 days, under 2 hours played', gog: '30 days, even after downloading' },
+      { label: 'DRM', win: 'GOG',
+        steam: 'Steamworks DRM on most games', epic: 'Varies per game', gog: '100% DRM-free — the installer is yours' },
+      { label: 'User reviews', win: 'Steam',
+        steam: 'Full review system with rating %', epic: 'No written reviews — polls + critic scores', gog: 'User reviews with star ratings' },
+      { label: 'Mod support', win: 'Steam',
+        steam: 'Steam Workshop — one-click mods', epic: 'Rare, per-game only', gog: 'Manual installation' },
+      { label: 'Family sharing', win: 'Steam',
+        steam: 'Steam Families — share your library', epic: 'None', gog: 'None' },
+      { label: 'Big sales',
+        steam: 'Seasonal sales (Summer / Autumn / Winter)', epic: 'Mega Sale + stacking coupons', gog: 'Very frequent themed sales' },
+      { label: 'Client features', win: 'Steam',
+        steam: 'Remote Play, cloud saves, Steam Deck, controller remapping', epic: 'Lightweight launcher, cloud saves', gog: 'GOG Galaxy can import all your other libraries' },
+      { label: 'Achievements', steam: 'Yes', epic: 'Yes', gog: 'Yes, via Galaxy' },
+      { label: 'SGD regional pricing', steam: 'Yes', epic: 'Yes', gog: 'Mostly USD with regional discounts' },
+    ];
+
+    const StoresView = () => (
+      <div className="animate-fade-in">
+        <SectionTitle eyebrow="Store vs store" icon={Store}
+          title="Steam vs Epic vs GOG — which store should you buy on?"
+          subtitle="Same game, different launcher: what you actually get with each store. Short version — Steam for features and community, Epic for weekly freebies and coupons, GOG for DRM-free ownership and generous refunds." />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+          <Card className="p-4">
+            <StoreChip store="Steam" />
+            <div className="text-slate-100 font-semibold mt-2">Buy on Steam if…</div>
+            <p className="text-sm text-slate-400 mt-1.5">you want reviews you can trust, Workshop mods, family sharing, and your friends list already lives there. The safe default for multiplayer games.</p>
+          </Card>
+          <Card className="p-4">
+            <StoreChip store="Epic" />
+            <div className="text-slate-100 font-semibold mt-2">Buy on Epic if…</div>
+            <p className="text-sm text-slate-400 mt-1.5">it{'’'}s cheaper there with a coupon — and claim the weekly free games either way, even if you never launch them. A free library builds up surprisingly fast.</p>
+          </Card>
+          <Card className="p-4">
+            <StoreChip store="GOG" />
+            <div className="text-slate-100 font-semibold mt-2">Buy on GOG if…</div>
+            <p className="text-sm text-slate-400 mt-1.5">you want to own the game outright — DRM-free installers that work without a launcher, 30-day refunds, and the best classic-game support anywhere.</p>
+          </Card>
+        </div>
+
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-ink-800/60 text-slate-400 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">What you get</th>
+                  <th className="text-left px-4 py-3 font-medium text-sky-300">Steam</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-200">Epic</th>
+                  <th className="text-left px-4 py-3 font-medium text-purple-300">GOG</th>
+                </tr>
+              </thead>
+              <tbody>
+                {STORE_MATRIX.map((row, i) => (
+                  <tr key={row.label} className={cx(i % 2 === 0 ? 'bg-ink-850' : 'bg-ink-900/60')}>
+                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{row.label}</td>
+                    {['steam', 'epic', 'gog'].map(k => {
+                      const winner = row.win && row.win.toLowerCase() === k;
+                      return (
+                        <td key={k} className={cx('px-4 py-3', winner ? 'text-emerald-300 font-medium' : 'text-slate-300')}>
+                          <span className="inline-flex items-center gap-2">{row[k]}{winner && <Award className="w-3.5 h-3.5 shrink-0" />}</span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <div className="mt-6 text-xs text-slate-500 flex items-start gap-2">
+          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <div>The game itself runs identically on every store — you{'’'}re choosing the launcher, the ecosystem, and the price. The store badges on Browse and Compare show where each game is cheapest right now.</div>
+        </div>
+      </div>
+    );
+
     /* ---------------- App shell ---------------- */
     const TABS = [
       { id: 'browse',  label: 'Browse',  icon: Layers },
       { id: 'compare', label: 'Compare', icon: Package },
       { id: 'advisor', label: 'Advisor', icon: Sparkles },
       { id: 'value',   label: 'Best Value', icon: TrendingUp },
+      { id: 'free',    label: 'Free Games', icon: Gift },
+      { id: 'stores',  label: 'Stores', icon: Store },
     ];
 
     const App = () => {
       const [tab, setTab] = useState('browse');
       const [shortlist, setShortlist] = useState(['balatro', 'hades-2', 'remnant2']);
       const live = useSteamLive(GAMES);
+      const dealsLive = useDeals(GAMES);
+      const freebies = useFreebies();
 
       const toggleShortlist = (id) => {
         setShortlist(prev => {
@@ -1096,6 +1511,8 @@
 
       return (
        <GamesContext.Provider value={live}>
+       <DealsContext.Provider value={dealsLive}>
+       <FreebiesContext.Provider value={freebies}>
         <div className="min-h-screen bg-ink-950">
           {/* Ambient gradient */}
           <div className="pointer-events-none fixed inset-0 overflow-hidden opacity-60">
@@ -1111,14 +1528,14 @@
                 </div>
                 <div>
                   <div className="text-slate-100 font-semibold leading-tight">PcGames.LazyComparo</div>
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500 leading-tight">Steam game advisor</div>
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 leading-tight">PC game advisor</div>
                 </div>
               </div>
 
-              <nav className="ml-4 flex bg-ink-900 rounded-lg p-1 ring-1 ring-ink-800">
+              <nav className="ml-4 flex bg-ink-900 rounded-lg p-1 ring-1 ring-ink-800 overflow-x-auto min-w-0">
                 {TABS.map(({ id, label, icon: I }) => (
                   <button key={id} onClick={() => setTab(id)}
-                          className={cx('px-3 py-1.5 text-sm rounded-md inline-flex items-center gap-1.5 transition',
+                          className={cx('px-3 py-1.5 text-sm rounded-md inline-flex items-center gap-1.5 transition shrink-0 whitespace-nowrap',
                             tab === id ? 'bg-ink-700 text-slate-100' : 'text-slate-400 hover:text-slate-200')}>
                     <I className="w-4 h-4" /> {label}
                     {id === 'compare' && shortlist.length > 0 && (
@@ -1128,11 +1545,11 @@
                 ))}
               </nav>
 
-              <div className="ml-auto hidden md:flex items-center gap-2 text-xs text-slate-500">
+              <div className="ml-auto hidden md:flex items-center gap-2 text-xs text-slate-500 shrink-0">
                 {live.status === 'live' ? (
                   <span className="inline-flex items-center gap-1.5 text-teal-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-                    Live Steam prices{live.updatedAt ? ` · ${timeAgo(live.updatedAt)}` : ''}
+                    {dealsLive.status === 'live' ? 'Live Steam · Epic · GOG prices' : 'Live Steam prices'}{live.updatedAt ? ` · ${timeAgo(live.updatedAt)}` : ''}
                   </span>
                 ) : live.status === 'loading' ? (
                   <span className="inline-flex items-center gap-1.5"><Star className="w-3.5 h-3.5" /> Loading live prices…</span>
@@ -1145,7 +1562,7 @@
             </div>
           </header>
 
-          <FreeGamesBar />
+          <FreeGamesBar onSeeAll={() => setTab('free')} />
 
           <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-8">
             {tab === 'browse' &&
@@ -1156,17 +1573,23 @@
               <AdvisorView />}
             {tab === 'value' &&
               <ValueView />}
+            {tab === 'free' &&
+              <FreeView />}
+            {tab === 'stores' &&
+              <StoresView />}
           </main>
 
           <footer className="relative border-t border-ink-800 mt-16">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
-              <div>PcGames.LazyComparo · we do the boring comparison work · prices &amp; ratings live from the Singapore Steam store (cached ~30 min); specs, pros/cons and hours-to-beat are editorial estimates.</div>
+              <div>PcGames.LazyComparo · we do the boring comparison work · Steam prices &amp; ratings live from the Singapore store (cached ~30 min) · Epic/GOG prices &amp; historical lows via <a className="hover:text-slate-300 underline" href="https://isthereanydeal.com" target="_blank" rel="noopener noreferrer">IsThereAnyDeal</a> · free-game feed from Epic Games &amp; GamerPower · specs, pros/cons and hours-to-beat are editorial estimates.</div>
               <div className="flex items-center gap-3">
                 <span>Algorithm: weighted priority score · $/hour value ranking</span>
               </div>
             </div>
           </footer>
         </div>
+       </FreebiesContext.Provider>
+       </DealsContext.Provider>
        </GamesContext.Provider>
       );
     };

@@ -24,6 +24,18 @@
         "games"
       ],
       "port": 5174
+    },
+    {
+      "name": "games-advisor-alt",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", ".claude\\serve.ps1",
+        "5184",
+        "games"
+      ],
+      "port": 5184
     }
   ]
 }
