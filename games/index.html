@@ -361,6 +361,21 @@
       return ['Steam', ...(EXTRA_STORES[game.id] || [])].map(s => ({ store: s }));
     }
 
+    // Is the game's cheapest CURRENT store price at (or below) its all-time
+    // low? Compared strictly within ITAD data — ITAD reports SG prices in USD
+    // for several stores, so it must NOT be compared against the Steam feed's
+    // SGD price (game.price). Only stores sharing the low's currency count.
+    function atHistoryLow(deals, game) {
+      const d = deals && game.appId && deals[String(game.appId)];
+      const low = d && d.historyLow;
+      if (!d || !low || typeof low.price !== 'number') return false;
+      const priced = (d.stores || []).filter(s =>
+        typeof s.price === 'number' && (!low.currency || !s.currency || s.currency === low.currency));
+      if (!priced.length) return false;
+      const cheapest = priced.reduce((a, b) => (b.price < a.price ? b : a));
+      return cheapest.price <= low.price + 0.01;
+    }
+
     /* ---------------- Scoring Algorithm ---------------- */
     /*
      * scoreGame(game, priorities)
@@ -686,7 +701,16 @@
       GOG:   'bg-purple-500/15 text-purple-300 ring-purple-500/30',
     };
 
-    const fmtStorePrice = (p) => p === 0 ? 'Free' : `S$${p.toFixed(2)}`;
+    // ITAD reports prices in whatever currency it tracks for the region (USD
+    // for several stores in SG), so label the currency honestly instead of
+    // assuming SGD like the Steam feed does.
+    const CURRENCY_PREFIX = { SGD: 'S$', USD: 'US$', EUR: '€', GBP: '£' };
+    const fmtStorePrice = (p, currency) => {
+      if (p === 0) return 'Free';
+      const pre = CURRENCY_PREFIX[currency];
+      if (pre) return `${pre}${p.toFixed(2)}`;
+      return currency ? `${currency} ${p.toFixed(2)}` : `S$${p.toFixed(2)}`;
+    };
 
     // Which stores sell this game. With live /api/deals data each badge shows
     // that store's current price and links to it; the cheapest store gets an
@@ -705,7 +729,7 @@
                                   cheapest === s.store && 'ring-emerald-400/70')}
                     title={cheapest === s.store ? `Cheapest right now on ${s.store}` : `Available on ${s.store}`}>
                 {s.store}
-                {typeof s.price === 'number' && <span className="normal-case font-semibold text-slate-100">{fmtStorePrice(s.price)}</span>}
+                {typeof s.price === 'number' && <span className="normal-case font-semibold text-slate-100">{fmtStorePrice(s.price, s.currency)}</span>}
               </span>
             );
             return s.url
@@ -750,8 +774,8 @@
       const { epicCurrent, giveaways } = useFreebiesCtx();
       const d = deals && game.appId && deals[String(game.appId)];
       const low = d && d.historyLow;
-      // On sale AND matching the best price ever recorded -> shout about it.
-      const atLow = !!(low && typeof low.price === 'number' && game.discount > 0 && game.price <= low.price + 0.01);
+      // Cheapest current store price matches the best price ever recorded.
+      const atLow = atHistoryLow(deals, game);
       const freeOnEpic =
         epicCurrent.some(f => normTitle(f.title) === normTitle(game.title)) ||
         giveaways.some(f => f.store === 'Epic' && normTitle(f.title) === normTitle(game.title));
@@ -894,7 +918,7 @@
         // Cross-store rows only make sense once live deals data has landed.
         ...(deals ? [
           { key: 'cheapest', label: 'Cheapest store', icon: Tag,
-            get: (g) => { const m = minStore(g); return m ? `${m.store} · ${fmtStorePrice(m.price)}` : '—'; },
+            get: (g) => { const m = minStore(g); return m ? `${m.store} · ${fmtStorePrice(m.price, m.currency)}` : '—'; },
             cmp: (a, b) => { const pa = minStore(a), pb = minStore(b); return (pb ? pb.price : Infinity) - (pa ? pa.price : Infinity); } }, // lower wins
           { key: 'alltimelow', label: 'All-time low price', icon: Clock,
             get: (g) => {
@@ -902,9 +926,9 @@
               if (!low || typeof low.price !== 'number') return '—';
               return (
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
-                  {fmtStorePrice(low.price)}
+                  {fmtStorePrice(low.price, low.currency)}
                   {low.shop && <span className="text-slate-500 text-xs">on {low.shop}</span>}
-                  {g.price <= low.price + 0.01 && <Pill tone="good">at its low now</Pill>}
+                  {atHistoryLow(deals, g) && <Pill tone="good">at its low now</Pill>}
                 </span>
               );
             } },

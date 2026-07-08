@@ -119,6 +119,7 @@ export async function onRequestGet(context) {
           if (!appId || !low || !games[appId]) continue;
           games[appId].historyLow = {
             price: low.price && typeof low.price.amount === 'number' ? low.price.amount : null,
+            currency: (low.price && low.price.currency) || null,
             cut: low.cut || 0,
             shop: (low.shop && low.shop.name) || null,
             timestamp: low.timestamp || null,
