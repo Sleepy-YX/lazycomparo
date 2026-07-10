@@ -822,9 +822,9 @@
     };
 
     /* ---------------- Browse view ---------------- */
-    const BrowseView = ({ shortlist, onToggle }) => {
+    const BrowseView = ({ shortlist, onToggle, initialQuery = '' }) => {
       const { games: GAMES } = useGames();
-      const [query, setQuery] = useState('');
+      const [query, setQuery] = useState(initialQuery);
       const [genre, setGenre] = useState('All');
       const [coop, setCoop] = useState('All');
       const [sort, setSort] = useState('year');
@@ -1518,9 +1518,20 @@
       { id: 'stores',  label: 'Stores', icon: Store },
     ];
 
+    // Per-game landing pages (/game/<slug>): the SEO middleware pre-renders the
+    // matching game's HTML for crawlers; here we make a real visitor land on
+    // Browse with that game's title pre-searched so they see it front-and-centre.
+    const deepLinkGame = (() => {
+      const m = window.location.pathname.match(/^\/game\/([^/]+)\/?$/);
+      return m ? GAMES.find(g => g.id === decodeURIComponent(m[1])) : null;
+    })();
+
     const App = () => {
       const [tab, setTab] = useState('browse');
-      const [shortlist, setShortlist] = useState(['balatro', 'hades-2', 'remnant2']);
+      const [shortlist, setShortlist] = useState(
+        deepLinkGame
+          ? Array.from(new Set([deepLinkGame.id, 'balatro', 'hades-2'])).slice(0, 3)
+          : ['balatro', 'hades-2', 'remnant2']);
       const live = useSteamLive(GAMES);
       const dealsLive = useDeals(GAMES);
       const freebies = useFreebies();
@@ -1590,7 +1601,8 @@
 
           <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-8">
             {tab === 'browse' &&
-              <BrowseView shortlist={shortlist} onToggle={toggleShortlist} />}
+              <BrowseView shortlist={shortlist} onToggle={toggleShortlist}
+                          initialQuery={deepLinkGame ? deepLinkGame.title : ''} />}
             {tab === 'compare' &&
               <CompareView shortlist={shortlist} setShortlist={setShortlist} onGoBrowse={() => setTab('browse')} />}
             {tab === 'advisor' &&

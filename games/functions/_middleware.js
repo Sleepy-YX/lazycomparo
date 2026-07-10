@@ -2,20 +2,25 @@
 // ---------------------------------------------------------------------------
 // WHY THIS EXISTS
 // The site is a single-file React app transformed by Babel *in the browser*.
-// That means the raw HTML a crawler fetches is an empty <div id="root">, so
-// Google sees no game names, prices or comparisons -> effectively invisible in
-// search. This middleware injects real, indexable HTML into #root and adds
-// VideoGame JSON-LD structured data, BEFORE the React app boots. React's
-// createRoot() clears #root on first render and takes over, so real users get
-// the full interactive app while crawlers (and JS-less clients) get content.
-// This is progressive enhancement / pre-render, not cloaking: the same content
-// the app shows, present in the initial HTML.
+// The raw HTML a crawler fetches is an empty <div id="root">, so Google sees no
+// content -> effectively invisible in search. This middleware injects real,
+// indexable HTML into #root and adds JSON-LD structured data BEFORE the React
+// app boots. React's createRoot() clears #root on first render and takes over,
+// so real users get the full interactive app while crawlers (and JS-less
+// clients) get content. Progressive enhancement / pre-render, not cloaking.
+//
+// TWO ROUTES ARE HANDLED:
+//   /                -> homepage: ItemList JSON-LD + a linked list of all games
+//   /game/<slug>     -> per-game landing page: unique <title>/description/
+//                       canonical/og, a single-game detail block, and
+//                       VideoGame + BreadcrumbList JSON-LD. The slug is the
+//                       game id. `games/_redirects` rewrites /game/* to the app
+//                       shell so context.next() serves index.html for these.
 //
 // KEEP IN SYNC: the GAMES list below is a trimmed, SEO-only copy of the GAMES
-// array in ../index.html. When you add/remove a game there, mirror the id,
-// appId, title, studio, genre, year, price, rating, hours, players and one pro
-// here. Prices are the USD reference MSRP (the live site localizes to SGD at
-// runtime); only used for structured data + the fallback listing.
+// array in ../index.html. When you add/remove a game there, mirror it here (and
+// it will appear in the sitemap-worthy set automatically). Prices are the USD
+// reference MSRP (the live site localizes to SGD at runtime).
 // ---------------------------------------------------------------------------
 
 const GAMES = [
@@ -52,24 +57,32 @@ const GAMES = [
 ];
 
 const SITE = 'https://pcgames.lazycomparo.com';
+const BY_ID = new Map(GAMES.map((g) => [g.id, g]));
 
 const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-function steamUrl(appId) {
-  return `https://store.steampowered.com/app/${appId}/`;
+const steamUrl = (appId) => `https://store.steampowered.com/app/${appId}/`;
+const gamePath = (id) => `${SITE}/game/${id}`;
+
+// Up to 4 related games: same genre first, then fill from neighbours.
+function relatedGames(game) {
+  const sameGenre = GAMES.filter((g) => g.id !== game.id && g.genre === game.genre);
+  const others = GAMES.filter((g) => g.id !== game.id && g.genre !== game.genre);
+  return [...sameGenre, ...others].slice(0, 4);
 }
 
-// Real, indexable HTML injected into #root. React clears this on mount.
-function seoHtml() {
+/* -------------------------------- HOMEPAGE -------------------------------- */
+
+function homeHtml() {
   const cards = GAMES.map((g) => `
     <article>
-      <h2>${esc(g.title)}</h2>
+      <h2><a href="${gamePath(g.id)}">${esc(g.title)}</a></h2>
       <p>${esc(g.genre)} by ${esc(g.studio)} (${g.year}). ${esc(g.players)}.
       ${g.rating}% positive Steam reviews, about ${g.hours} hours to beat.
       Reference price from US$${g.price.toFixed(2)} — compare live Steam, Epic and GOG prices and the all-time-low.</p>
       <p>${esc(g.pro)}</p>
-      <p><a href="${steamUrl(g.appId)}" rel="nofollow">View ${esc(g.title)} on Steam</a></p>
+      <p><a href="${gamePath(g.id)}">Compare ${esc(g.title)} prices &rarr;</a></p>
     </article>`).join('');
 
   return `
@@ -78,11 +91,6 @@ function seoHtml() {
       <p>LazyComparo tracks live prices, review scores, hours-to-beat and co-op support for ${GAMES.length}+ popular PC games,
       shows which store (Steam, Epic or GOG) is cheapest right now, flags the all-time-low price, and lists this week's
       free Epic Games Store titles. We do the boring price comparison so you don't have to.</p>
-      <nav>
-        <a href="${SITE}/">All games</a> &middot;
-        <a href="${SITE}/">Free games this week</a> &middot;
-        <a href="${SITE}/">Store comparison (Steam vs Epic vs GOG)</a>
-      </nav>
     </header>
     <main>
       <h2>Games we compare</h2>
@@ -91,11 +99,11 @@ function seoHtml() {
     <footer><p>Loading the interactive comparison&hellip; if it doesn't appear, enable JavaScript.</p></footer>`;
 }
 
-// VideoGame ItemList structured data for rich results.
-function jsonLd() {
+function homeJsonLd() {
   const items = GAMES.map((g, i) => ({
     '@type': 'ListItem',
     position: i + 1,
+    url: gamePath(g.id),
     item: {
       '@type': 'VideoGame',
       name: g.title,
@@ -104,45 +112,126 @@ function jsonLd() {
       operatingSystem: 'Windows',
       datePublished: String(g.year),
       author: { '@type': 'Organization', name: g.studio },
-      publisher: { '@type': 'Organization', name: g.studio },
       offers: {
         '@type': 'Offer',
         price: g.price.toFixed(2),
         priceCurrency: 'USD',
         availability: 'https://schema.org/InStock',
-        url: steamUrl(g.appId),
+        url: gamePath(g.id),
       },
     },
   }));
-
   const graph = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     name: 'PC games compared on LazyComparo',
     itemListElement: items,
   };
-
   return `<script type="application/ld+json">${JSON.stringify(graph)}</script>`;
 }
+
+/* ------------------------------ GAME LANDING ------------------------------ */
+
+function gameMeta(g) {
+  return {
+    title: `Cheapest price for ${g.title} on PC — Steam vs Epic vs GOG | LazyComparo`,
+    description: `Is ${g.title} cheaper on Steam, Epic or GOG? Compare live prices and see the all-time-low. ${g.rating}% positive Steam rating, about ${g.hours}h to beat. ${g.genre} by ${g.studio} (${g.year}).`,
+    canonical: gamePath(g.id),
+  };
+}
+
+function gameHtml(g) {
+  const related = relatedGames(g).map((r) =>
+    `<li><a href="${gamePath(r.id)}">${esc(r.title)}</a> — ${esc(r.genre)}</li>`).join('');
+
+  return `
+    <nav aria-label="Breadcrumb"><a href="${SITE}/">All games</a> &rsaquo; <span>${esc(g.title)}</span></nav>
+    <main>
+      <h1>Cheapest price for ${esc(g.title)} on PC</h1>
+      <p>${esc(g.title)} is a ${esc(g.genre)} by ${esc(g.studio)}, released ${g.year}. ${esc(g.players)}.
+      It holds a ${g.rating}% positive rating on Steam and takes about ${g.hours} hours to beat.</p>
+      <p>${esc(g.pro)}</p>
+
+      <h2>Where to buy ${esc(g.title)} cheapest</h2>
+      <p>LazyComparo compares the live ${esc(g.title)} price across Steam, the Epic Games Store and GOG, and shows the
+      all-time-low so you know whether now is a good time to buy. Reference price from US$${g.price.toFixed(2)};
+      the live site shows current Singapore-store pricing and any active discount.</p>
+      <p><a href="${steamUrl(g.appId)}" rel="nofollow">View ${esc(g.title)} on Steam</a></p>
+
+      <h2>Similar games to compare</h2>
+      <ul>${related}</ul>
+
+      <p><a href="${SITE}/">&larr; Browse all ${GAMES.length} PC games on LazyComparo</a></p>
+    </main>`;
+}
+
+function gameJsonLd(g) {
+  const graph = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'VideoGame',
+        name: g.title,
+        genre: g.genre,
+        gamePlatform: 'PC',
+        operatingSystem: 'Windows',
+        datePublished: String(g.year),
+        author: { '@type': 'Organization', name: g.studio },
+        publisher: { '@type': 'Organization', name: g.studio },
+        url: gamePath(g.id),
+        offers: {
+          '@type': 'Offer',
+          price: g.price.toFixed(2),
+          priceCurrency: 'USD',
+          availability: 'https://schema.org/InStock',
+          url: steamUrl(g.appId),
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'All games', item: `${SITE}/` },
+          { '@type': 'ListItem', position: 2, name: g.title, item: gamePath(g.id) },
+        ],
+      },
+    ],
+  };
+  return `<script type="application/ld+json">${JSON.stringify(graph)}</script>`;
+}
+
+/* -------------------------------- ROUTING --------------------------------- */
 
 export async function onRequest(context) {
   const response = await context.next();
 
-  // Only rewrite the HTML document. API routes (/api/*) return JSON and other
-  // assets pass straight through.
+  // Only rewrite the HTML document. API routes (/api/*) and other assets pass
+  // straight through.
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
 
-  return new HTMLRewriter()
-    .on('head', {
-      element(el) {
-        el.append(jsonLd(), { html: true });
-      },
-    })
-    .on('#root', {
-      element(el) {
-        el.setInnerContent(seoHtml(), { html: true });
-      },
-    })
-    .transform(response);
+  const path = new URL(context.request.url).pathname;
+  const slugMatch = path.match(/^\/game\/([^/]+)\/?$/);
+  const game = slugMatch ? BY_ID.get(decodeURIComponent(slugMatch[1])) : null;
+
+  // Unknown /game/<slug> -> fall back to homepage content (harmless).
+  const isGamePage = Boolean(game);
+  const rootHtml = isGamePage ? gameHtml(game) : homeHtml();
+  const jsonLd = isGamePage ? gameJsonLd(game) : homeJsonLd();
+  const meta = isGamePage ? gameMeta(game) : null;
+
+  const rewriter = new HTMLRewriter()
+    .on('head', { element(el) { el.append(jsonLd, { html: true }); } })
+    .on('#root', { element(el) { el.setInnerContent(rootHtml, { html: true }); } });
+
+  if (meta) {
+    rewriter
+      .on('title', { element(el) { el.setInnerContent(meta.title); } })
+      .on('meta[name="description"]', { element(el) { el.setAttribute('content', meta.description); } })
+      .on('meta[property="og:title"]', { element(el) { el.setAttribute('content', meta.title); } })
+      .on('meta[property="og:description"]', { element(el) { el.setAttribute('content', meta.description); } })
+      .on('meta[property="og:url"]', { element(el) { el.setAttribute('content', meta.canonical); } })
+      .on('link[rel="canonical"]', { element(el) { el.setAttribute('href', meta.canonical); } });
+  }
+
+  return rewriter.transform(response);
 }

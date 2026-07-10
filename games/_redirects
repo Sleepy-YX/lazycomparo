@@ -1,0 +1,3 @@
+# SPA fallback: serve the app shell for per-game landing pages so the SEO
+# middleware can rewrite it. 200 = rewrite (URL stays /game/<slug>).
+/game/* /index.html 200
