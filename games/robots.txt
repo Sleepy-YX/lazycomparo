@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pcgames.lazycomparo.com/sitemap.xml
