@@ -10,8 +10,16 @@
  * Without the key this returns 503 and the front-end silently falls back to
  * Steam-only pricing + the editorial EXTRA_STORES availability lists.
  *
- * Subrequest budget: 3 total regardless of id count (one batched lookup, one
- * prices call, one history-low call) — far under Cloudflare's 50-cap.
+ * ITAD quotes several SG-region stores (Epic, GOG, sometimes Steam) in USD,
+ * which clashed with the Steam feed's SGD prices in the UI. So any non-SGD
+ * amount is converted to SGD here using a live FX rate (open.er-api.com, no
+ * key) and flagged `approx: true` so the front-end can show it as "~S$…".
+ * If the FX fetch fails, prices pass through unconverted in their original
+ * currency — the front-end still labels those honestly.
+ *
+ * Subrequest budget: 4 total regardless of id count (one batched lookup, one
+ * prices call, one history-low call, one FX call) — far under Cloudflare's
+ * 50-cap.
  */
 
 const COUNTRY = 'SG'; // Singapore -> SGD pricing, matching /api/steam
@@ -26,6 +34,33 @@ function storeName(shop) {
   if (n.includes('epic')) return 'Epic';
   if (n.includes('gog')) return 'GOG';
   return null;
+}
+
+// FX rates relative to SGD (e.g. rates.USD = 0.74 means US$1 = S$1/0.74).
+// Returns null on any failure so callers can skip conversion gracefully.
+async function fxRatesFromSGD() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/SGD');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data && data.result === 'success' && data.rates ? data.rates : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+const round2 = (n) => Math.round(n * 100) / 100;
+
+// Mutates a price-bearing object ({ price, currency, regular? }) to SGD.
+function toSGD(obj, rates) {
+  if (!obj || typeof obj.price !== 'number') return;
+  if (!obj.currency || obj.currency === 'SGD') { obj.currency = obj.currency || null; return; }
+  const rate = rates && rates[obj.currency];
+  if (!rate || rate <= 0) return; // unknown currency — leave as-is, honestly labeled
+  obj.price = round2(obj.price / rate);
+  if (typeof obj.regular === 'number') obj.regular = round2(obj.regular / rate);
+  obj.currency = 'SGD';
+  obj.approx = true;
 }
 
 async function itad(path, key, params, body) {
@@ -127,6 +162,20 @@ export async function onRequestGet(context) {
         }
       } catch (e) {
         // history lows are a bonus — don't fail the whole response over them
+      }
+
+      // 4) Normalize every price to SGD so the UI never mixes currencies.
+      const needsFx = Object.values(games).some((g) =>
+        (g.stores || []).some((s) => s.currency && s.currency !== 'SGD') ||
+        (g.historyLow && g.historyLow.currency && g.historyLow.currency !== 'SGD'));
+      if (needsFx) {
+        const rates = await fxRatesFromSGD();
+        if (rates) {
+          for (const g of Object.values(games)) {
+            (g.stores || []).forEach((s) => toSGD(s, rates));
+            toSGD(g.historyLow, rates);
+          }
+        }
       }
     }
 

@@ -109,10 +109,12 @@
     section.stop:nth-of-type(even) { justify-content: flex-end; }
 
     .copy { max-width: 620px; position: relative; }
-    /* paper halo so text stays readable over the scene */
+    /* paper halo so text stays readable over the scene — near-opaque plateau
+       that covers the whole copy block (incl. the small eyebrow/number lines)
+       before it starts fading, so bright 3D props can't bleed through text */
     .copy::before {
-      content: ''; position: absolute; inset: -14% -18%; z-index: -1;
-      background: radial-gradient(closest-side, rgba(246,241,231,.94) 45%, rgba(246,241,231,0) 78%);
+      content: ''; position: absolute; inset: -16% -20%; z-index: -1;
+      background: radial-gradient(closest-side, rgba(246,241,231,.97) 55%, rgba(246,241,231,.8) 74%, rgba(246,241,231,0) 97%);
     }
     .rule { width: 34px; height: 2px; background: var(--ink); margin-bottom: 14px; opacity: .8; }
     .stopno { font-size: 10px; letter-spacing: .3em; color: var(--ink-soft); margin-bottom: 6px; }
@@ -198,7 +200,7 @@
       nav.top { display: none; }
       section.stop, section.stop:nth-of-type(even) { justify-content: flex-start; padding: 14vh 6vw; }
       .cards { grid-template-columns: 1fr; max-width: 480px; }
-      .copy::before { inset: -10% -12%; }
+      .copy::before { inset: -12% -14%; }
     }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
@@ -567,19 +569,27 @@
     tags.forEach(function (t) { t.s.position.set(t.x, t.y, t.z); });
 
     /* ---------- phones corner (-x): paper monoliths ---------- */
+    // Three phones in a row [x, height, body, screen, smallYaw, depthOffset].
+    // The camera approaches this corner diagonally (from +x+z), so the whole
+    // group is yawed 0.4 rad to keep the row PERPENDICULAR to the view —
+    // otherwise the phones project on top of each other ("phone inside a
+    // phone") instead of side by side. Spacing 3.2 > body width 2.3 leaves
+    // clear air between them; no z-lean, so tops don't tilt into neighbors.
     var phones = new THREE.Group();
     put(new THREE.CylinderGeometry(6.2, 6.8, 0.55, 8), mat(0xe6dcc4), 0, 0.27, 0, 0, phones);
-    [[-2.6, 4.6, 0x232f4e, 0xa78bfa, 0.16], [0.3, 5.6, 0x2c3e6b, 0x22d3ee, -0.05], [3.1, 4.2, 0x35507e, 0x67e8f9, 0.24]]
+    [[-3.2, 4.6, 0x232f4e, 0xa78bfa, 0.1, 0.5], [0, 5.6, 0x2c3e6b, 0x22d3ee, -0.06, -0.4], [3.2, 4.2, 0x35507e, 0x67e8f9, 0.12, 0.3]]
       .forEach(function (ph) {
         var g = new THREE.Group();
         put(new THREE.BoxGeometry(2.3, ph[1], 0.5), mat(ph[2]), 0, ph[1] / 2 + 0.5, 0, 0, g);
         var sc = put(new THREE.PlaneGeometry(1.86, ph[1] - 0.7),
           mat(ph[3], { emissive: ph[3], ei: 0.75, rough: 0.4 }), 0, ph[1] / 2 + 0.5, 0.26, 0, g);
         sc.castShadow = false;
-        g.rotation.y = ph[4]; g.rotation.z = ph[4] * 0.35;
+        g.position.set(ph[0], 0, ph[5]);
+        g.rotation.y = ph[4];
         phones.add(g);
       });
     phones.position.set(-26, 0, -8);
+    phones.rotation.y = 0.4;
     scene.add(phones);
 
     /* ---------- paper planes circling the world ---------- */

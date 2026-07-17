@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PcGames.LazyComparo — Compare PC Games Across Steam, Epic &amp; GOG</title>
+  <title>LazyComparo — Compare PC Games Across Steam, Epic &amp; GOG</title>
   <meta name="description" content="Compare PC games on price, rating, hours-to-beat, and co-op support — see which store (Steam, Epic or GOG) is cheapest right now, plus this week's free Epic games." />
   <link rel="canonical" href="https://pcgames.lazycomparo.com/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="PcGames.LazyComparo — Compare PC Games Across Steam, Epic &amp; GOG" />
+  <meta property="og:title" content="LazyComparo — Compare PC Games Across Steam, Epic &amp; GOG" />
   <meta property="og:description" content="Compare PC games on price, rating, and hours-to-beat — see which store (Steam, Epic or GOG) is cheapest, plus this week's free Epic games." />
   <meta property="og:url" content="https://pcgames.lazycomparo.com/" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -393,17 +393,25 @@
     };
 
     // Store list for a game: live deals data (with prices/links) when we have
-    // it, otherwise Steam + the editorial extras above (names only).
+    // it, otherwise Steam + the editorial extras above (names only). The Steam
+    // entry prefers the exact SGD price from our own Steam feed over ITAD's
+    // FX-converted approximation whenever the live feed has landed.
     function gameStores(game, deals) {
       const d = deals && game.appId && deals[String(game.appId)];
-      if (d && d.stores && d.stores.length) return d.stores;
+      if (d && d.stores && d.stores.length) {
+        return d.stores.map(s =>
+          s.store === 'Steam' && game.live && typeof game.price === 'number'
+            ? { ...s, price: game.price, currency: 'SGD', approx: false, url: s.url || steamStoreUrl(game) }
+            : s);
+      }
       return ['Steam', ...(EXTRA_STORES[game.id] || [])].map(s => ({ store: s }));
     }
 
     // Is the game's cheapest CURRENT store price at (or below) its all-time
-    // low? Compared strictly within ITAD data — ITAD reports SG prices in USD
-    // for several stores, so it must NOT be compared against the Steam feed's
-    // SGD price (game.price). Only stores sharing the low's currency count.
+    // low? Compared strictly within ITAD data (/api/deals now converts
+    // everything to SGD server-side, but if the FX step ever fails prices can
+    // arrive in mixed currencies — so only stores sharing the low's currency
+    // count, and the Steam feed's game.price stays out of this comparison).
     function atHistoryLow(deals, game) {
       const d = deals && game.appId && deals[String(game.appId)];
       const low = d && d.historyLow;
@@ -740,15 +748,17 @@
       GOG:   'bg-purple-500/15 text-purple-300 ring-purple-500/30',
     };
 
-    // ITAD reports prices in whatever currency it tracks for the region (USD
-    // for several stores in SG), so label the currency honestly instead of
-    // assuming SGD like the Steam feed does.
+    // /api/deals converts ITAD's prices (USD for several SG stores) to SGD
+    // server-side, flagging converted amounts `approx` — shown with a "~".
+    // If the FX step fails upstream, prices arrive in their original currency
+    // and are labeled honestly instead of being passed off as SGD.
     const CURRENCY_PREFIX = { SGD: 'S$', USD: 'US$', EUR: '€', GBP: '£' };
-    const fmtStorePrice = (p, currency) => {
+    const fmtStorePrice = (p, currency, approx) => {
       if (p === 0) return 'Free';
+      const tilde = approx ? '~' : '';
       const pre = CURRENCY_PREFIX[currency];
-      if (pre) return `${pre}${p.toFixed(2)}`;
-      return currency ? `${currency} ${p.toFixed(2)}` : `S$${p.toFixed(2)}`;
+      if (pre) return `${tilde}${pre}${p.toFixed(2)}`;
+      return currency ? `${tilde}${currency} ${p.toFixed(2)}` : `${tilde}S$${p.toFixed(2)}`;
     };
 
     // Which stores sell this game. With live /api/deals data each badge shows
@@ -768,7 +778,7 @@
                                   cheapest === s.store && 'ring-emerald-400/70')}
                     title={cheapest === s.store ? `Cheapest right now on ${s.store}` : `Available on ${s.store}`}>
                 {s.store}
-                {typeof s.price === 'number' && <span className="normal-case font-semibold text-stone-100">{fmtStorePrice(s.price, s.currency)}</span>}
+                {typeof s.price === 'number' && <span className="normal-case font-semibold text-stone-100">{fmtStorePrice(s.price, s.currency, s.approx)}</span>}
               </span>
             );
             return s.url
@@ -957,7 +967,7 @@
         // Cross-store rows only make sense once live deals data has landed.
         ...(deals ? [
           { key: 'cheapest', label: 'Cheapest store', icon: Tag,
-            get: (g) => { const m = minStore(g); return m ? `${m.store} · ${fmtStorePrice(m.price, m.currency)}` : '—'; },
+            get: (g) => { const m = minStore(g); return m ? `${m.store} · ${fmtStorePrice(m.price, m.currency, m.approx)}` : '—'; },
             cmp: (a, b) => { const pa = minStore(a), pb = minStore(b); return (pb ? pb.price : Infinity) - (pa ? pa.price : Infinity); } }, // lower wins
           { key: 'alltimelow', label: 'All-time low price', icon: Clock,
             get: (g) => {
@@ -965,7 +975,7 @@
               if (!low || typeof low.price !== 'number') return '—';
               return (
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
-                  {fmtStorePrice(low.price, low.currency)}
+                  {fmtStorePrice(low.price, low.currency, low.approx)}
                   {low.shop && <span className="text-stone-500 text-xs">on {low.shop}</span>}
                   {atHistoryLow(deals, g) && <Pill tone="good">at its low now</Pill>}
                 </span>
@@ -1613,7 +1623,7 @@
                   <Zap className="w-4 h-4 text-ink-950" />
                 </div>
                 <div>
-                  <div className="font-serif text-stone-100 font-medium leading-tight">PcGames.LazyComparo</div>
+                  <div className="font-serif text-stone-100 font-medium leading-tight">LazyComparo</div>
                   <div className="text-[10px] uppercase tracking-widest text-stone-500 leading-tight">PC game advisor</div>
                 </div>
               </a>
@@ -1668,7 +1678,7 @@
 
           <footer className="relative border-t border-ink-800 mt-16">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-stone-500 flex flex-wrap items-center justify-between gap-2">
-              <div>PcGames.LazyComparo · we do the boring comparison work · Steam prices &amp; ratings live from the Singapore store (cached ~30 min) · Epic/GOG prices &amp; historical lows via <a className="hover:text-stone-300 underline" href="https://isthereanydeal.com" target="_blank" rel="noopener noreferrer">IsThereAnyDeal</a> · free-game feed from Epic Games &amp; GamerPower · specs, pros/cons and hours-to-beat are editorial estimates.</div>
+              <div>LazyComparo · we do the boring comparison work · Steam prices &amp; ratings live from the Singapore store (cached ~30 min) · Epic/GOG prices &amp; historical lows via <a className="hover:text-stone-300 underline" href="https://isthereanydeal.com" target="_blank" rel="noopener noreferrer">IsThereAnyDeal</a> · free-game feed from Epic Games &amp; GamerPower · specs, pros/cons and hours-to-beat are editorial estimates.</div>
               <div className="flex items-center gap-3">
                 <span>Algorithm: weighted priority score · $/hour value ranking</span>
               </div>
