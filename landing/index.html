@@ -155,6 +155,20 @@
     .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .8s ease; }
     .reveal.in { opacity: 1; transform: none; }
 
+    /* dark finale panel — bridges the paper landing into the dark app pages */
+    .copy.darkpanel {
+      background: #1c1a17; border-radius: 8px;
+      padding: 56px 54px 50px;
+      box-shadow: 0 40px 80px -40px rgba(28,26,23,.55);
+    }
+    .copy.darkpanel::before { display: none; }
+    .copy.darkpanel h2 { color: #f6f1e7; }
+    .copy.darkpanel .rule { background: #f6f1e7; }
+    .copy.darkpanel .eyebrow { color: #b9b2a6; }
+    .copy.darkpanel .btn.ghost { color: #f6f1e7; border-color: rgba(246,241,231,.45); }
+    .copy.darkpanel .btn.ghost:hover { border-color: #f6f1e7; background: rgba(246,241,231,.08); }
+    @media (max-width: 760px) { .copy.darkpanel { padding: 40px 28px 36px; } }
+
     /* ---------- how-it-works cards ---------- */
     .cards { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 860px; }
     .pcard {
@@ -272,7 +286,7 @@
 
     <!-- stop 4 · finale -->
     <section class="stop">
-      <div class="copy reveal">
+      <div class="copy darkpanel reveal">
         <div class="rule"></div>
         <div class="eyebrow">Free · No sign-up · Built in Singapore</div>
         <h2>Stop researching. Start deciding.</h2>

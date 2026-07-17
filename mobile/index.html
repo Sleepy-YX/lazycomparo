@@ -7,7 +7,7 @@
   <meta name="description" content="Compare phone prices, specs, and resale value across Samsung, Apple, and Oppo — built for Singapore buyers deciding what to buy or when to switch." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/favicon.svg" />
-  <meta name="theme-color" content="#07090f" />
+  <meta name="theme-color" content="#0c0a08" />
   <link rel="canonical" href="https://lazycomparo.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="LazyComparo — Smart Phone Comparison &amp; Switching Advisor" />
@@ -21,22 +21,29 @@
       theme: {
         extend: {
           colors: {
+            // warm charcoal ramp — harmonizes with the paper-toned landing page
             ink: {
-              950: '#07090f',
-              900: '#0b0e17',
-              850: '#0f1320',
-              800: '#141a2b',
-              700: '#1c2438',
-              600: '#2a3350',
-              500: '#3b4670',
+              950: '#0c0a08',
+              900: '#12100d',
+              850: '#171412',
+              800: '#1e1a17',
+              700: '#2a2420',
+              600: '#3a332c',
+              500: '#4f463c',
             },
             accent: {
               DEFAULT: '#7c5cff',
               soft: '#a892ff',
             },
+            // persimmon — the landing page's CTA color, used for primary actions
+            ember: {
+              DEFAULT: '#d9482b',
+              soft: '#e05a3a',
+            },
           },
           fontFamily: {
             sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            serif: ['Fraunces', 'Georgia', 'serif'],
           },
           animation: {
             'fade-in': 'fadeIn 0.35s ease-out',
@@ -55,20 +62,20 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,480;9..144,560&display=swap" rel="stylesheet" />
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    html, body { background: #07090f; color: #e6e9f2; }
+    html, body { background: #0c0a08; color: #ece7de; }
     body { font-family: 'Inter', system-ui, sans-serif; }
     ::-webkit-scrollbar { width: 10px; height: 10px; }
-    ::-webkit-scrollbar-track { background: #0b0e17; }
-    ::-webkit-scrollbar-thumb { background: #2a3350; border-radius: 6px; }
-    ::-webkit-scrollbar-thumb:hover { background: #3b4670; }
+    ::-webkit-scrollbar-track { background: #12100d; }
+    ::-webkit-scrollbar-thumb { background: #3a332c; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4f463c; }
     input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; }
     input[type="range"]::-webkit-slider-runnable-track {
-      height: 6px; background: #1c2438; border-radius: 999px;
+      height: 6px; background: #2a2420; border-radius: 999px;
     }
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none; appearance: none;
@@ -622,8 +629,8 @@
       return (
         <div>
           <div className="flex items-baseline justify-between text-xs mb-1">
-            <span className="text-slate-400">{label}</span>
-            {showValue && <span className="text-slate-200 font-medium">{sub ?? value}</span>}
+            <span className="text-stone-400">{label}</span>
+            {showValue && <span className="text-stone-200 font-medium">{sub ?? value}</span>}
           </div>
           <div className="h-2 rounded-full bg-ink-800 overflow-hidden">
             <div className="h-full rounded-full transition-all duration-500"
@@ -635,7 +642,7 @@
 
     const Pill = ({ children, tone = 'default' }) => {
       const tones = {
-        default: 'bg-ink-700 text-slate-300 ring-ink-600',
+        default: 'bg-ink-700 text-stone-300 ring-ink-600',
         good:    'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30',
         meh:     'bg-amber-500/15 text-amber-300 ring-amber-500/30',
         bad:     'bg-rose-500/15 text-rose-300 ring-rose-500/30',
@@ -656,8 +663,8 @@
         {eyebrow && <div className="text-[11px] uppercase tracking-widest text-accent-soft/80 mb-2 flex items-center gap-2">
           {I && <I className="w-3.5 h-3.5" />}{eyebrow}
         </div>}
-        <h2 className="text-2xl md:text-3xl font-bold text-slate-50">{title}</h2>
-        {subtitle && <p className="text-slate-400 mt-1 max-w-2xl">{subtitle}</p>}
+        <h2 className="font-serif text-3xl md:text-4xl font-medium text-stone-50">{title}</h2>
+        {subtitle && <p className="text-stone-400 mt-1 max-w-2xl">{subtitle}</p>}
       </div>
     );
 
@@ -671,11 +678,11 @@
             <Smartphone className="w-5 h-5" style={{ color: phone.accent }} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs text-slate-400">{phone.brand}</div>
-            <div className="text-slate-100 font-semibold truncate">{phone.model}</div>
+            <div className="text-xs text-stone-400">{phone.brand}</div>
+            <div className="text-stone-100 font-semibold truncate">{phone.model}</div>
             <div className="flex items-center gap-2 mt-1">
               <Pill>{phone.tier}</Pill>
-              {showPrice && <span className="text-xs text-slate-400">S${phone.price}</span>}
+              {showPrice && <span className="text-xs text-stone-400">S${phone.price}</span>}
             </div>
           </div>
           {selected && (
@@ -722,9 +729,9 @@
           <Card className="p-3 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-2">
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -transtone-y-1/2" />
                 <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search brand or model..."
-                  className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-9 pr-3 py-2 text-sm text-slate-100 placeholder:text-slate-500" />
+                  className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-9 pr-3 py-2 text-sm text-stone-100 placeholder:text-stone-500" />
               </div>
               <Selector value={brand} onChange={setBrand} options={brands} label="Brand" />
               <Selector value={tier} onChange={setTier} options={tiers} label="Tier" />
@@ -740,7 +747,7 @@
               <PhoneCard key={p.id} phone={p} selected={shortlist.includes(p.id)} onClick={() => onToggle(p.id)} />
             ))}
             {list.length === 0 && (
-              <div className="col-span-full text-center text-slate-500 py-12">No phones match your filters.</div>
+              <div className="col-span-full text-center text-stone-500 py-12">No phones match your filters.</div>
             )}
           </div>
         </div>
@@ -749,12 +756,12 @@
 
     const Selector = ({ value, onChange, options, labels, label }) => (
       <div className="relative">
-        <label className="absolute -top-2 left-2 px-1 text-[10px] uppercase tracking-wider text-slate-500 bg-ink-850">{label}</label>
+        <label className="absolute -top-2 left-2 px-1 text-[10px] uppercase tracking-wider text-stone-500 bg-ink-850">{label}</label>
         <select value={value} onChange={e=>onChange(e.target.value)}
-                className="bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-3 pr-8 py-2 text-sm text-slate-100 appearance-none">
+                className="bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-3 pr-8 py-2 text-sm text-stone-100 appearance-none">
           {options.map(o => <option key={o} value={o}>{labels?.[o] ?? o}</option>)}
         </select>
-        <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <ChevronDown className="w-4 h-4 text-stone-500 absolute right-2 top-1/2 -transtone-y-1/2 pointer-events-none" />
       </div>
     );
 
@@ -770,9 +777,9 @@
               title="Side-by-side spec matrix"
               subtitle="Pick 2 or 3 phones from the catalog to compare specs, sentiment, and pros/cons." />
             <Card className="p-8 text-center">
-              <div className="text-slate-400 mb-4">You have {picked.length} phone{picked.length === 1 ? '' : 's'} selected. Add {2 - picked.length} more to start comparing.</div>
+              <div className="text-stone-400 mb-4">You have {picked.length} phone{picked.length === 1 ? '' : 's'} selected. Add {2 - picked.length} more to start comparing.</div>
               <button onClick={onGoBrowse}
-                className="inline-flex items-center gap-2 bg-accent hover:bg-accent-soft text-ink-950 font-semibold rounded-lg px-4 py-2 transition">
+                className="inline-flex items-center gap-2 bg-ember hover:bg-ember-soft text-white font-semibold rounded-lg px-4 py-2 transition">
                 Browse phones <ArrowRight className="w-4 h-4" />
               </button>
             </Card>
@@ -803,7 +810,7 @@
             {picked.map(p => (
               <Card key={p.id} className="p-4 relative">
                 <button onClick={() => setShortlist(shortlist.filter(id => id !== p.id))}
-                        className="absolute top-3 right-3 text-slate-500 hover:text-rose-400" title="Remove">
+                        className="absolute top-3 right-3 text-stone-500 hover:text-rose-400" title="Remove">
                   <X className="w-4 h-4" />
                 </button>
                 <div className="flex items-center gap-3">
@@ -812,9 +819,9 @@
                     <Smartphone className="w-5 h-5" style={{ color: p.accent }} />
                   </div>
                   <div>
-                    <div className="text-xs text-slate-400">{p.brand}</div>
-                    <div className="text-slate-100 font-semibold">{p.model}</div>
-                    <div className="text-xs text-slate-400">S${p.price} · {p.year}</div>
+                    <div className="text-xs text-stone-400">{p.brand}</div>
+                    <div className="text-stone-100 font-semibold">{p.model}</div>
+                    <div className="text-xs text-stone-400">S${p.price} · {p.year}</div>
                   </div>
                 </div>
                 <div className="mt-3 space-y-1.5">
@@ -826,7 +833,7 @@
               </Card>
             ))}
             {canAddMore && (
-              <Card className="p-4 border-2 border-dashed border-ink-700 flex items-center justify-center text-slate-500 hover:text-accent-soft hover:border-accent/50 cursor-pointer"
+              <Card className="p-4 border-2 border-dashed border-ink-700 flex items-center justify-center text-stone-500 hover:text-accent-soft hover:border-accent/50 cursor-pointer"
                     onClick={onGoBrowse}>
                 <div className="text-center">
                   <Plus className="w-6 h-6 mx-auto mb-1" />
@@ -840,11 +847,11 @@
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-ink-800/60 text-slate-400 text-xs uppercase tracking-wider">
+                <thead className="bg-ink-800/60 text-stone-400 text-xs uppercase tracking-wider">
                   <tr>
                     <th className="text-left px-4 py-3 font-medium">Spec</th>
                     {picked.map(p => (
-                      <th key={p.id} className="text-left px-4 py-3 font-medium text-slate-200">{p.brand} {p.model}</th>
+                      <th key={p.id} className="text-left px-4 py-3 font-medium text-stone-200">{p.brand} {p.model}</th>
                     ))}
                   </tr>
                 </thead>
@@ -858,9 +865,9 @@
                     const I = row.icon;
                     return (
                       <tr key={row.key} className={cx(i % 2 === 0 ? 'bg-ink-850' : 'bg-ink-900/60')}>
-                        <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                        <td className="px-4 py-3 text-stone-400 whitespace-nowrap">
                           <span className="inline-flex items-center gap-2">
-                            {I && <I className="w-4 h-4 text-slate-500" />}
+                            {I && <I className="w-4 h-4 text-stone-500" />}
                             {row.label}
                           </span>
                         </td>
@@ -885,17 +892,17 @@
           <div className={cx('grid gap-3 mt-6', picked.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
             {picked.map(p => (
               <Card key={p.id} className="p-4">
-                <div className="text-slate-200 font-semibold mb-3">{p.brand} {p.model}</div>
+                <div className="text-stone-200 font-semibold mb-3">{p.brand} {p.model}</div>
                 <div className="mb-3">
                   <div className="text-xs uppercase tracking-wider text-emerald-400/80 mb-2 flex items-center gap-1"><Check className="w-3 h-3" /> Pros</div>
                   <ul className="space-y-1.5">
-                    {p.pros.map((s, i) => <li key={i} className="text-sm text-slate-300 flex gap-2"><span className="text-emerald-400 mt-0.5">+</span>{s}</li>)}
+                    {p.pros.map((s, i) => <li key={i} className="text-sm text-stone-300 flex gap-2"><span className="text-emerald-400 mt-0.5">+</span>{s}</li>)}
                   </ul>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wider text-rose-400/80 mb-2 flex items-center gap-1"><X className="w-3 h-3" /> Cons</div>
                   <ul className="space-y-1.5">
-                    {p.cons.map((s, i) => <li key={i} className="text-sm text-slate-300 flex gap-2"><span className="text-rose-400 mt-0.5">−</span>{s}</li>)}
+                    {p.cons.map((s, i) => <li key={i} className="text-sm text-stone-300 flex gap-2"><span className="text-rose-400 mt-0.5">−</span>{s}</li>)}
                   </ul>
                 </div>
               </Card>
@@ -935,18 +942,18 @@
 
     const PersonaGuide = () => (
       <Card className="p-5 mt-6">
-        <div className="text-sm uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-2">
+        <div className="text-sm uppercase tracking-wider text-stone-400 mb-1 flex items-center gap-2">
           <Layers className="w-4 h-4" /> Who should actually switch brands or platforms?
         </div>
-        <p className="text-xs text-slate-500 mb-4 max-w-3xl">
+        <p className="text-xs text-stone-500 mb-4 max-w-3xl">
           The score above only weighs specs. Ecosystem fit is a separate call — here's how we'd advise different kinds of users.
         </p>
         <div className="grid sm:grid-cols-2 gap-3">
           {PERSONA_ADVICE.map((p, i) => (
             <div key={i} className="bg-ink-900/60 ring-1 ring-ink-700 rounded-xl p-3.5">
-              <div className="text-sm text-slate-200">{p.persona}</div>
+              <div className="text-sm text-stone-200">{p.persona}</div>
               <div className="mt-2"><Pill tone={p.tone}>{p.recommend}</Pill></div>
-              <div className="mt-2 text-xs text-slate-500 leading-relaxed">{p.why}</div>
+              <div className="mt-2 text-xs text-stone-500 leading-relaxed">{p.why}</div>
             </div>
           ))}
         </div>
@@ -998,45 +1005,45 @@
           <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6">
             {/* Form */}
             <Card className="p-5 h-fit lg:sticky lg:top-4">
-              <div className="text-sm uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+              <div className="text-sm uppercase tracking-wider text-stone-400 mb-4 flex items-center gap-2">
                 <Info className="w-4 h-4" /> Your setup
               </div>
 
               <div className="mb-5">
-                <label className="text-xs text-slate-400 block mb-1.5">Current phone</label>
+                <label className="text-xs text-stone-400 block mb-1.5">Current phone</label>
                 <div className="relative">
                   <select value={currentId} onChange={e=>setCurrentId(e.target.value)}
-                          className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-3 pr-8 py-2 text-sm text-slate-100 appearance-none">
+                          className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-3 pr-8 py-2 text-sm text-stone-100 appearance-none">
                     {PHONES.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} ({p.year})</option>)}
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-stone-500 absolute right-2 top-1/2 -transtone-y-1/2 pointer-events-none" />
                 </div>
                 {currentPhone && (
-                  <div className="mt-2 text-xs text-slate-500">
-                    Ecosystem: <span className="text-slate-300">{currentPhone.ecosystem}</span> · Score for your priorities: <span className="text-slate-300">{results.currentScore.toFixed(1)}</span>
+                  <div className="mt-2 text-xs text-stone-500">
+                    Ecosystem: <span className="text-stone-300">{currentPhone.ecosystem}</span> · Score for your priorities: <span className="text-stone-300">{results.currentScore.toFixed(1)}</span>
                   </div>
                 )}
               </div>
 
               <div className="mb-5">
-                <label className="text-xs text-slate-400 flex items-center justify-between mb-1.5">
-                  <span>Budget</span><span className="text-slate-200 font-medium">S${budget}</span>
+                <label className="text-xs text-stone-400 flex items-center justify-between mb-1.5">
+                  <span>Budget</span><span className="text-stone-200 font-medium">S${budget}</span>
                 </label>
                 <input type="range" min="300" max="2000" step="50" value={budget}
                        onChange={e=>setBudget(parseInt(e.target.value))} className="w-full" />
-                <div className="flex justify-between text-[10px] text-slate-500 mt-1"><span>S$300</span><span>S$2,000</span></div>
+                <div className="flex justify-between text-[10px] text-stone-500 mt-1"><span>S$300</span><span>S$2,000</span></div>
               </div>
 
               <div className="mb-5">
-                <div className="text-xs text-slate-400 mb-2">Priorities</div>
+                <div className="text-xs text-stone-400 mb-2">Priorities</div>
                 <div className="space-y-3">
                   {Object.entries(PRIORITY_LABELS).map(([k, label]) => {
                     const I = PRIORITY_ICONS[k];
                     return (
                       <div key={k}>
                         <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="inline-flex items-center gap-1.5 text-slate-300"><I className="w-3.5 h-3.5 text-slate-400" /> {label}</span>
-                          <span className="text-slate-200 font-medium">{priorities[k]}</span>
+                          <span className="inline-flex items-center gap-1.5 text-stone-300"><I className="w-3.5 h-3.5 text-stone-400" /> {label}</span>
+                          <span className="text-stone-200 font-medium">{priorities[k]}</span>
                         </div>
                         <input type="range" min="0" max="100" step="5" value={priorities[k]}
                                onChange={e=>setPriorities({...priorities, [k]: parseInt(e.target.value)})} className="w-full" />
@@ -1048,17 +1055,17 @@
 
               <div className="flex gap-2">
                 <button onClick={() => setSubmitted(true)}
-                        className="flex-1 inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-soft text-ink-950 font-semibold rounded-lg px-4 py-2 transition">
+                        className="flex-1 inline-flex items-center justify-center gap-2 bg-ember hover:bg-ember-soft text-white font-semibold rounded-lg px-4 py-2 transition">
                   <Sparkles className="w-4 h-4" /> Get recommendations
                 </button>
                 <button onClick={resetForm}
-                        className="inline-flex items-center gap-2 bg-ink-800 hover:bg-ink-700 text-slate-300 rounded-lg px-3 py-2 text-sm transition"
+                        className="inline-flex items-center gap-2 bg-ink-800 hover:bg-ink-700 text-stone-300 rounded-lg px-3 py-2 text-sm transition"
                         title="Reset form">
                   <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="mt-4 text-[11px] text-slate-500 leading-relaxed">
+              <div className="mt-4 text-[11px] text-stone-500 leading-relaxed">
                 Results update live as you tweak. Hitting the button just highlights the verdict banner.
               </div>
             </Card>
@@ -1080,9 +1087,9 @@
                                                        <RefreshCw className="w-5 h-5" />}
                   </div>
                   <div className="flex-1">
-                    <div className="text-xs uppercase tracking-widest text-slate-400">Verdict</div>
-                    <div className="text-lg font-semibold text-slate-100">{results.verdict.label}</div>
-                    <div className="text-sm text-slate-300 mt-1">{results.verdict.text}</div>
+                    <div className="text-xs uppercase tracking-widest text-stone-400">Verdict</div>
+                    <div className="text-lg font-semibold text-stone-100">{results.verdict.label}</div>
+                    <div className="text-sm text-stone-300 mt-1">{results.verdict.text}</div>
                   </div>
                 </div>
               </Card>
@@ -1100,14 +1107,14 @@
                         <div className="flex items-start justify-between gap-2 flex-wrap">
                           <div>
                             <div className="flex items-center gap-2">
-                              <div className="text-lg font-semibold text-slate-100">{phone.brand} {phone.model}</div>
+                              <div className="text-lg font-semibold text-stone-100">{phone.brand} {phone.model}</div>
                               {idx === 0 && <Pill tone="accent"><Award className="w-3 h-3" /> Top pick</Pill>}
                             </div>
-                            <div className="text-xs text-slate-400 mt-0.5">S${phone.price} · {phone.tier} · {phone.ecosystem}</div>
+                            <div className="text-xs text-stone-400 mt-0.5">S${phone.price} · {phone.tier} · {phone.ecosystem}</div>
                           </div>
                           <div className="text-right">
-                            <div className="text-xs text-slate-400">Match score</div>
-                            <div className="text-2xl font-bold text-slate-100 leading-none">{score.adjusted.toFixed(1)}</div>
+                            <div className="text-xs text-stone-400">Match score</div>
+                            <div className="text-2xl font-bold text-stone-100 leading-none">{score.adjusted.toFixed(1)}</div>
                             {score.penalty > 0 && (
                               <div className="text-[10px] text-amber-300 mt-1">raw {score.raw.toFixed(1)} − {score.penalty} eco friction</div>
                             )}
@@ -1118,7 +1125,7 @@
                           <StatBar label="Match" value={score.adjusted} sub={`${score.adjusted.toFixed(1)}/100`} color={phone.accent} />
                         </div>
 
-                        <div className="mt-3 text-sm text-slate-300">
+                        <div className="mt-3 text-sm text-stone-300">
                           Best fit for your <span className="text-accent-soft">{topPri.map(k => PRIORITY_LABELS[k].toLowerCase()).join(' & ')}</span> priorities.
                           {' '}Sentiment {phone.sentimentScore}%.
                         </div>
@@ -1155,7 +1162,7 @@
                   </Card>
                 ))}
                 {results.candidates.length === 0 && (
-                  <Card className="p-8 text-center text-slate-400">
+                  <Card className="p-8 text-center text-stone-400">
                     No phones fit under S${budget}. Try raising your budget.
                   </Card>
                 )}
@@ -1190,13 +1197,13 @@
             subtitle="Annualized depreciation rate from launch price to today's street price (used/2nd-hand SG market). Lower % = holds value better. Just-launched phones (2026) are excluded — there's no resale history yet." />
 
           <Card className="p-5 mb-6">
-            <div className="text-sm text-slate-300 mb-4 font-medium">Average annual depreciation by brand</div>
+            <div className="text-sm text-stone-300 mb-4 font-medium">Average annual depreciation by brand</div>
             <div className="space-y-3">
               {brandStats.map(b => (
                 <div key={b.brand}>
                   <div className="flex items-baseline justify-between text-xs mb-1">
-                    <span className="text-slate-300 font-medium">{b.brand}</span>
-                    <span className="text-slate-400">{b.avgRate}%/yr</span>
+                    <span className="text-stone-300 font-medium">{b.brand}</span>
+                    <span className="text-stone-400">{b.avgRate}%/yr</span>
                   </div>
                   <div className="h-2.5 rounded-full bg-ink-800 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500"
@@ -1205,7 +1212,7 @@
                 </div>
               ))}
             </div>
-            <div className="mt-4 text-xs text-slate-500 flex items-start gap-2">
+            <div className="mt-4 text-xs text-stone-500 flex items-start gap-2">
               <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <div>Brands with more flagship "Ultra"/Pro-tier phones in the catalog (which launch at very high prices and fall hardest) will show a higher average here — depreciation isn't purely about brand loyalty, it's steepest on the phones that launched most expensive relative to their real resale demand.</div>
             </div>
@@ -1218,7 +1225,7 @@
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-ink-800/60 text-slate-400 text-xs uppercase tracking-wider">
+                <thead className="bg-ink-800/60 text-stone-400 text-xs uppercase tracking-wider">
                   <tr>
                     <th className="text-left px-4 py-3 font-medium">Phone</th>
                     <th className="text-left px-4 py-3 font-medium">Launch price</th>
@@ -1230,17 +1237,17 @@
                 <tbody>
                   {rows.map(({ phone: p, rate, retained, age }, i) => (
                     <tr key={p.id} className={cx(i % 2 === 0 ? 'bg-ink-850' : 'bg-ink-900/60')}>
-                      <td className="px-4 py-3 text-slate-200 whitespace-nowrap">{p.brand} {p.model} <span className="text-slate-500">· {p.year}</span></td>
-                      <td className="px-4 py-3 text-slate-400">S${p.launchPrice}</td>
-                      <td className="px-4 py-3 text-slate-200">S${p.price}</td>
+                      <td className="px-4 py-3 text-stone-200 whitespace-nowrap">{p.brand} {p.model} <span className="text-stone-500">· {p.year}</span></td>
+                      <td className="px-4 py-3 text-stone-400">S${p.launchPrice}</td>
+                      <td className="px-4 py-3 text-stone-200">S${p.price}</td>
                       <td className="px-4 py-3">
                         <span className={cx(retained >= 60 ? 'text-emerald-300' : retained >= 35 ? 'text-amber-300' : 'text-rose-300')}>{retained}%</span>
                       </td>
-                      <td className="px-4 py-3 text-slate-300">{rate}% ({age}y)</td>
+                      <td className="px-4 py-3 text-stone-300">{rate}% ({age}y)</td>
                     </tr>
                   ))}
                   {rows.length === 0 && (
-                    <tr><td colSpan="5" className="px-4 py-8 text-center text-slate-500">No phones match this filter.</td></tr>
+                    <tr><td colSpan="5" className="px-4 py-8 text-center text-stone-500">No phones match this filter.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1280,21 +1287,22 @@
 
           <header className="relative border-b border-ink-800 bg-ink-950/70 backdrop-blur-md sticky top-0 z-20">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center gap-4">
-              <div className="flex items-center gap-2">
+              <a href="https://lazycomparo.com/" title="LazyComparo home"
+                 className="flex items-center gap-2 hover:opacity-80 transition">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-teal-400 flex items-center justify-center">
                   <Zap className="w-4 h-4 text-ink-950" />
                 </div>
                 <div>
-                  <div className="text-slate-100 font-semibold leading-tight">LazyComparo</div>
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500 leading-tight">Phone advisor</div>
+                  <div className="font-serif text-stone-100 font-medium leading-tight">LazyComparo</div>
+                  <div className="text-[10px] uppercase tracking-widest text-stone-500 leading-tight">Phone advisor</div>
                 </div>
-              </div>
+              </a>
 
               <nav className="ml-4 flex bg-ink-900 rounded-lg p-1 ring-1 ring-ink-800">
                 {TABS.map(({ id, label, icon: I }) => (
                   <button key={id} onClick={() => setTab(id)}
                           className={cx('px-3 py-1.5 text-sm rounded-md inline-flex items-center gap-1.5 transition',
-                            tab === id ? 'bg-ink-700 text-slate-100' : 'text-slate-400 hover:text-slate-200')}>
+                            tab === id ? 'bg-ink-700 text-stone-100' : 'text-stone-400 hover:text-stone-200')}>
                     <I className="w-4 h-4" /> {label}
                     {id === 'compare' && shortlist.length > 0 && (
                       <span className="ml-1 text-[10px] bg-accent text-ink-950 rounded-full px-1.5 leading-4 font-semibold">{shortlist.length}</span>
@@ -1303,7 +1311,7 @@
                 ))}
               </nav>
 
-              <div className="ml-auto hidden md:flex items-center gap-2 text-xs text-slate-500">
+              <div className="ml-auto hidden md:flex items-center gap-2 text-xs text-stone-500">
                 <Star className="w-3.5 h-3.5" /> {PHONES.length} phones · updated for 2026
               </div>
             </div>
@@ -1321,7 +1329,7 @@
           </main>
 
           <footer className="relative border-t border-ink-800 mt-16">
-            <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
+            <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-stone-500 flex flex-wrap items-center justify-between gap-2">
               <div>LazyComparo · we do the boring comparison work · mock data for demo — prices in S$ (Singapore market), illustrative.</div>
               <div className="flex items-center gap-3">
                 <span>Algorithm: weighted priority × ecosystem penalty</span>
