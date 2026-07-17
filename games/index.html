@@ -113,10 +113,61 @@
       .tilt-card::after { display: none; }
       .tilt-float { transform: none !important; }
     }
+
+    /* ---- Boot splash ----
+       The edge middleware injects plain SEO HTML into #root for crawlers;
+       without this it flashes unstyled before React mounts. Keep the content
+       in the DOM but hidden until the app reveals itself (html.app-ready,
+       set from App's mount effect, the bootstrap catch, or a safety timer). */
+    #root { visibility: hidden; }
+    html.app-ready #root { visibility: visible; }
+    #boot-splash {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: #0c0a08;
+      transition: opacity .3s ease-out;
+    }
+    html.app-ready #boot-splash { opacity: 0; pointer-events: none; }
+    #boot-splash .wordmark {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 1.5rem; color: #ece7de; letter-spacing: .01em;
+      animation: bootPulse 1.2s ease-in-out infinite;
+    }
+    #boot-splash .wordmark em { font-style: normal; color: #e05a3a; }
+    @keyframes bootPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      #boot-splash .wordmark { animation: none; }
+      #boot-splash { transition: none; }
+    }
   </style>
+  <noscript>
+    <style>
+      /* No JS: show the server-injected SEO content instead of the splash. */
+      #root { visibility: visible; }
+      #boot-splash { display: none; }
+    </style>
+  </noscript>
 </head>
 <body class="dark">
   <div id="root"></div>
+  <div id="boot-splash" aria-hidden="true">
+    <div class="wordmark">Lazy<em>Comparo</em></div>
+  </div>
+  <script>
+    // Reveal the app (hide the splash, show #root). Called from App's mount
+    // effect; the 6s timer is a safety net so a failed CDN script never
+    // leaves the page stuck on the splash — worst case the SEO content shows.
+    window.__reveal = function () {
+      document.documentElement.classList.add('app-ready');
+      // Remove the node after the fade — background tabs freeze CSS
+      // transitions, so don't rely on opacity alone to clear the overlay.
+      setTimeout(function () {
+        var s = document.getElementById('boot-splash');
+        if (s) s.remove();
+      }, 400);
+    };
+    setTimeout(window.__reveal, 6000);
+  </script>
 
   <script id="app-source" type="text/plain">
     const { useState, useMemo, useEffect } = React;
@@ -1601,6 +1652,9 @@
         return () => { if (window.LazyFX) window.LazyFX.stop(); };
       }, []);
 
+      // App is mounted — drop the boot splash and show #root.
+      useEffect(() => { if (window.__reveal) window.__reveal(); }, []);
+
       return (
        <GamesContext.Provider value={live}>
        <DealsContext.Provider value={dealsLive}>
@@ -1941,6 +1995,7 @@
         (0, eval)(out.code);
       } catch (e) {
         console.error('App bootstrap failed:', e);
+        if (window.__reveal) window.__reveal();
         document.getElementById('root').innerHTML =
           '<pre style="color:#f87171;padding:16px;white-space:pre-wrap;">' +
           String(e && e.stack || e) + '</pre>';
