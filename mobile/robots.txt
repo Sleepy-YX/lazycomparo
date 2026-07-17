@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://lazycomparo.com/sitemap.xml
+Sitemap: https://mobile.lazycomparo.com/sitemap.xml

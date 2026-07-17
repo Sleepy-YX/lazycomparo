@@ -153,7 +153,7 @@ Every other phone comparison site just ranks by specs. The 5/15 point penalty fo
 
 ## Open decisions (not yet resolved)
 
-- **Landing-page domain restructure** — plan: `lazycomparo.com` → new `landing/` page; phone app moves off the apex to a subdomain (suggest `phones.lazycomparo.com`). Requires Cloudflare dashboard changes (either repoint the existing `lazycomparo` Pages project's root dir `mobile` → `landing` and create a new project for `mobile/`, or create a `lazycomparo-landing` project and swap the custom domain). Landing page links currently point phones at `lazycomparo.pages.dev`; update them once the subdomain exists.
+- ~~**Landing-page domain restructure**~~ — **DONE 2026-07-17.** Final layout: three Pages projects off the one repo — `lazycomparo-landing` (root `landing`) → **lazycomparo.com**, `lazycomparogames` (root `games`) → **pcgames.lazycomparo.com**, `lazycomparomobile` (root `mobile`) → **mobile.lazycomparo.com** (+ legacy `lazycomparo.pages.dev`). Landing links, mobile canonical/og/sitemap/robots all point at `mobile.lazycomparo.com`. Still unclaimed: `www.lazycomparo.com` (consider adding to the landing project).
 
 - **Custom domain** — not purchased. Options: `lazycomparo.sg` (SGD 30/yr, Vodien or Exabytes), `lazycomparo.io` (USD 35/yr, Cloudflare Registrar), `lazycomparo.app` (USD 14/yr, Cloudflare Registrar), `lazycomparo.com` (USD 9/yr, Cloudflare Registrar). Recommendation: `.sg` for local SEO + `.com` as defensive.
 - **`phones.json` extraction** — pending. Would let user add phones by editing JSON, no code changes. Prerequisite for Supabase migration.
