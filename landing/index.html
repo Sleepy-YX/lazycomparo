@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LazyComparo — We Do the Boring Comparison Work</title>
+  <meta name="description" content="LazyComparo watches prices, ratings and trade-offs so you don't have to. Compare PC games across Steam, Epic and GOG, and get an honest phone upgrade verdict — free." />
+  <link rel="canonical" href="https://lazycomparo.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="LazyComparo — We Do the Boring Comparison Work" />
+  <meta property="og:description" content="Live game prices across Steam, Epic and GOG. Phone switching advice that counts ecosystem pain. Verdict first, specs second." />
+  <meta property="og:url" content="https://lazycomparo.com/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%23a78bfa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2' fill='url(%23g)'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,480;9..144,560&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "LazyComparo",
+    "url": "https://lazycomparo.com/",
+    "description": "Lazy comparison and buying advisors — we do the boring comparison work for you.",
+    "publisher": { "@type": "Organization", "name": "LazyComparo", "url": "https://lazycomparo.com/" }
+  }
+  </script>
+
+  <style>
+    :root {
+      --paper: #f6f1e7;
+      --paper-deep: #ece4d3;
+      --ink: #1c1a17;
+      --ink-soft: #57524a;
+      --accent: #d9482b;        /* persimmon CTA, like a hanko stamp */
+      --accent-dark: #b93a20;
+      --indigo: #2c3e6b;
+      --serif: 'Fraunces', Georgia, serif;
+      --sans: 'Inter', system-ui, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      overflow-x: hidden;
+    }
+
+    /* ---------- fixed 3D stage ---------- */
+    #stage {
+      position: fixed; inset: 0; z-index: 0;
+      display: block; width: 100%; height: 100%;
+    }
+    /* decorative fallback when WebGL is unavailable */
+    body.no3d #stage { display: none; }
+    body.no3d::before {
+      content: ''; position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(60% 50% at 75% 30%, rgba(44,62,107,.14), transparent 70%),
+        radial-gradient(50% 45% at 20% 75%, rgba(217,72,43,.10), transparent 70%),
+        var(--paper);
+    }
+
+    /* soft vignette so scene edges melt into paper */
+    .vignette {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background:
+        linear-gradient(to bottom, rgba(246,241,231,.85), transparent 14%),
+        linear-gradient(to top, rgba(246,241,231,.9), transparent 18%);
+    }
+
+    /* ---------- header ---------- */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; align-items: center; gap: 28px;
+      padding: 18px 4vw;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+    .brand svg { width: 26px; height: 26px; }
+    .brand b { font-family: var(--serif); font-size: 19px; font-weight: 560; letter-spacing: .01em; }
+    nav.top { margin-left: auto; display: flex; gap: 4px; background: rgba(246,241,231,.72); backdrop-filter: blur(8px); border: 1px solid rgba(28,26,23,.1); border-radius: 4px; padding: 4px; }
+    nav.top a {
+      font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--ink-soft); text-decoration: none; padding: 7px 13px; border-radius: 3px;
+      transition: background .2s, color .2s; white-space: nowrap;
+    }
+    nav.top a:hover { color: var(--ink); background: rgba(28,26,23,.06); }
+    .cta-pill {
+      margin-left: 16px;
+      font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+      background: var(--accent); color: #fff; text-decoration: none;
+      padding: 12px 20px; border-radius: 3px;
+      box-shadow: 0 6px 18px -8px rgba(217,72,43,.6);
+      transition: background .2s, transform .2s;
+      white-space: nowrap;
+    }
+    .cta-pill:hover { background: var(--accent-dark); transform: translateY(-1px); }
+
+    /* ---------- scroll sections ---------- */
+    main { position: relative; z-index: 2; }
+    section.stop {
+      min-height: 100vh;
+      display: flex; align-items: center;
+      padding: 12vh 4vw;
+    }
+    section.stop:nth-of-type(even) { justify-content: flex-end; }
+
+    .copy { max-width: 620px; position: relative; }
+    /* paper halo so text stays readable over the scene */
+    .copy::before {
+      content: ''; position: absolute; inset: -14% -18%; z-index: -1;
+      background: radial-gradient(closest-side, rgba(246,241,231,.94) 45%, rgba(246,241,231,0) 78%);
+    }
+    .rule { width: 34px; height: 2px; background: var(--ink); margin-bottom: 14px; opacity: .8; }
+    .stopno { font-size: 10px; letter-spacing: .3em; color: var(--ink-soft); margin-bottom: 6px; }
+    .eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase;
+      color: var(--ink-soft); margin-bottom: 22px;
+    }
+    h1, h2 {
+      font-family: var(--serif); font-weight: 480; line-height: 1.02;
+      letter-spacing: -0.015em; color: var(--ink);
+    }
+    h1 { font-size: clamp(52px, 8.5vw, 118px); }
+    h2 { font-size: clamp(44px, 6.5vw, 96px); }
+    .sub {
+      margin-top: 26px; max-width: 44ch;
+      font-size: 15px; line-height: 1.65; color: var(--ink-soft);
+    }
+    .taglist { margin-top: 30px; display: flex; gap: 22px; flex-wrap: wrap; }
+    .taglist span {
+      font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--ink); border-bottom: 1.5px solid rgba(28,26,23,.35); padding-bottom: 3px;
+    }
+    .actions { margin-top: 36px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+    .btn {
+      font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      text-decoration: none; padding: 15px 26px; border-radius: 3px; transition: all .2s;
+    }
+    .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 8px 22px -10px rgba(217,72,43,.65); }
+    .btn.primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+    .btn.ghost { color: var(--ink); border: 1.5px solid rgba(28,26,23,.4); }
+    .btn.ghost:hover { border-color: var(--ink); background: rgba(28,26,23,.05); }
+    .arrowlink {
+      font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--ink); text-decoration: none; border-bottom: 2px solid var(--accent);
+      padding-bottom: 4px; transition: opacity .2s;
+    }
+    .arrowlink:hover { opacity: .65; }
+
+    /* reveal on scroll */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .8s ease; }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* ---------- how-it-works cards ---------- */
+    .cards { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 860px; }
+    .pcard {
+      background: #fdfaf3; border: 1px solid rgba(28,26,23,.1); border-radius: 6px;
+      padding: 26px 22px; box-shadow: 0 14px 34px -22px rgba(28,26,23,.4);
+      transform: perspective(800px) rotateX(1.5deg);
+      transition: transform .25s ease, box-shadow .25s ease;
+    }
+    .pcard:hover { transform: perspective(800px) rotateX(0) translateY(-5px); box-shadow: 0 24px 44px -22px rgba(28,26,23,.45); }
+    .pcard .k { font-family: var(--serif); font-size: 26px; font-weight: 560; margin-bottom: 10px; }
+    .pcard p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
+    .pcard .num { font-size: 10px; letter-spacing: .3em; color: var(--accent); font-weight: 700; margin-bottom: 14px; }
+
+    /* ---------- footer ---------- */
+    footer {
+      position: relative; z-index: 2;
+      background: var(--ink); color: #b9b2a6;
+      padding: 54px 4vw 40px;
+      font-size: 12px; line-height: 1.7;
+    }
+    footer .cols { display: flex; justify-content: space-between; gap: 30px; flex-wrap: wrap; max-width: 1200px; margin: 0 auto; }
+    footer a { color: #ece4d3; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    footer .brandline { font-family: var(--serif); color: #f6f1e7; font-size: 17px; margin-bottom: 8px; }
+
+    @media (max-width: 760px) {
+      nav.top { display: none; }
+      section.stop, section.stop:nth-of-type(even) { justify-content: flex-start; padding: 14vh 6vw; }
+      .cards { grid-template-columns: 1fr; max-width: 480px; }
+      .copy::before { inset: -10% -12%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { opacity: 1 !important; transform: none !important; transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="stage" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+
+  <header>
+    <a class="brand" href="/">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/>
+        </linearGradient></defs>
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="url(#lg)"/>
+      </svg>
+      <b>LazyComparo</b>
+    </a>
+    <nav class="top">
+      <a href="https://pcgames.lazycomparo.com/">PC Games</a>
+      <a href="https://lazycomparo.pages.dev/">Phones</a>
+      <a href="#how">How it works</a>
+    </nav>
+    <a class="cta-pill" href="https://pcgames.lazycomparo.com/">Start comparing</a>
+  </header>
+
+  <main>
+    <!-- stop 0 · hero -->
+    <section class="stop">
+      <div class="copy reveal">
+        <div class="rule"></div>
+        <div class="eyebrow">The lazy way to buy well</div>
+        <h1>Decisions,<br/>minus the homework.</h1>
+        <p class="sub">LazyComparo watches prices, ratings and trade-offs across stores and brands — then just tells you what's actually worth your money. You stay lazy. We compare.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://pcgames.lazycomparo.com/">Compare PC games</a>
+          <a class="btn ghost" href="https://lazycomparo.pages.dev/">Compare phones</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- stop 1 · games -->
+    <section class="stop">
+      <div class="copy reveal">
+        <div class="rule"></div>
+        <div class="stopno">01 / 03</div>
+        <div class="eyebrow">PC Games</div>
+        <h2>Never overpay for a game again.</h2>
+        <p class="sub">Live prices across Steam, Epic and GOG. All-time-low flags, dollars-per-hour value scores, and this week's free games — all in one lazy glance.</p>
+        <div class="taglist"><span>Steam · Epic · GOG</span><span>Free-game alerts</span><span>$ / hour value</span></div>
+        <div class="actions"><a class="arrowlink" href="https://pcgames.lazycomparo.com/">Open the games comparator&nbsp;&nbsp;→</a></div>
+      </div>
+    </section>
+
+    <!-- stop 2 · phones -->
+    <section class="stop">
+      <div class="copy reveal">
+        <div class="rule"></div>
+        <div class="stopno">02 / 03</div>
+        <div class="eyebrow">Phones</div>
+        <h2>Upgrade only when it's worth it.</h2>
+        <p class="sub">The only phone advisor that counts the pain of leaving iMessage or DeX. Set your budget and priorities, and get an honest verdict: worth upgrading, marginal, or wait a generation.</p>
+        <div class="taglist"><span>Ecosystem penalty</span><span>Priority sliders</span><span>Honest verdicts</span></div>
+        <div class="actions"><a class="arrowlink" href="https://lazycomparo.pages.dev/">Open the phone advisor&nbsp;&nbsp;→</a></div>
+      </div>
+    </section>
+
+    <!-- stop 3 · how it works -->
+    <section class="stop" id="how">
+      <div class="copy reveal" style="max-width: 900px;">
+        <div class="rule"></div>
+        <div class="stopno">03 / 03</div>
+        <div class="eyebrow">How it works</div>
+        <h2>Lazy for you.<br/>Not for us.</h2>
+        <div class="cards">
+          <div class="pcard"><div class="num">LIVE</div><div class="k">Real prices</div><p>Prices and review scores refresh straight from official store feeds — Steam, Epic, GOG and IsThereAnyDeal — cached at the edge, never hand-typed.</p></div>
+          <div class="pcard"><div class="num">MATH</div><div class="k">Honest scoring</div><p>Weighted priority scores, an ecosystem-friction penalty for switching brands, and $-per-hour value ranking. The spreadsheet you'd never build yourself.</p></div>
+          <div class="pcard"><div class="num">ZERO</div><div class="k">No fluff</div><p>Verdict first, specs second. No affiliate-bait rankings, no 4,000-word "reviews". Just what's worth buying — or the honest advice to wait.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- stop 4 · finale -->
+    <section class="stop">
+      <div class="copy reveal">
+        <div class="rule"></div>
+        <div class="eyebrow">Free · No sign-up · Built in Singapore</div>
+        <h2>Stop researching. Start deciding.</h2>
+        <div class="actions">
+          <a class="btn primary" href="https://pcgames.lazycomparo.com/">Compare PC games</a>
+          <a class="btn ghost" href="https://lazycomparo.pages.dev/">Compare phones</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="cols">
+      <div>
+        <div class="brandline">⚡ LazyComparo</div>
+        We do the boring comparison work.<br/>Built in Singapore. Free to use.
+      </div>
+      <div>
+        <a href="https://pcgames.lazycomparo.com/">PC game comparator</a><br/>
+        <a href="https://lazycomparo.pages.dev/">Phone switching advisor</a><br/>
+        <a href="https://github.com/Sleepy-YX/lazycomparo">GitHub</a>
+      </div>
+      <div style="max-width:340px;">
+        Game prices live from the Steam SG store, Epic &amp; GOG via IsThereAnyDeal. Editorial specs and verdict math are ours. © 2026 LazyComparo.
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+  <script>
+  /* =====================================================================
+     LazyComparo landing — papercraft 3D world with a scroll-driven camera.
+     One scene, five camera "stops" matched to the five <section>s:
+       0 hero (village overview) · 1 games corner · 2 phones corner
+       3 overhead (how it works) · 4 pull-back finale
+     Falls back to a flat paper gradient if WebGL/three.js is unavailable.
+     ===================================================================== */
+  (function () {
+    var canvas = document.getElementById('stage');
+    var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!window.THREE) { document.body.classList.add('no3d'); return; }
+    var renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    } catch (e) { document.body.classList.add('no3d'); return; }
+
+    var PAPER = 0xf6f1e7, small = window.innerWidth < 760;
+    renderer.setClearColor(PAPER);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    var scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(PAPER, 55, 115);
+
+    var camera = new THREE.PerspectiveCamera(small ? 55 : 42, 1, 0.1, 300);
+
+    /* ---------- lights ---------- */
+    scene.add(new THREE.HemisphereLight(0xfff6e6, 0xcdc3ae, 0.85));
+    var sun = new THREE.DirectionalLight(0xffe8c8, 1.5);
+    sun.position.set(24, 34, 18);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048);
+    sun.shadow.camera.left = -55; sun.shadow.camera.right = 55;
+    sun.shadow.camera.top = 55; sun.shadow.camera.bottom = -55;
+    sun.shadow.camera.far = 120;
+    sun.shadow.bias = -0.0006;
+    scene.add(sun);
+
+    /* ---------- material helper (flat "folded paper" shading) ---------- */
+    function mat(color, opts) {
+      var o = opts || {};
+      return new THREE.MeshStandardMaterial({
+        color: color, flatShading: true,
+        roughness: o.rough != null ? o.rough : 0.95, metalness: 0,
+        emissive: o.emissive || 0x000000,
+        emissiveIntensity: o.ei != null ? o.ei : 1
+      });
+    }
+    function put(geo, m, x, y, z, ry, group) {
+      var mesh = new THREE.Mesh(geo, m);
+      mesh.position.set(x, y, z);
+      if (ry) mesh.rotation.y = ry;
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      (group || scene).add(mesh);
+      return mesh;
+    }
+    // deterministic pseudo-noise so the terrain is identical every load
+    function nz(x, z) { var s = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return s - Math.floor(s); }
+
+    /* ---------- ground: gently crumpled paper ---------- */
+    var FLAT = [[0, 0, 17], [26, -6, 11], [-26, -8, 11]]; // keep village + vignettes level
+    var ground = new THREE.PlaneGeometry(240, 240, 56, 56);
+    ground.rotateX(-Math.PI / 2);
+    (function () {
+      var p = ground.attributes.position;
+      for (var i = 0; i < p.count; i++) {
+        var x = p.getX(i), z = p.getZ(i), damp = 1;
+        for (var f = 0; f < FLAT.length; f++) {
+          var d = Math.hypot(x - FLAT[f][0], z - FLAT[f][1]);
+          damp = Math.min(damp, Math.max(0, Math.min(1, (d - FLAT[f][2]) / 10)));
+        }
+        p.setY(i, (nz(x, z) - 0.5) * 1.7 * damp);
+      }
+      ground.computeVertexNormals();
+    })();
+    var gmesh = new THREE.Mesh(ground, mat(0xefe7d6));
+    gmesh.receiveShadow = true;
+    scene.add(gmesh);
+
+    /* ---------- central tech plaza ---------- */
+    // server-rack skyline with glowing status lights (replaces the mountain ring)
+    function rack(x, z, w, h, d, col, lit) {
+      var g = new THREE.Group();
+      put(new THREE.BoxGeometry(w, h, d), mat(col), 0, h / 2, 0, 0, g);
+      var rows = Math.floor(h / 1.6), cols = Math.max(2, Math.floor(w / 1.4));
+      for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+        if (nz(r * 7 + x, c * 13 + z) < 0.45) continue;   // some slots dark
+        var lamp = put(new THREE.PlaneGeometry(0.4, 0.18),
+          mat(lit, { emissive: lit, ei: 1.4, rough: 0.5 }),
+          -w / 2 + 0.8 + c * ((w - 1.6) / Math.max(1, cols - 1)), 1.1 + r * 1.5, d / 2 + 0.03, 0, g);
+        lamp.castShadow = false; lamp.receiveShadow = false;
+      }
+      g.position.set(x, 0, z);
+      scene.add(g);
+    }
+    rack(-13, -10,   4.5, 11,   3.5, 0x2c3e6b, 0x22d3ee);
+    rack(-6.5, -14,  5,   15,   4,   0x243354, 0x67e8f9);
+    rack(0.5, -15.5, 5.5, 12.5, 4,   0x2c3e6b, 0xa78bfa);
+    rack(8, -13,     4.5, 16,   4,   0x243354, 0x22d3ee);
+    rack(14, -9,     4,   9.5,  3.5, 0x35507e, 0xffb75e);
+
+    // giant monitor + RGB PC tower (the plaza's "house")
+    var setup = new THREE.Group();
+    put(new THREE.BoxGeometry(7, 4.2, 0.55), mat(0x232f4e), 0, 4.1, 0, 0, setup);
+    var big = put(new THREE.PlaneGeometry(6.2, 3.4),
+      mat(0x22d3ee, { emissive: 0x18b6d6, ei: 1.1, rough: 0.4 }), 0, 4.1, 0.31, 0, setup);
+    big.castShadow = false;
+    put(new THREE.BoxGeometry(0.9, 1.6, 0.9), mat(0x2c3e6b), 0, 1.2, 0, 0, setup);
+    put(new THREE.BoxGeometry(3, 0.35, 1.7), mat(0x2c3e6b), 0, 0.6, 0, 0, setup);
+    // tower with a violet light strip and two fan discs
+    put(new THREE.BoxGeometry(2.2, 5, 3.6), mat(0x35507e), 5.2, 2.5, 0.2, -0.12, setup);
+    var strip = put(new THREE.PlaneGeometry(0.28, 4.4),
+      mat(0xa78bfa, { emissive: 0xa78bfa, ei: 1.3, rough: 0.5 }), 4.35, 2.5, 2.03, -0.12, setup);
+    strip.castShadow = false;
+    [1.6, 3.4].forEach(function (fy) {
+      var fan = put(new THREE.CylinderGeometry(0.62, 0.62, 0.1, 10),
+        mat(0x67e8f9, { emissive: 0x22d3ee, ei: 0.9, rough: 0.5 }), 5.45, fy, 2.05, 0, setup);
+      fan.rotation.x = Math.PI / 2; fan.castShadow = false;
+    });
+    setup.position.set(-0.5, 0, -5.5);
+    scene.add(setup);
+
+    // chunky paper gamepad centerpiece on a plinth
+    var pad = new THREE.Group();
+    put(new THREE.CylinderGeometry(4.2, 4.7, 0.5, 8), mat(0xe6dcc4), 0, 0.25, 0, 0, pad);
+    put(new THREE.BoxGeometry(3.6, 0.85, 1.7), mat(0xc0452a), 0, 0.95, 0, 0, pad);
+    put(new THREE.BoxGeometry(1.15, 0.85, 2.3), mat(0xb93a20), -1.55, 0.9, 0.45, 0.35, pad);
+    put(new THREE.BoxGeometry(1.15, 0.85, 2.3), mat(0xb93a20), 1.55, 0.9, 0.45, -0.35, pad);
+    // face buttons (right) + d-pad (left)
+    [[0.95, 0.12, 0x22d3ee], [1.45, -0.12, 0xd8b56a], [0.95, -0.36, 0xa78bfa], [0.45, -0.12, 0x3c5d49]]
+      .forEach(function (b) {
+        var btn = put(new THREE.CylinderGeometry(0.17, 0.17, 0.22, 8),
+          mat(b[2], { emissive: b[2], ei: 0.5, rough: 0.6 }), b[0], 1.42, b[1], 0, pad);
+        btn.castShadow = false;
+      });
+    put(new THREE.BoxGeometry(0.75, 0.2, 0.26), mat(0x232f4e), -0.95, 1.42, -0.1, 0, pad);
+    put(new THREE.BoxGeometry(0.26, 0.2, 0.75), mat(0x232f4e), -0.95, 1.42, -0.1, 0, pad);
+    pad.position.set(0.5, 0, 1.5);
+    scene.add(pad);
+
+    // paper keyboard with popped keycaps (WASD glows)
+    var kb = new THREE.Group();
+    put(new THREE.BoxGeometry(4.6, 0.45, 2), mat(0x2c3e6b), 0, 0.22, 0, 0, kb);
+    for (var kr = 0; kr < 3; kr++) for (var kc = 0; kc < 7; kc++) {
+      var glow = (kr === 0 && kc === 2) || (kr === 1 && (kc === 1 || kc === 2 || kc === 3));
+      var cap = put(new THREE.BoxGeometry(0.48, 0.3, 0.48),
+        mat(glow ? 0x22d3ee : 0xe6dcc4, glow ? { emissive: 0x22d3ee, ei: 0.8, rough: 0.6 } : { rough: 0.9 }),
+        -1.86 + kc * 0.62, 0.58, -0.62 + kr * 0.62, 0, kb);
+      if (glow) cap.castShadow = false;
+    }
+    kb.position.set(6.5, 0, 4.5);
+    kb.rotation.y = -0.5;
+    scene.add(kb);
+
+    // giant GPU card leaning on a rack
+    var gpu = new THREE.Group();
+    put(new THREE.BoxGeometry(4.6, 1.7, 0.4), mat(0x232f4e), 0, 0, 0, 0, gpu);
+    [-1.15, 1.15].forEach(function (fx) {
+      var f = put(new THREE.CylinderGeometry(0.55, 0.55, 0.12, 10),
+        mat(0xa78bfa, { emissive: 0xa78bfa, ei: 0.8, rough: 0.5 }), fx, 0, 0.24, 0, gpu);
+      f.rotation.x = Math.PI / 2; f.castShadow = false;
+    });
+    gpu.position.set(11.6, 2.4, -6.2);
+    gpu.rotation.z = 0.62; gpu.rotation.y = 0.25;
+    scene.add(gpu);
+
+    // scattered keycap dice
+    [[-6, 3, 0xc0452a], [-8.5, 6.5, 0x2c3e6b], [4, 7.5, 0xd8b56a], [-3.5, 9, 0x3c5d49], [9, 9.5, 0x35507e]]
+      .forEach(function (kd, i) {
+        put(new THREE.BoxGeometry(0.8, 0.8, 0.8), mat(kd[2]), kd[0], 0.4, kd[1], nz(i, 4) * 1.5);
+      });
+
+    // antenna mast with a blinking-red paper beacon
+    put(new THREE.CylinderGeometry(0.1, 0.16, 7, 5), mat(0x3a352c), -12.5, 3.5, -5.5);
+    var beacon = put(new THREE.SphereGeometry(0.32, 6, 5),
+      mat(0xd9482b, { emissive: 0xd9482b, ei: 1.6, rough: 0.5 }), -12.5, 7.2, -5.5);
+    beacon.castShadow = false;
+
+    // gold circuit traces with solder vias (replace stone paths)
+    function via(x, z, big) {
+      var v = put(new THREE.CylinderGeometry(big ? 0.5 : 0.32, big ? 0.55 : 0.36, 0.18, 6),
+        mat(0xd8b56a, { emissive: 0x8a6a2f, ei: 0.35, rough: 0.7 }), x, 0.09, z);
+      v.castShadow = false;
+    }
+    function trace(pts) {
+      for (var i = 0; i < pts.length - 1; i++) {
+        var ax = pts[i][0], az = pts[i][1], bx = pts[i + 1][0], bz = pts[i + 1][1];
+        var lx = Math.abs(bx - ax), lz = Math.abs(bz - az);
+        var seg = put(new THREE.BoxGeometry(lx > lz ? lx + 0.5 : 0.5, 0.07, lz > lx ? lz + 0.5 : 0.5),
+          mat(0xd8b56a, { rough: 0.85 }), (ax + bx) / 2, 0.04, (az + bz) / 2);
+        seg.castShadow = false;
+        via(ax, az, i === 0);
+      }
+      via(pts[pts.length - 1][0], pts[pts.length - 1][1], true);
+    }
+    trace([[1.5, 1.5], [6, 1.5], [6, -2], [15, -2], [15, -5], [23.5, -5]]);     // plaza → games
+    trace([[-1.5, 1.5], [-5.5, 1.5], [-5.5, -3], [-14, -3], [-14, -7], [-23.5, -7]]); // plaza → phones
+    trace([[0.5, 3.5], [0.5, 8], [3, 8], [3, 13.5]]);                            // toward the viewer
+
+    // RGB pylons lighting the plaza (cyan / violet heads)
+    [[3.2, 1.5, 0x22d3ee], [-2.8, 3.8, 0xa78bfa], [7, 8, 0x22d3ee], [-6.5, 9, 0xa78bfa]]
+      .forEach(function (l) {
+        put(new THREE.CylinderGeometry(0.09, 0.12, 1.5, 5), mat(0x3a352c), l[0], 0.75, l[1]);
+        var head = put(new THREE.BoxGeometry(0.42, 0.5, 0.42),
+          mat(l[2], { emissive: l[2], ei: 1.3, rough: 0.5 }), l[0], 1.68, l[1]);
+        head.castShadow = false;
+      });
+
+    /* ---------- games corner (+x): paper arcade ---------- */
+    var games = new THREE.Group();
+    put(new THREE.CylinderGeometry(6.4, 7, 0.55, 8), mat(0xe6dcc4), 0, 0.27, 0, 0, games);
+    // monitor
+    put(new THREE.BoxGeometry(5.4, 3.3, 0.5), mat(0x232f4e), 0, 3.2, -1.2, -0.14, games);
+    var screen = put(new THREE.PlaneGeometry(4.7, 2.6),
+      mat(0x22d3ee, { emissive: 0x18b6d6, ei: 1.15, rough: 0.4 }), 0, 3.2, -0.93, -0.14, games);
+    screen.castShadow = false;
+    put(new THREE.BoxGeometry(0.7, 1.7, 0.7), mat(0x2c3e6b), 0, 1.2, -1.35, 0, games);
+    put(new THREE.BoxGeometry(2.6, 0.3, 1.5), mat(0x2c3e6b), 0, 0.65, -1.3, 0, games);
+    // giant paper "game cartridges" leaning about
+    put(new THREE.BoxGeometry(1.5, 2.1, 0.45), mat(0xc0452a), -3.4, 1.35, 1.6, 0.5, games).rotation.z = -0.12;
+    put(new THREE.BoxGeometry(1.5, 2.1, 0.45), mat(0x3c5d49), 3.3, 1.32, 1.3, -0.6, games).rotation.z = 0.14;
+    put(new THREE.BoxGeometry(1.5, 2.1, 0.45), mat(0xd8b56a), 2.2, 1.3, 3.1, 0.9, games).rotation.z = -0.08;
+    games.position.set(26, 0, -6);
+    scene.add(games);
+
+    // floating price-tag sprites over the arcade
+    function tagSprite(text, bg) {
+      var cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+      var c = cv.getContext('2d');
+      c.fillStyle = bg; c.beginPath();
+      if (c.roundRect) { c.roundRect(8, 8, 240, 112, 18); } else { c.rect(8, 8, 240, 112); }
+      c.fill();
+      c.fillStyle = '#1c1a17'; c.font = '700 52px Inter, sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(text, 128, 68);
+      var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true }));
+      sp.scale.set(2.7, 1.35, 1);
+      scene.add(sp);
+      return sp;
+    }
+    var tags = [
+      { s: tagSprite('-70%', '#f3d9a4'), x: 22.5, y: 6.4, z: -4.4, ph: 0 },
+      { s: tagSprite('FREE', '#bfe3c9'), x: 26.5, y: 7.4, z: -7.8, ph: 2.1 },
+      { s: tagSprite('S$4.90', '#f3c4b4'), x: 29.6, y: 5.9, z: -4.2, ph: 4.2 },
+      { s: tagSprite('98%', '#bfe3c9'), x: 3.6, y: 8.1, z: -5.2, ph: 1.2 }
+    ];
+    tags.forEach(function (t) { t.s.position.set(t.x, t.y, t.z); });
+
+    /* ---------- phones corner (-x): paper monoliths ---------- */
+    var phones = new THREE.Group();
+    put(new THREE.CylinderGeometry(6.2, 6.8, 0.55, 8), mat(0xe6dcc4), 0, 0.27, 0, 0, phones);
+    [[-2.6, 4.6, 0x232f4e, 0xa78bfa, 0.16], [0.3, 5.6, 0x2c3e6b, 0x22d3ee, -0.05], [3.1, 4.2, 0x35507e, 0x67e8f9, 0.24]]
+      .forEach(function (ph) {
+        var g = new THREE.Group();
+        put(new THREE.BoxGeometry(2.3, ph[1], 0.5), mat(ph[2]), 0, ph[1] / 2 + 0.5, 0, 0, g);
+        var sc = put(new THREE.PlaneGeometry(1.86, ph[1] - 0.7),
+          mat(ph[3], { emissive: ph[3], ei: 0.75, rough: 0.4 }), 0, ph[1] / 2 + 0.5, 0.26, 0, g);
+        sc.castShadow = false;
+        g.rotation.y = ph[4]; g.rotation.z = ph[4] * 0.35;
+        phones.add(g);
+      });
+    phones.position.set(-26, 0, -8);
+    scene.add(phones);
+
+    /* ---------- paper planes circling the world ---------- */
+    function paperPlane() {
+      var g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        0, 0, 1.4,   -1.1, 0.18, -0.9,   0, -0.12, -0.6,   // left wing
+        0, 0, 1.4,    0, -0.12, -0.6,    1.1, 0.18, -0.9   // right wing
+      ]), 3));
+      g.computeVertexNormals();
+      var m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
+        color: 0xfdfaf3, flatShading: true, roughness: 0.8, side: THREE.DoubleSide
+      }));
+      m.castShadow = true;
+      scene.add(m);
+      return m;
+    }
+    var planes = [
+      { m: paperPlane(), r: 21, h: 9.5, sp: 0.11, ph: 0 },
+      { m: paperPlane(), r: 27, h: 12.5, sp: -0.08, ph: 2.4 }
+    ];
+
+    /* ---------- camera stops (one per section) ---------- */
+    var STOPS = [
+      { p: [0, 12.5, 33],  t: [0, 3.2, -2] },     // hero: village overview
+      { p: [17, 7.5, 15],  t: [26, 3, -6] },      // games corner
+      { p: [-17, 7.5, 13], t: [-26, 3, -8] },     // phones corner
+      { p: [0, 36, 20],    t: [0, 0, -3] },       // overhead
+      { p: [0, 17, 46],    t: [0, 4, -2] }        // finale pull-back
+    ];
+    if (small) STOPS.forEach(function (s) { s.p[2] += 10; s.p[1] += 2; });
+
+    var curP = new THREE.Vector3().fromArray(STOPS[0].p);
+    var curT = new THREE.Vector3().fromArray(STOPS[0].t);
+    var mx = 0, my = 0;
+
+    function scrollProgress() {
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      var pr = max > 0 ? (window.scrollY / max) : 0;
+      return pr * (STOPS.length - 1);
+    }
+    function ease(x) { return x * x * (3 - 2 * x); } // smoothstep
+
+    var tmpP = new THREE.Vector3(), tmpT = new THREE.Vector3();
+    function targetPose() {
+      var p = Math.max(0, Math.min(STOPS.length - 1, scrollProgress()));
+      var k = Math.min(STOPS.length - 2, Math.floor(p));
+      var f = ease(p - k);
+      tmpP.fromArray(STOPS[k].p).lerp(tmpP.clone().fromArray(STOPS[k + 1].p), f);
+      tmpT.fromArray(STOPS[k].t).lerp(tmpT.clone().fromArray(STOPS[k + 1].t), f);
+    }
+
+    function resize() {
+      var w = window.innerWidth, h = window.innerHeight;
+      if (!w || !h) return;               // hidden/backgrounded: try again next frame
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, small ? 1.5 : 1.75));
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(document.documentElement);
+    resize();
+
+    if (!reduced) {
+      window.addEventListener('pointermove', function (e) {
+        mx = (e.clientX / window.innerWidth) * 2 - 1;
+        my = (e.clientY / window.innerHeight) * 2 - 1;
+      }, { passive: true });
+    }
+
+    var running = true, rafId = 0;
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = 0; }
+      else if (!running) { running = true; resize(); rafId = requestAnimationFrame(loop); }
+    });
+
+    var clock = new THREE.Clock();
+    function loop() {
+      rafId = running ? requestAnimationFrame(loop) : 0;
+      var t = clock.getElapsedTime();
+      // self-heal if we booted while the tab reported a 0x0 viewport
+      if (canvas.width === 0 && window.innerWidth) resize();
+
+      targetPose();
+      var damp = reduced ? 1 : 0.065;
+      curP.lerp(tmpP, damp);
+      curT.lerp(tmpT, damp);
+      camera.position.set(
+        curP.x + (reduced ? 0 : mx * 0.9 + Math.sin(t * 0.22) * 0.5),
+        curP.y + (reduced ? 0 : -my * 0.5 + Math.sin(t * 0.17) * 0.3),
+        curP.z
+      );
+      camera.lookAt(curT);
+
+      if (!reduced) {
+        planes.forEach(function (pl) {
+          var a = t * pl.sp + pl.ph;
+          pl.m.position.set(Math.cos(a) * pl.r, pl.h + Math.sin(t * 0.9 + pl.ph) * 0.7, Math.sin(a) * pl.r * 0.8 - 2);
+          pl.m.rotation.y = -a + (pl.sp > 0 ? Math.PI / 2 : -Math.PI / 2);
+          pl.m.rotation.z = (pl.sp > 0 ? -0.3 : 0.3);
+        });
+        tags.forEach(function (tg, i) {
+          tg.s.position.y = tg.y + Math.sin(t * 1.1 + tg.ph) * 0.35;
+        });
+      }
+      renderer.render(scene, camera);
+    }
+    loop();
+    if (reduced) {                       // a couple of settle frames, then static
+      for (var s = 0; s < 3; s++) { curP.copy(tmpP); curT.copy(tmpT); }
+      running = false;
+    }
+  })();
+
+  /* ---------- text reveal on scroll ---------- */
+  (function () {
+    var els = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(function (e) { e.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) en.target.classList.add('in'); });
+    }, { threshold: 0.25 });
+    els.forEach(function (e) { io.observe(e); });
+  })();
+  </script>
+</body>
+</html>
