@@ -74,6 +74,38 @@
       box-shadow: 0 0 0 4px rgba(34,211,238,0.15);
       cursor: pointer;
     }
+
+    /* ---- 3D tilt cards (driven by the pointermove delegate at the bottom of the page,
+       which sets --rx/--ry/--mx/--my/--fx/--fy on the hovered .tilt-card) ---- */
+    .tilt-card {
+      position: relative;
+      transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--tz, 1));
+      transition: transform .18s ease-out, box-shadow .25s ease-out;
+      will-change: transform;
+    }
+    .tilt-card:hover {
+      --tz: 1.015;
+      box-shadow: 0 20px 44px -20px rgba(0,0,0,.75), 0 0 30px -14px rgba(34,211,238,.35);
+      z-index: 1;
+    }
+    /* moving glare that follows the cursor */
+    .tilt-card::after {
+      content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+      background: radial-gradient(460px circle at var(--mx, 50%) var(--my, 50%), rgba(160,225,255,.09), transparent 45%);
+      opacity: 0; transition: opacity .25s ease-out;
+    }
+    .tilt-card:hover::after { opacity: 1; }
+    /* inner elements that "float" above the card surface (counter-parallax) */
+    .tilt-float {
+      transform: translate3d(calc(var(--fx, 0) * 1px), calc(var(--fy, 0) * 1px), 0);
+      transition: transform .18s ease-out;
+      will-change: transform;
+    }
+    @media (hover: none), (prefers-reduced-motion: reduce) {
+      .tilt-card { transform: none !important; }
+      .tilt-card::after { display: none; }
+      .tilt-float { transform: none !important; }
+    }
   </style>
 </head>
 <body class="dark">
@@ -742,7 +774,7 @@
 
     const Card = ({ className = '', children, onClick }) => (
       <div onClick={onClick}
-           className={cx('bg-ink-850 ring-1 ring-ink-700 rounded-2xl', onClick && 'cursor-pointer hover:ring-accent/50 transition', className)}>
+           className={cx('bg-ink-850 ring-1 ring-ink-700 rounded-2xl', onClick && 'cursor-pointer hover:ring-accent/50 transition tilt-card', className)}>
         {children}
       </div>
     );
@@ -783,7 +815,7 @@
       <Card className={cx('p-4 relative animate-fade-in', selected && 'ring-2 ring-accent')}
             onClick={onClick}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 tilt-float"
                style={{ background: `${game.accent}22`, border: `1px solid ${game.accent}66` }}>
             <Gamepad className="w-5 h-5" style={{ color: game.accent }} />
           </div>
@@ -796,7 +828,7 @@
             </div>
           </div>
           {selected && (
-            <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center shrink-0">
+            <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center shrink-0 tilt-float">
               <Check className="w-3.5 h-3.5 text-ink-950" />
             </div>
           )}
@@ -1544,6 +1576,14 @@
         });
       };
 
+      // Mount the ambient 3D canvas background (engine defined in a plain
+      // <script> at the bottom of the page, outside the Babel transform).
+      useEffect(() => {
+        const c = document.getElementById('bg3d');
+        if (c && window.LazyFX) window.LazyFX.start(c);
+        return () => { if (window.LazyFX) window.LazyFX.stop(); };
+      }, []);
+
       return (
        <GamesContext.Provider value={live}>
        <DealsContext.Provider value={dealsLive}>
@@ -1554,6 +1594,9 @@
             <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.25), transparent 70%)' }} />
             <div className="absolute top-1/3 -right-40 w-[500px] h-[500px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.15), transparent 70%)' }} />
           </div>
+          {/* Ambient 3D particle + wireframe background */}
+          <canvas id="bg3d" className="pointer-events-none fixed inset-0" aria-hidden="true" />
+
 
           <header className="relative border-b border-ink-800 bg-ink-950/70 backdrop-blur-md sticky top-0 z-20">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center gap-4">
@@ -1632,6 +1675,240 @@
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
+  </script>
+
+  <script>
+    /* ---------------- 3D tilt-card pointer tracking ----------------
+       One delegated listener for every .tilt-card on the page (cards come and
+       go as React re-renders, so per-card listeners would leak). Sets CSS
+       custom props consumed by the .tilt-card / .tilt-float rules in <head>.
+       Desktop pointers only; reduced-motion users get static cards. */
+    (function () {
+      if (!window.matchMedia) return;
+      if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      var card = null, ev = null, raf = 0;
+
+      function reset(c) {
+        ['--rx', '--ry', '--fx', '--fy'].forEach(function (p) { c.style.removeProperty(p); });
+      }
+
+      function apply() {
+        raf = 0;
+        if (!card || !ev) return;
+        var r = card.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        var px = (ev.clientX - r.left) / r.width;   // 0..1 across the card
+        var py = (ev.clientY - r.top) / r.height;
+        var ry = (px - 0.5) * 10;                   // max ±5deg yaw
+        var rx = (0.5 - py) * 8;                    // max ±4deg pitch
+        card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+        card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+        card.style.setProperty('--mx', (px * 100).toFixed(1) + '%');
+        card.style.setProperty('--my', (py * 100).toFixed(1) + '%');
+        // floating inner layers drift the opposite way (fake depth)
+        card.style.setProperty('--fx', (ry * 0.8).toFixed(2));
+        card.style.setProperty('--fy', (-rx * 0.8).toFixed(2));
+      }
+
+      document.addEventListener('pointermove', function (e) {
+        var c = e.target && e.target.closest ? e.target.closest('.tilt-card') : null;
+        if (c !== card) { if (card) reset(card); card = c; }
+        if (card) { ev = e; if (!raf) raf = requestAnimationFrame(apply); }
+      }, { passive: true });
+
+      document.documentElement.addEventListener('pointerleave', function () {
+        if (card) { reset(card); card = null; }
+      });
+    })();
+
+    /* ---------------- LazyFX: ambient 3D background ----------------
+       Dependency-free canvas engine: a slowly drifting 3D-projected particle
+       field plus rotating wireframe polyhedra (icosahedron + octahedron),
+       with mouse + scroll parallax. Deliberately NOT three.js — no extra
+       CDN download, and this scene is simple enough to project by hand.
+       Pauses on hidden tabs; reduced-motion users get a single static frame. */
+    window.LazyFX = (function () {
+      var canvas, ctx, W, H, DPR, rafId = 0, running = false, lastT = 0;
+      var mx = 0, my = 0;                    // mouse, normalized -1..1
+      var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var particles = [], shapes = [];
+
+      var COLORS = ['34,211,238', '167,139,250', '94,234,212', '226,232,240'];
+
+      /* --- geometry: vertices for unit polyhedra; edges derived by shortest
+             pair distance so we don't hand-maintain edge lists --- */
+      function edgesOf(verts) {
+        var min = Infinity, i, j, d, out = [];
+        for (i = 0; i < verts.length; i++) for (j = i + 1; j < verts.length; j++) {
+          d = dist3(verts[i], verts[j]);
+          if (d < min - 1e-6) min = d;
+        }
+        for (i = 0; i < verts.length; i++) for (j = i + 1; j < verts.length; j++) {
+          if (dist3(verts[i], verts[j]) < min * 1.05) out.push([i, j]);
+        }
+        return out;
+      }
+      function dist3(a, b) {
+        var dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+      }
+      function icosahedron() {
+        var t = (1 + Math.sqrt(5)) / 2, v = [];
+        [[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],[0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],[t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]]
+          .forEach(function (p) { var n = Math.sqrt(1 + t * t); v.push([p[0]/n, p[1]/n, p[2]/n]); });
+        return v;
+      }
+      function octahedron() {
+        return [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+      }
+
+      function setup() {
+        DPR = Math.min(window.devicePixelRatio || 1, 1.75);
+        W = window.innerWidth; H = window.innerHeight;
+        canvas.width = Math.round(W * DPR);
+        canvas.height = Math.round(H * DPR);
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+        // particle count scales with viewport, capped for perf
+        var n = Math.min(110, Math.max(36, Math.floor(W * H / 16000)));
+        particles = [];
+        for (var i = 0; i < n; i++) particles.push(newParticle(true));
+
+        var small = W < 768;
+        shapes = [
+          { verts: icosahedron(), edges: null, x: 0.82, y: 0.30, r: small ? 70 : 150,
+            rx: 0.4, ry: 0.9, rz: 0.15, sx: 0.055, sy: 0.075, color: COLORS[0], alpha: 0.16, depth: 1.0 },
+          { verts: octahedron(), edges: null, x: 0.12, y: 0.68, r: small ? 48 : 105,
+            rx: 1.1, ry: 0.5, rz: 0.4, sx: -0.045, sy: 0.06, color: COLORS[1], alpha: 0.15, depth: 1.6 },
+        ];
+        if (!small) shapes.push(
+          { verts: icosahedron(), edges: null, x: 0.46, y: 0.94, r: 80,
+            rx: 0.7, ry: 0.2, rz: 0.9, sx: 0.04, sy: -0.05, color: COLORS[2], alpha: 0.10, depth: 2.2 });
+        shapes.forEach(function (s) { s.edges = edgesOf(s.verts); });
+      }
+
+      function newParticle(anywhere) {
+        return {
+          x: (Math.random() * 2 - 1),
+          y: (Math.random() * 2 - 1),
+          z: anywhere ? (0.25 + Math.random() * 1.25) : 1.5,
+          v: 0.018 + Math.random() * 0.03,     // drift speed toward viewer
+          c: COLORS[Math.random() < 0.55 ? 0 : (Math.random() < 0.6 ? 1 : (Math.random() < 0.5 ? 2 : 3))],
+          tw: Math.random() * Math.PI * 2,      // twinkle phase
+        };
+      }
+
+      function rotate(p, ax, ay, az) {
+        var x = p[0], y = p[1], z = p[2], c, s, t;
+        c = Math.cos(ax); s = Math.sin(ax); t = y;  y = t * c - z * s; z = t * s + z * c;
+        c = Math.cos(ay); s = Math.sin(ay); t = x;  x = t * c + z * s; z = -t * s + z * c;
+        c = Math.cos(az); s = Math.sin(az); t = x;  x = t * c - y * s; y = t * s + y * c;
+        return [x, y, z];
+      }
+
+      function frame(t) {
+        rafId = running ? requestAnimationFrame(frame) : 0;
+        var dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 0.016;
+        lastT = t;
+        draw(t / 1000, dt);
+      }
+
+      function draw(time, dt) {
+        ctx.clearRect(0, 0, W, H);
+        var cx = W / 2, cy = H / 2;
+        var scrollPar = (window.scrollY || 0);
+        var fov = Math.min(W, H) * 0.9;
+        var i, p;
+
+        // --- particles (3D starfield, projected) ---
+        for (i = 0; i < particles.length; i++) {
+          p = particles[i];
+          p.z -= p.v * dt;
+          if (p.z <= 0.18) particles[i] = p = newParticle(false);
+          var invz = 1 / p.z;
+          var sx = cx + (p.x + mx * 0.045) * invz * fov * 0.55;
+          var sy = cy + (p.y + my * 0.045) * invz * fov * 0.55 - scrollPar * 0.06 * invz;
+          // wrap vertically so scrolling never empties the screen
+          sy = ((sy % (H + 40)) + (H + 40)) % (H + 40) - 20;
+          if (sx < -20 || sx > W + 20) continue;
+          var near = Math.min(1, Math.max(0, (1.5 - p.z) / 1.3));
+          var tw = 0.75 + 0.25 * Math.sin(time * 1.7 + p.tw);
+          var rad = (0.6 + near * 1.7) * tw;
+          ctx.beginPath();
+          ctx.arc(sx, sy, rad, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(' + p.c + ',' + (0.10 + near * 0.38 * tw).toFixed(3) + ')';
+          ctx.fill();
+        }
+
+        // --- wireframe polyhedra ---
+        for (i = 0; i < shapes.length; i++) {
+          var s = shapes[i];
+          var ax = time * s.sx * 6 + s.rx, ay = time * s.sy * 6 + s.ry, az = s.rz;
+          var ox = s.x * W + mx * 14 / s.depth;
+          var oy = s.y * H + my * 14 / s.depth - scrollPar * 0.10 / s.depth;
+          var proj = [];
+          for (var v = 0; v < s.verts.length; v++) {
+            var q = rotate(s.verts[v], ax, ay, az);
+            var persp = 1 / (1 - q[2] * 0.28);
+            proj.push([ox + q[0] * s.r * persp, oy + q[1] * s.r * persp, q[2]]);
+          }
+          ctx.lineWidth = 1;
+          for (var e = 0; e < s.edges.length; e++) {
+            var a = proj[s.edges[e][0]], b = proj[s.edges[e][1]];
+            var za = (a[2] + b[2]) / 2;                       // -1..1, depth cue
+            ctx.strokeStyle = 'rgba(' + s.color + ',' + (s.alpha * (0.45 + 0.55 * (za + 1) / 2)).toFixed(3) + ')';
+            ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+          }
+          for (v = 0; v < proj.length; v++) {
+            var zn = (proj[v][2] + 1) / 2;
+            ctx.beginPath();
+            ctx.arc(proj[v][0], proj[v][1], 1.1 + zn * 1.3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(' + s.color + ',' + (s.alpha * (0.7 + 0.9 * zn)).toFixed(3) + ')';
+            ctx.fill();
+          }
+        }
+      }
+
+      function onMouse(e) {
+        mx = (e.clientX / W) * 2 - 1;
+        my = (e.clientY / H) * 2 - 1;
+      }
+      function onResize() { setup(); if (reduced) draw(0, 0); }
+      function onVis() {
+        if (document.hidden) { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = 0; }
+        else if (canvas && !reduced && !running) { running = true; lastT = 0; rafId = requestAnimationFrame(frame); }
+      }
+
+      function start(el) {
+        stop();
+        canvas = el;
+        ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        setup();
+        window.addEventListener('resize', onResize);
+        document.addEventListener('visibilitychange', onVis);
+        draw(0, 0.016);                        // paint immediately, don't wait for rAF
+        if (reduced) return;                   // static frame only
+        window.addEventListener('pointermove', onMouse, { passive: true });
+        running = true; lastT = 0;
+        rafId = requestAnimationFrame(frame);
+      }
+
+      function stop() {
+        running = false;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = 0; canvas = null; ctx = null;
+        window.removeEventListener('resize', onResize);
+        window.removeEventListener('pointermove', onMouse);
+        document.removeEventListener('visibilitychange', onVis);
+      }
+
+      return { start: start, stop: stop };
+    })();
   </script>
 
   <script>
