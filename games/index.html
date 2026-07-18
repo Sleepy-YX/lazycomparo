@@ -596,6 +596,38 @@
       return `${h}h ago`;
     }
 
+    /* ---------------- Persistence helpers ---------------- */
+    // localStorage-backed useState. Storage can be unavailable (private mode,
+    // blocked cookies) — every touch is wrapped, degrading to plain state.
+    function usePersistedState(key, initial) {
+      const [value, setValue] = useState(() => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw !== null) return JSON.parse(raw);
+        } catch (e) {}
+        return typeof initial === 'function' ? initial() : initial;
+      });
+      useEffect(() => {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+      }, [key, value]);
+      return [value, setValue];
+    }
+
+    // Clipboard copy with a hidden-textarea fallback for browsers/contexts
+    // where navigator.clipboard is unavailable.
+    function copyText(text, done) {
+      const fallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else fallback();
+    }
+
     /* ---------------- Live cross-store deals (IsThereAnyDeal) ---------------- */
     // Steam vs Epic vs GOG prices + all-time historical lows via our
     // /api/deals Pages Function (an ITAD proxy — needs ITAD_API_KEY set on the
@@ -989,6 +1021,14 @@
       const { deals } = useDealsCtx();
       const picked = shortlist.map(id => GAMES.find(g => g.id === id)).filter(Boolean);
       const canAddMore = picked.length < 3;
+      const [copied, setCopied] = useState(false);
+
+      // Shareable link that re-opens Compare with this exact shortlist —
+      // parseHash() understands the #compare=<ids> format on load.
+      const copyShareLink = () => {
+        const url = location.origin + location.pathname + '#compare=' + picked.map(g => g.id).join(',');
+        copyText(url, () => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+      };
 
       // Cheapest store listing for a game (live deals data only).
       const minStore = (g) => {
@@ -1051,6 +1091,16 @@
           <SectionTitle eyebrow="Compare" icon={Layers}
             title="Side-by-side comparison"
             subtitle="Green rows highlight the winner on each dimension." />
+
+          <div className="flex justify-end -mt-2 mb-4">
+            <button onClick={copyShareLink}
+              className="inline-flex items-center gap-1.5 text-xs rounded-lg px-3 py-1.5 ring-1 ring-ink-700 bg-ink-900 text-zinc-300 hover:text-zinc-100 hover:ring-ink-600 transition"
+              title="Copy a link that opens this comparison">
+              {copied
+                ? <React.Fragment><Check className="w-3.5 h-3.5 text-teal-300" /> Link copied</React.Fragment>
+                : <React.Fragment><ExternalLink className="w-3.5 h-3.5" /> Copy share link</React.Fragment>}
+            </button>
+          </div>
 
           {/* Game chips row */}
           <div className={cx('grid gap-3 mb-6', picked.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
@@ -1177,8 +1227,11 @@
 
     const AdvisorView = () => {
       const { games: GAMES } = useGames();
-      const [priorities, setPriorities] = useState(DEFAULT_PRIORITIES);
-      const [budget, setBudget] = useState(50);
+      // Sliders survive reloads; merging with the defaults keeps a stored
+      // object valid if priority keys are ever added or renamed.
+      const [storedPriorities, setPriorities] = usePersistedState('lc-games-priorities', DEFAULT_PRIORITIES);
+      const [budget, setBudget] = usePersistedState('lc-games-budget', 50);
+      const priorities = { ...DEFAULT_PRIORITIES, ...storedPriorities };
 
       const results = useMemo(() => {
         const candidates = GAMES
@@ -1630,6 +1683,23 @@
       { id: 'stores',  label: 'Stores', icon: Store },
     ];
 
+    const TAB_IDS = TABS.map(t => t.id);
+
+    // The URL hash carries shareable state: "#<tab>" opens that tab, and
+    // "#compare=id1,id2" opens Compare pre-loaded with those games (this is
+    // the format CompareView's "Copy share link" button emits). Hash state
+    // always wins over anything restored from localStorage.
+    function parseHash() {
+      const h = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+      if (h.indexOf('compare=') === 0) {
+        const ids = h.slice('compare='.length).split(',')
+          .filter(id => GAMES.some(g => g.id === id)).slice(0, 3);
+        return { tab: 'compare', ids };
+      }
+      return TAB_IDS.includes(h) ? { tab: h, ids: null } : null;
+    }
+    const initialHash = parseHash();
+
     // Per-game landing pages (/game/<slug>): the SEO middleware pre-renders the
     // matching game's HTML for crawlers; here we make a real visitor land on
     // Browse with that game's title pre-searched so they see it front-and-centre.
@@ -1639,14 +1709,41 @@
     })();
 
     const App = () => {
-      const [tab, setTab] = useState('browse');
-      const [shortlist, setShortlist] = useState(
-        deepLinkGame
-          ? Array.from(new Set([deepLinkGame.id, 'balatro', 'hades-2'])).slice(0, 3)
-          : ['balatro', 'hades-2', 'remnant2']);
+      const [tab, setTabState] = useState(initialHash ? initialHash.tab : 'browse');
+      const [shortlist, setShortlist] = usePersistedState('lc-games-shortlist',
+        ['balatro', 'hades-2', 'remnant2']);
       const live = useSteamLive(GAMES);
       const dealsLive = useDeals(GAMES);
       const freebies = useFreebies();
+
+      // Navigation writes the tab into the hash so views are bookmarkable and
+      // browser back/forward moves between tabs instead of leaving the site.
+      const setTab = (id) => {
+        setTabState(id);
+        const cur = parseHash();
+        if (!cur || cur.tab !== id) window.location.hash = id;
+      };
+      useEffect(() => {
+        const onHash = () => {
+          const h = parseHash();
+          setTabState(h ? h.tab : 'browse');
+          if (h && h.ids && h.ids.length >= 2) setShortlist(h.ids);
+        };
+        window.addEventListener('hashchange', onHash);
+        return () => window.removeEventListener('hashchange', onHash);
+      }, []);
+
+      // One-time on load: drop stored shortlist ids that left the catalog,
+      // then let URL state override — a shared #compare link replaces the
+      // list outright; a /game/<slug> deep link is prepended to it.
+      useEffect(() => {
+        setShortlist(prev => {
+          let ids = prev.filter(id => GAMES.some(g => g.id === id));
+          if (initialHash && initialHash.ids && initialHash.ids.length >= 2) ids = initialHash.ids;
+          else if (deepLinkGame) ids = Array.from(new Set([deepLinkGame.id, ...ids]));
+          return ids.slice(0, 3);
+        });
+      }, []);
 
       const toggleShortlist = (id) => {
         setShortlist(prev => {
