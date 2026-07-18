@@ -2,198 +2,198 @@
 
 _Last updated: 2026-07-18. Update this file whenever state changes materially._
 
-**2026-07-18 (later):** Landing page (`landing/index.html`) got three upgrades. (1) **Scroll progress rail + hero scroll hint** — fixed right-edge rail of 5 dots (one per camera stop; hover shows an uppercase label, hidden on mobile), click scrolls to that section (`scrollIntoView`, instant under reduced-motion); active dot tracked by a plain scroll listener (deliberately NOT rAF-throttled — rAF freezes in hidden tabs); a bobbing "Scroll" chevron sits bottom-center and fades once `scrollY > 40`. (2) **OG share image** — `landing/og-image.png` (1200×630, 38 KB) rendered via PowerShell System.Drawing (scratchpad script; Georgia serif, paper bg, folded-paper corner facets, persimmon pill "lazycomparo.com"); wired as `og:image` + `twitter:image` (absolute `https://lazycomparo.com/og-image.png`). Gotcha: PS 5.1 reads UTF-8 scripts as ANSI — literal `·`/`—` mojibake'd, fixed with `[char]0x00B7`/`0x2014`. (3) **Live Epic freebie** — the games stop now shows a pill "Free on Epic right now: <title> · worth <SGD> · until <date>" + claim link, fetched client-side from `https://pcgames.lazycomparo.com/api/epic-free` (that Function already sends `Access-Control-Allow-Origin: *`, so no backend change; URL validated against `store.epicgames.com`, title inserted via `textContent`); on success `window.__setFreeTag(title)` also repaints the floating 3D "FREE" tag sprite with the game's name (re-renders once if the scene is static under reduced-motion). Fetch failure → pill stays hidden, page unaffected. Verified locally on 5175 (pill showed live "Luto" data, rail/hint state toggled correctly at top/mid scroll, mobile 375px OK, zero console errors); embedded pane is `document.hidden` so smooth scroll/screenshots can't run there — eyeball the live site after deploy. **Shipped 2026-07-18.**
-
-**2026-07-18 (later still):** Landing legibility fix — user screenshot showed the floating price-tag sprites half-washed behind the copy scrim (radial gradient = weak corners, tags drifting into the copy zone). (1) `.copy::before` is now a **solid feathered rectangle** (rgba(246,241,231,.96) + 18px radius + `0 0 40px 26px` same-color box-shadow) instead of a radial gradient — uniform coverage into the corners, so anything behind text is fully hidden, never half-visible. (2) **Tag sprites projection-tuned**: the three arcade tags moved to x≈19–19.5 so at the stop-1 camera they stack at 26–28% screen-x, clear of the copy block (starts 46%) and the scrim feather (~33%); verified against hero + phones cameras too (86–91% / off-frame). Tuning method (reusable): recreate the stop camera in the console (`new THREE.PerspectiveCamera(42, innerWidth/innerHeight, …)` + `lookAt`) and `.project()` candidate world positions to screen-% before editing — the embedded pane can't screenshot, but this is exact. **Shipped 2026-07-18.**
-
-**2026-07-18:** Games site gained **persistence + shareable URL state** (all in `games/index.html`, no new deps). (1) `usePersistedState` (localStorage-backed useState, wrapped in try/catch for private-mode safety) now backs the compare shortlist (`lc-games-shortlist`), advisor priority sliders (`lc-games-priorities`, merged over `DEFAULT_PRIORITIES` on read so future key changes don't break stored data) and budget (`lc-games-budget`) — everything survives reloads; stale shortlist ids are dropped on load. (2) **Hash routing**: the active tab is written to `location.hash` (`#advisor` etc.), a `hashchange` listener makes browser back/forward move between tabs instead of leaving the site, and `#compare=id1,id2` boots straight into Compare with that exact shortlist (hash wins over localStorage; `/game/<slug>` deep links still prepend to the stored list). (3) Compare got a **"Copy share link"** button emitting that format (clipboard API + hidden-textarea fallback, 2s "Link copied" feedback). Verified locally on port 5184: tab clicks update hash, back returns to Browse, cold-loading a `#compare=` URL replaces the shortlist and lands on the comparison table, slider values restore after reload, no console errors. **Shipped 2026-07-18.**
-
-**2026-07-17 (night, latest):** Games site **boot-splash fix** — on load, the SEO HTML that `games/functions/_middleware.js` injects into `#root` (for crawlers) flashed unstyled for a split second before Babel/React booted. `games/index.html` now hides `#root` via CSS until the app mounts and covers the gap with a dark branded splash (pulsing "LazyComparo" wordmark, site background). Reveal is `window.__reveal()` (adds `html.app-ready`, then removes the splash node after the 0.3s fade — node removal matters because background tabs freeze CSS transitions). Called from an App mount `useEffect`, the bootstrap `catch`, and a 6s safety timer (CDN failure → SEO content shows instead of a stuck splash); `<noscript>` shows the SEO content directly, so crawlers/no-JS are unaffected. Local preview note: 5174 was held by another session, so `.claude/launch.json` (CWD-level) gained `lazycomparo-games-alt` on port 5184. Full effect only visible live (no middleware under `serve.ps1`). **Shipped 2026-07-17.**
-
-**2026-07-17 (night, later):** Landing page (`landing/index.html`) legibility + 3D fixes: (1) **Copy scrim strengthened** — `.copy::before` paper halo now plateaus at rgba(246,241,231,.97) over 55% of its radius (was .94 fading from 45%), holds .8 through 74%, and covers a larger inset, so the floating price-tag sprites and other bright props no longer bleed through the small eyebrow/"01 / 03" lines. (2) **Phone monoliths un-stacked** — the three paper phones were spaced along the group's x-axis, but the camera approaches that corner diagonally, so they projected on top of each other ("phone inside a phone"). The group now carries `rotation.y = 0.4` (row perpendicular to the stop-2 view direction — verified dot product ≈ 0), spacing widened 2.9 → 3.2 vs body width 2.3, per-phone z-lean removed, small depth offsets added. Screens end up facing the camera almost exactly. Local-preview gotcha reconfirmed: the embedded pane boots backgrounded → canvas sits at 300×150 until first visible frame (self-heals) and `computer screenshot` times out, so this was verified via computed styles + geometry math; eyeball the live site after deploy. Also added `lazycomparo-landing-alt` (port 5185) to the CWD-level `.claude/launch.json` because another session held 5175. **Shipped 2026-07-17.**
-
-**2026-07-17 (night):** Games site: (1) **Rebrand** — header wordmark, `<title>`/og:title and footer all say plain **LazyComparo** now (was "PcGames.LazyComparo"); the wordmark still links to https://lazycomparo.com/ as the way back to the landing page. (2) **Currency fix** — ITAD quotes several SG-region stores in USD, so store badges said "STEAM US$14.99" next to the card's live "S$14.50". `games/functions/api/deals.js` now converts every non-SGD price (stores + historyLow) to SGD via one extra subrequest to open.er-api.com (free, keyless; `result`/`rates` contract verified 2026-07-17, USD rate ≈0.775), flagging converted amounts `approx: true`; the front-end shows those as `~S$19.34` and, when the live Steam feed is up, overrides the Steam badge with the **exact** SGD price from `/api/steam` (`gameStores()` in `games/index.html`). If the FX fetch fails, prices pass through in their original currency and are still labeled honestly (US$/€/£). `atHistoryLow` still compares only same-currency ITAD data. **Not verifiable locally** (no Functions in `serve.ps1`) — check store badges on the live site after deploy. **Shipped 2026-07-17.**
-
-**2026-07-17 (evening):** **Brand harmonization** between the paper landing page and the dark apps ("Option A" — keep apps dark, share DNA). Both `games/index.html` and `mobile/index.html`: ink palette warmed from blue-black to warm charcoal (950 `#07090f`→`#0c0a08` etc.), all `slate-*` text classes → `stone-*` (warm grays), Fraunces serif added (SectionTitle h2 + header wordmark), new `ember` Tailwind color (`#d9482b`, the landing's persimmon) used on primary action buttons (cyan/violet accents stay for data/live indicators), header logo now links to https://lazycomparo.com/. Landing (`landing/index.html`): final CTA section got a `.darkpanel` ink background (#1c1a17) so the transition into the dark apps reads as intentional. Verified all three locally via computed-style checks (body bg rgb(12,10,8), Fraunces active, ember generates rgb(224,90,58), zero slate classes left). **Shipped 2026-07-17** (landing portion goes live once the Cloudflare landing project exists).
-
-**2026-07-17 (later):** New **3D scrollytelling landing page** at `landing/index.html` — intended to become **lazycomparo.com** (the phone app moves to a subdomain), inspired by an origami-style travel-site reference the user supplied. Single file, no build step: three.js **r158 UMD pinned** via unpkg (r160+ removed UMD builds — do not bump the version), full-screen fixed canvas with a papercraft low-poly **tech plaza** (server-rack skyline with glowing status lights, giant monitor + RGB PC tower, chunky red paper gamepad on a plinth, keyboard with glowing WASD keycaps, leaning GPU card, antenna beacon, keycap dice, gold circuit-board traces with solder vias as paths, floating "98%" rating tag, two circling paper planes) and two product vignettes the camera visits: a games arcade (+x, price-tag sprites "-70% / FREE / S$4.90") and phone monoliths (-x). Five scroll-driven camera stops map to the five `<section>`s (hero → games → phones → overhead "how it works" → pull-back finale); camera lerps with damping + mouse parallax. Fraunces serif display type + Inter, warm paper palette (#f6f1e7), persimmon CTA (#d9482b). Resilience: WebGL/THREE failure → `body.no3d` CSS gradient fallback; reduced-motion → static camera; hidden tab → rAF pause; **0×0-viewport boot self-heals** (ResizeObserver + per-frame canvas-size check — the embedded preview pane boots backgrounded and reports 0×0, a real-world mobile/bfcache hazard too). Local preview: port 5175 (`lazycomparo-landing` in the CWD-level `.claude/launch.json` at `C:\Users\yeowy\Claude\.claude\`). **Deploying it needs a Cloudflare dashboard restructure** (new Pages project or root-dir change + moving the phone app's domain) — see Open Decisions. **Pushed 2026-07-17; NOT live yet — user must create the `lazycomparo-landing` Pages project (root dir `landing`) and move the custom domains.**
-
-**2026-07-17:** Games site got a **3D visual layer** to shed the "default template" look — all inside `games/index.html`, no new dependencies. (1) **Tilt cards:** every clickable `Card` now carries a `.tilt-card` class — a single delegated `pointermove` listener (plain `<script>` before the Babel bootstrap) sets `--rx/--ry/--mx/--my/--fx/--fy` CSS vars on the hovered card; CSS in `<head>` turns those into a perspective tilt + cursor-following glare (`::after`) + counter-parallax "floating" inner layers (`.tilt-float` on the game icon + selected check). Desktop-only by design: gated on `(hover:hover) and (pointer:fine)` and disabled under `prefers-reduced-motion` / touch via media queries. (2) **Ambient 3D background:** `window.LazyFX`, a dependency-free canvas engine (deliberately **not** three.js — no CDN risk, ~180 lines) rendering a 3D-projected drifting particle field + two/three rotating wireframe polyhedra (icosahedron/octahedron, edges derived programmatically from vertex distances) with mouse + scroll parallax. Mounted from a `useEffect` in `App` onto `<canvas id="bg3d">` (sits alongside the old radial-gradient divs, which remain as fallback). Perf guards: DPR capped at 1.75, particle count scales with viewport, pauses on `visibilitychange`, first frame painted synchronously, static single frame under reduced-motion. Verified locally via pixel-sampling the canvas + computed-transform checks (embedded preview pane can't screenshot while backgrounded). **Shipped 2026-07-17.**
-
-**2026-07-10 (later):** Added **per-game landing pages** at `/game/<slug>` (slug = game id) — the pages that rank for "cheapest price for X". `games/functions/_middleware.js` now branches on path: `/` gets the ItemList JSON-LD + linked game list (homepage cards now link to `/game/<slug>` instead of Steam, so Google crawls into them); `/game/<slug>` gets a unique `<title>`/description/canonical/og (all swapped via HTMLRewriter), a single-game detail block in `#root` (H1 "Cheapest price for X on PC", stats, "where to buy cheapest", related-games links), and `VideoGame` + `BreadcrumbList` JSON-LD. `games/_redirects` (`/game/* /index.html 200`) serves the app shell for these URLs so the middleware can rewrite them. `games/sitemap.xml` now lists the homepage + all 30 game URLs. React side (`games/index.html`): a module-level `deepLinkGame` parses `location.pathname`; on a `/game/<slug>` landing the app starts on Browse with the search prefilled to that game's title (verified locally: prefilled title collapses Browse to the one card) and seeds it into the compare shortlist. **Gotcha:** the `/game/*` route only resolves on deployed Cloudflare — `serve.ps1` has no SPA fallback, so it 404s those paths locally; verify deep-linking on the live site. **Shipped 2026-07-10 (f13cbc1).**
-
-**2026-07-10:** SEO fix for the games site — it was **invisible to search** because the app renders entirely client-side (Babel-in-browser), so crawlers saw an empty `<div id="root">`. Added `games/functions/_middleware.js`: a Cloudflare Pages middleware that (1) injects real, indexable HTML (H1, intro, one `<article>` per game with title/genre/studio/rating/price/pro/Steam link) into `#root` **before** React boots — React's `createRoot()` clears it on mount and takes over, so this is progressive enhancement, not cloaking — and (2) appends `VideoGame` ItemList JSON-LD to `<head>`. Also added `games/robots.txt` + `games/sitemap.xml`. **Gotcha:** the middleware only runs on the deployed Cloudflare Pages site (`serve.ps1` can't run Functions), so it can't be verified locally — verify via `view-source:` on the live URL + Google's Rich Results Test after deploy. **Maintenance:** the `GAMES` list in `_middleware.js` is a trimmed SEO-only copy of the one in `games/index.html`; keep them in sync when adding/removing games. **Shipped 2026-07-10 (e18c5cc).** Next SEO steps (not done): per-game landing pages (`/game/<slug>`), OG share image, Google Search Console verification.
-
-**2026-07-08 (later):** Games site now compares **across stores (Steam vs Epic vs GOG)**, not just Steam. Two new Pages Functions: `games/functions/api/deals.js` (IsThereAnyDeal proxy — per-store prices + all-time historical lows; **requires an `ITAD_API_KEY` env var on the Cloudflare Pages project**, free key from https://isthereanydeal.com/apps/ — returns 503 without it and the UI silently falls back) and `games/functions/api/epic-free.js` (Epic's official free-games promo feed — current + next week's freebies, SG region, no key needed). Front-end: store badges with live per-store prices on every card (`StoreBadges`, editorial `EXTRA_STORES` fallback), "Available on" / "Cheapest store" / "All-time low price" rows in Compare, "FREE on Epic now" + "lowest price ever" pills on cards, a new **Free Games tab** (Epic current with claim buttons + upcoming + Steam giveaways), a new **Stores tab** (Steam vs Epic vs GOG editorial matrix), and the alert bar now prefers Epic's own feed with a "See all" link. Nav grew to 6 tabs (scrolls horizontally on mobile). Verified locally on fallback paths; live cross-store prices need deploy + the ITAD key. **Shipped 2026-07-08 (6b0c815).**
-
-**2026-07-08:** Games site upgraded from static mock data to **live Steam data**. Added a Cloudflare Pages Function at `games/functions/api/steam.js` (route `/api/steam?ids=...`) that server-side-fetches real SGD prices (incl. current sale price + discount %) and review scores from Steam's store API — needed because Steam blocks browser CORS. The front-end (`useSteamLive` hook + `GamesContext`) requests ids in chunks of 15 to stay under Cloudflare's 50-subrequest/invocation cap (2 subrequests per game), edge-caches 30 min, and falls back to built-in reference data when the endpoint is unreachable (e.g. local dev, which has no Functions). Catalog grown 16 → **30 games, newest-first**, each with a verified Steam `appId`. New UI: sale badges (`PriceTag`), "On sale" sort, "View on Steam" deep-links, live/reference status pill in the header. **Shipped 2026-07-08 (bdc828a).** Gotcha: the `functions/` dir must sit at the Pages *root directory* — since this project's root is `games/`, it lives at `games/functions/`; `serve.ps1` can't run Functions, so live prices only appear on the deployed site.
-
-**2026-07-05:** Restructured repo into `mobile/` (phone comparator) and `games/` (Steam comparator) subfolders ahead of deploying pcgames.lazycomparo.com, so future product lines have a consistent home. Local folder renamed `Phone_Project` → `Lazycomparo`. Cloudflare Pages root-directory setting needs updating before next push (see Repo structure section).
-
-> **How to resume in a new Claude session:** paste this whole file into your first message, or say "read `PROJECT_STATE.md`". Everything Claude needs to continue is here.
-
----
+> **How to resume in a new Claude session:** paste this whole file into your first
+> message, or say "read `PROJECT_STATE.md`". Everything Claude needs is here.
 
 ## TL;DR
 
-Smart phone comparison + switching advisor web app. Currently Phase 1 (static validation). Endgame is a Mister-Mobile-meets-Carousell used-phone marketplace for Singapore. Solo-developer project by Sleepy-YX (Singapore).
+Comparison-site family, solo-developer project by Sleepy-YX (Singapore), free /
+no sign-up: a 3D scrollytelling **landing** page, a PC-game **price comparator**
+(current focus), and a phone **switching advisor**. Endgame is a
+Mister-Mobile-meets-Carousell used-phone marketplace for Singapore.
 
-## Live URLs
+## Live layout & deploy
 
-| What | Where |
-|---|---|
-| Live app | https://lazycomparo.pages.dev |
-| GitHub repo | https://github.com/Sleepy-YX/lazycomparo |
-| Local dev | http://127.0.0.1:5173 (via `.claude/serve.ps1`) |
-| Local path | `C:\Users\yeowy\Claude\Lazycomparo` |
+| Pages project | Root dir | Domain |
+|---|---|---|
+| `lazycomparo-landing` | `landing` | https://lazycomparo.com |
+| `lazycomparogames` | `games` | https://pcgames.lazycomparo.com |
+| `lazycomparomobile` | `mobile` | https://mobile.lazycomparo.com (+ legacy lazycomparo.pages.dev) |
 
-## Current tech stack
+Repo: https://github.com/Sleepy-YX/lazycomparo — every `git push origin main`
+redeploys all three in ~30–60 s. Local path: `C:\Users\yeowy\Claude\Lazycomparo`.
 
-- **Single-file React app** — `index.html`, no build step, everything loaded via CDN
-- React 18 UMD, Tailwind Play CDN, Babel Standalone (manual transform, `runtime: 'classic'`)
-- Inline SVG icons in Lucide style
-- **PowerShell static server** for local preview (`.claude/serve.ps1`) — no Node/Python required (user has neither installed)
-- Data: 14 phones as a JS `const PHONES = [...]` array in `index.html` around line 178
-- No backend, no database, no auth
+## Tech stack
 
-## Deploy pipeline
+- **Single-file apps, no build step.** Games + mobile: React 18 UMD + Tailwind
+  Play CDN + Babel Standalone (manual transform, `runtime: 'classic'`). Landing:
+  vanilla JS + **three.js r158 UMD pinned via unpkg — do NOT bump; r160+ removed
+  UMD builds.**
+- Cloudflare Pages Functions live under `games/functions/` (that project's root).
+- Local preview: PowerShell `.claude/serve.ps1` (no Node/Python on this PC).
+  Ports in CWD-level `.claude/launch.json`: mobile 5173, games 5174 (alt 5184),
+  landing 5175 (alt 5185) — alts exist because other sessions can hold a port.
+- Brand: warm charcoal ink (`#0c0a08`), paper `#f6f1e7`, persimmon/ember
+  `#d9482b`, Fraunces serif + Inter; apps stay dark, landing is light paper.
 
-Every `git push origin main` → Cloudflare Pages redeploys in ~30 seconds. Zero config, zero manual work.
+## Live-data contracts (games site)
 
-## Repo structure
+- **`/api/steam?ids=…`** — real SGD prices (incl. sale %) + review scores from
+  Steam's store API (server-side; Steam blocks browser CORS). Requested in
+  chunks of 15 (2 subrequests/game vs Cloudflare's 50/invocation cap), 30-min
+  edge cache; front-end falls back to built-in reference data when unreachable.
+- **`/api/deals`** — IsThereAnyDeal proxy (per-store prices + all-time lows).
+  **Requires `ITAD_API_KEY` env var on the Pages project** (free key from
+  isthereanydeal.com/apps/; returns 503 without it, UI silently falls back).
+  Converts non-SGD prices to SGD via open.er-api.com (keyless), flagged
+  `approx: true` → shown as `~S$…`; live `/api/steam` price overrides the Steam
+  badge with the exact figure. FX failure → prices pass through labeled US$/€/£.
+- **`/api/epic-free`** — Epic's official free-games promo feed, SG region, no
+  key, sends `Access-Control-Allow-Origin: *`. **The landing page also consumes
+  this** (freebie pill + 3D tag) — keep the response shape stable:
+  `{ updated, current: [{id,title,url,image,worth,start,end}], upcoming: […] }`.
+- **SEO middleware** `games/functions/_middleware.js` injects crawlable HTML
+  into `#root` before React boots (React clears it on mount — progressive
+  enhancement, not cloaking) + JSON-LD. Per-game pages at `/game/<slug>` get
+  unique title/canonical/og via HTMLRewriter; `games/_redirects`
+  (`/game/* /index.html 200`) serves the shell; `games/sitemap.xml` lists all
+  game URLs. **Maintenance: the `GAMES` list in `_middleware.js` is a trimmed
+  copy of the one in `games/index.html` — keep them in sync.**
+
+## Client-side state (games site)
+
+- localStorage keys: `lc-games-shortlist`, `lc-games-priorities` (merged over
+  `DEFAULT_PRIORITIES` on read), `lc-games-budget` — via `usePersistedState`
+  (try/catch for private mode). Stale shortlist ids dropped on load.
+- Hash routing: active tab in `location.hash` (`#advisor` …), back/forward move
+  between tabs; `#compare=id1,id2` boots into Compare with that shortlist (hash
+  wins over storage). Compare has a "Copy share link" button emitting that format.
+- Boot splash hides `#root` until the app mounts (`window.__reveal()` adds
+  `html.app-ready`, removes splash node after fade); 6-s safety timer and the
+  bootstrap `catch` also reveal (CDN failure → SEO content shows); `<noscript>`
+  unaffected.
+
+## Landing page notes
+
+- Papercraft three.js world; 5 camera stops map to the 5 `<section>`s. WebGL /
+  THREE failure → `body.no3d` CSS gradient fallback; reduced-motion → static
+  camera; hidden tab → rAF pause; 0×0-viewport boot self-heals.
+- **Copy scrim is a solid feathered rectangle** (solid rgba + same-color blurred
+  box-shadow), not a radial gradient — radials have weak corners that let 3D
+  props show through half-washed.
+- Price-tag sprites are **projection-tuned**: at the stop-1 camera they stack at
+  26–28% screen-x, clear of the copy block (46%+) and scrim feather (~33%).
+  Tuning method: rebuild the stop camera in the console
+  (`new THREE.PerspectiveCamera(42, innerWidth/innerHeight, …)` + `lookAt`) and
+  `.project()` candidate world positions to screen-% before editing.
+- Scroll-rail scroll listener is deliberately NOT rAF-throttled (rAF freezes in
+  hidden tabs; browsers coalesce scroll events anyway).
+- Freebie pill fetches `pcgames…/api/epic-free`; on success `__setFreeTag(title)`
+  repaints the floating 3D "FREE" tag. Fetch failure → pill stays hidden.
+- `og-image.png` (1200×630) is generated by a PowerShell System.Drawing script —
+  regenerate the same way if the brand changes. Gotcha: PS 5.1 reads UTF-8
+  scripts as ANSI — build `·`/`—` from `[char]0x00B7`/`0x2014`, never literals.
+
+## Switching Advisor algorithm (mobile site)
+
+Priority-weighted scoring with an ecosystem-friction penalty — code in
+`scorePhone()` / `verdictFor()` in `mobile/index.html`:
 
 ```
-Lazycomparo/
-├── games/                 # pcgames.lazycomparo.com — PC game comparator (current focus)
-│   └── index.html
-├── mobile/                # lazycomparo.com — phone comparator (secondary)
-│   ├── index.html         # the whole app (~1000 lines)
-│   ├── robots.txt
-│   └── sitemap.xml
-├── README.md              # public-facing project description
-├── PROJECT_STATE.md       # this file
-├── .gitignore             # Node preset (for future Next.js migration)
-└── .claude/
-    ├── serve.ps1          # PowerShell static server
-    └── launch.json        # Claude Code preview config (mobile:5173, games:5174)
+rawScore      = Σ (priority_weight[i] × spec_score[i])   // normalized 0–100
+ecoPenalty    = 0 same ecosystem · 5 different Android brand · 15 iOS↔Android
+adjustedScore = rawScore − ecoPenalty
+Verdict: top − current ≥ 8 "Worth upgrading" · 3–8 "Marginal" · < 3 "Wait a generation"
 ```
 
-**Cloudflare Pages note:** each site is now in its own subfolder, so each Pages project's "Build output directory" (a.k.a. root directory) must be set to the matching folder name (`mobile` for lazycomparo.com, `games` for pcgames.lazycomparo.com) instead of `/`. The existing `lazycomparo` Pages project (serving lazycomparo.com) needs this setting updated before the next push, or the live site will 404 on `index.html`.
-
-## Switching Advisor algorithm
-
-Priority-weighted scoring with an ecosystem-friction penalty.
-
-```
-For each candidate phone within budget:
-  rawScore     = Σ (priority_weight[i] × spec_score[i])  // normalized 0–100
-  ecoPenalty   = 0   if same ecosystem (Samsung → Samsung)
-                 5   if different Android brand (Samsung → Pixel)
-                15   if crossing iOS ↔ Android (iMessage/AirDrop loss)
-  adjustedScore = rawScore − ecoPenalty
-
-Verdict:
-  topPick.adjusted − currentPhoneScore ≥ 8  → "Worth upgrading"
-  between 3 and 8                            → "Marginal upgrade"
-  under 3                                    → "Wait a generation"
-```
-
-Code lives in `scorePhone()` and `verdictFor()` in `index.html`.
+The 5/15 penalty is the product differentiator (captures iMessage/DeX/AirDrop
+friction no spec-ranking site counts) — keep it in future iterations.
 
 ## Git identity
 
-Scoped at the repo level (not global) for privacy:
-- `user.name`: `Sleepy-YX`
-- `user.email`: `299872990+Sleepy-YX@users.noreply.github.com` (GitHub noreply — keeps real Gmail out of public log)
+Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
+`user.email` `299872990+Sleepy-YX@users.noreply.github.com`.
 
-## Cost picture
+## Gotchas
 
-| Phase | Monthly | Notes |
-|---|---|---|
-| Now (Phase 1) | $0 | Cloudflare Pages free tier, no domain yet |
-| + custom domain | ~SGD $3/mo | `.sg` ≈ SGD 30–40/yr, or `.io/.app/.com` USD 10–40/yr |
-| Phase 2 free tier | $0 | Vercel Hobby + Supabase Free work at low scale |
-| Phase 2 at ~1k users | ~USD $45/mo | Vercel Pro $20 + Supabase Pro $25 |
+1. **Babel Standalone JSX runtime:** `type="text/babel"` auto-runtime emits
+   imports that fail silently in non-module scripts — use the manual
+   `Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] })` +
+   eval pattern (last `<script>` block in games/mobile index.html).
+2. **No Node/Python on this PC** (Python is a Store stub). Everything must work
+   with PowerShell + CDNs only. `serve.ps1` dies on reboot — fine, Cloudflare
+   hosts everything real.
+3. **`serve.ps1` runs no Functions, middleware, or SPA fallback** — `/api/*`,
+   `/game/<slug>`, and SEO injection are live-site-only verification.
+4. **Embedded preview pane boots `document.hidden`** — screenshots time out,
+   rAF/CSS transitions/smooth-scroll freeze, canvas sits at 300×150 until first
+   visible frame (self-heals). Verify via DOM/computed styles/geometry math
+   locally, then eyeball the live site.
+5. **Cloudflare Pages rename quirk:** renaming a project does NOT rename its
+   `.pages.dev` subdomain — delete + recreate; new subdomain needs ~60 s for SSL.
+6. **Cloudflare "Create app" defaults to Workers** — for static Pages use the
+   small "Looking to deploy Pages?" link at the bottom of the card.
+7. **Brand history:** "SwitchWise" abandoned (UK trademark conflict) →
+   LazyComparo; "we do the boring comparison work" positioning.
 
-## Roadmap
+## Roadmap & costs
 
-### Phase 1 — Static validation (current)
-- ✅ Live at `lazycomparo.pages.dev`
-- 🟡 Extract phones to `phones.json` (was recommended; user hasn't confirmed yet)
-- 🟡 Add 10–20 more phones (mid-range, older-gen — currently only 14)
-- 🟡 Buy custom domain (see Open Decisions)
+- **Phase 1 (current) — static validation.** Live. Pending: extract
+  `phones.json`, grow phone catalog (14 now; wants mid-range/older-gen), buy
+  custom domain.
+- **Phase 2 — real stack:** Next.js (Vercel or CF Pages) + Supabase (Postgres,
+  auth, storage); phones move to a table. Timing depends on validation.
+- **Phase 3 — marketplace:** Supabase Auth, listings/photos/messages/
+  transactions, realtime chat; payments Stripe or HitPay (SG-native, PayNow);
+  **IMEI validation** (SG anti-theft, Carousell has it); trade-in flow (admin is
+  buyer); **ToS + Privacy Policy via lawyer, PDPA compliance, register with
+  PDPC**; MAS Major Payment Institution license possibly needed if escrowing funds.
+- Costs: $0 now (Pages free tier) → ~SGD 3/mo with domain → Phase 2 free at low
+  scale, ~USD 45/mo at ~1k users (Vercel Pro + Supabase Pro).
 
-### Phase 2 — Real stack
-- Migrate to **Next.js on Vercel or Cloudflare Pages**
-- **Supabase** for Postgres + auth + storage + realtime
-- Move phone data from JSON to `phones` table (spreadsheet-editable via Supabase Studio)
-- Environment variables for Supabase URL + anon key
+## Open decisions
 
-### Phase 3 — Marketplace
-- User accounts (Supabase Auth)
-- `listings`, `listing_photos`, `messages`, `transactions` tables
-- Buyer/seller chat via Supabase Realtime
-- Payments: **Stripe** (marketplace-friendly, supports PayNow) or **HitPay** (SG-native, GrabPay/PayNow/cards)
-- **IMEI validation** (Singapore anti-theft requirement — Carousell has this)
-- Trade-in flow (Mister Mobile pattern: same schema as a listing, admin is buyer)
-- **ToS + Privacy Policy required** — get a lawyer. PDPA compliance for SG data. Register with PDPC.
-- MAS Major Payment Institution license may be required if holding funds in escrow
-
-## Non-obvious gotchas learned
-
-### 1. Babel Standalone JSX runtime
-`<script type="text/babel" data-presets="react">` uses the **automatic** JSX runtime which emits `import { jsx } from 'react/jsx-runtime'`. Import statements fail silently in a non-module script and the app never mounts. **Fix (already applied):** manual transform via `Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] })` then `eval`. See the last `<script>` block in `index.html`.
-
-### 2. No Node/Python on user's PC
-Python is a Microsoft Store stub (fake). Node not installed. Local server is `.claude/serve.ps1` using PowerShell + `System.Net.HttpListener`. Zero dependencies.
-
-### 3. Local server does not auto-start
-`serve.ps1` runs when you launch it (or when Claude spawns it via preview). No Windows service, no Startup entry. Dies on PC reboot. This is fine — Cloudflare Pages handles all real hosting.
-
-### 4. Cloudflare Pages rename quirk
-Renaming a project internally does NOT rename the `.pages.dev` subdomain. To get a clean subdomain URL, must delete + recreate. New subdomain needs ~60s for SSL cert provisioning; browser DNS cache may serve stale results — use `ipconfig /flushdns` or hard-refresh with Ctrl+Shift+R.
-
-### 5. Cloudflare's "Create app" flow pushes you into Workers
-The unified Cloudflare UI now defaults to the Workers flow which requires `wrangler.toml`. For static sites, find the small "Looking to deploy Pages? Get started" link at the bottom of the "Ship something new" card. That's the classic Pages flow.
-
-### 6. Brand name research
-- "SwitchWise" was our first name but SwitchWise Limited (UK) owns switchwise.com since 2006 (still active). Renamed to **LazyComparo** (all TLDs .com/.io/.sg/.app/.co available, no brand conflicts found).
-- Playful "we do the boring comparison work" positioning.
-
-### 7. Ecosystem penalty is the differentiator
-Every other phone comparison site just ranks by specs. The 5/15 point penalty for cross-brand/cross-platform switches is what makes the advisor genuinely useful — it captures the real friction of leaving iMessage, DeX, AirDrop, etc. Keep this in future iterations.
-
-## Open decisions (not yet resolved)
-
-- ~~**Landing-page domain restructure**~~ — **DONE 2026-07-17.** Final layout: three Pages projects off the one repo — `lazycomparo-landing` (root `landing`) → **lazycomparo.com**, `lazycomparogames` (root `games`) → **pcgames.lazycomparo.com**, `lazycomparomobile` (root `mobile`) → **mobile.lazycomparo.com** (+ legacy `lazycomparo.pages.dev`). Landing links, mobile canonical/og/sitemap/robots all point at `mobile.lazycomparo.com`. Still unclaimed: `www.lazycomparo.com` (consider adding to the landing project).
-
-- **Custom domain** — not purchased. Options: `lazycomparo.sg` (SGD 30/yr, Vodien or Exabytes), `lazycomparo.io` (USD 35/yr, Cloudflare Registrar), `lazycomparo.app` (USD 14/yr, Cloudflare Registrar), `lazycomparo.com` (USD 9/yr, Cloudflare Registrar). Recommendation: `.sg` for local SEO + `.com` as defensive.
-- **`phones.json` extraction** — pending. Would let user add phones by editing JSON, no code changes. Prerequisite for Supabase migration.
-- **More phones** — catalog is only 14; user wanted "12+ with older-gen." Room to add mid-range Redmi, Motorola, Nothing Phone 2, iPhone 15 Plus, Galaxy A55, etc.
-- **Phase 2 timing** — depends on validation feedback.
-- **GitHub About panel cleanup** — description still says old wording; topics got concatenated into one hyphenated string on repo creation. Not blocking.
+- **Custom domain** — not purchased. Recommendation: `.sg` (SGD 30/yr) for local
+  SEO + `.com` (USD 9/yr, CF Registrar) defensive. `www.lazycomparo.com` also
+  still unclaimed (add to landing project).
+- **`phones.json` extraction** — pending; prerequisite for Supabase migration.
+- **GitHub About panel** — stale description, concatenated topics. Not blocking.
 
 ## User preferences (for future Claude sessions)
 
-- Prefers **concise, practical answers with recommendation + tradeoff** — not exhaustive surveys
-- Prefers **tables for option comparison**
-- Communicates in **short, terse messages** (e.g. "ok continue", "yes do that", "let me use X"). Not sloppy — just efficient.
-- Wants **step-by-step guidance for UI walkthroughs** (Cloudflare, GitHub) with screenshots as verification points
-- **Not a developer by trade** — Cloudflare account was fresh, no Node/Python, first git repo. Explain enough to build understanding, don't drown in jargon.
-- Singapore-based (yeowyx@gmail.com), building for the SG market
+- Concise, practical answers with recommendation + tradeoff — not surveys.
+- Tables for option comparison.
+- Short, terse messages ("ok continue") — efficient, not sloppy.
+- Step-by-step UI walkthroughs (Cloudflare, GitHub) with screenshots as
+  verification points.
+- Not a developer by trade — explain enough to build understanding, no jargon.
+- Singapore-based, building for the SG market.
 
-## Quick reference — how to work on this project
+## Quick reference
 
-**Add a phone:**
-1. Edit `PHONES` array in `mobile/index.html` around line 178
-2. Commit + push → auto-deploys in ~30s
-3. Or ask Claude "add a Galaxy A55 phone" and Claude does it
+- **Add a phone:** edit `PHONES` array in `mobile/index.html` (~line 178), push.
+- **Add a game:** edit the catalog in `games/index.html` AND the `GAMES` list in
+  `games/functions/_middleware.js` (+ sitemap), push.
+- **Change UI:** edit the relevant `index.html`, preview via `serve.ps1`, push.
+- **Rebrand:** grep for `LazyComparo` across `mobile/`, `games/`, `landing/`,
+  `README.md`; regenerate `og-image.png`.
 
-**Change UI:**
-1. Edit `mobile/index.html`
-2. Test locally: `powershell -File .claude\serve.ps1 5173 mobile` then `http://127.0.0.1:5173`
-3. Commit + push
+## Changelog
 
-**Rename or rebrand:** grep for `LazyComparo` — appears in 3 places in `mobile/index.html` and 1 in `README.md`.
-
-**Get Claude up to speed:** paste this file in first message of a new session.
+- **2026-07-18** Landing: legibility fix (solid feathered scrim,
+  projection-tuned price tags). Landing: scroll progress rail + hero hint,
+  og:image share card, live Epic freebie pill. Games: persisted
+  shortlist/priorities/budget, hash routing, shareable `#compare=` links.
+- **2026-07-17** Games: boot splash over SEO-injected HTML; rebrand to plain
+  LazyComparo; store prices converted to SGD. Landing: created (3D scrollytelling,
+  intended lazycomparo.com), copy-scrim + phone-vignette fixes, dark finale
+  panel. Both apps: brand harmonization (warm ink, stone grays, Fraunces, ember
+  CTAs). Games: tilt cards + LazyFX canvas background. Cloudflare restructured
+  into the three Pages projects above.
+- **2026-07-10** Games: SEO middleware (crawlable HTML + JSON-LD), robots +
+  sitemap, per-game landing pages `/game/<slug>`.
+- **2026-07-08** Games: live Steam SGD prices (`/api/steam`), catalog 16→30;
+  cross-store deals via ITAD (`/api/deals`) + Epic freebies (`/api/epic-free`),
+  Free Games + Stores tabs.
+- **2026-07-05** Repo restructured into `mobile/` + `games/` subfolders;
+  folder renamed Phone_Project → Lazycomparo.
