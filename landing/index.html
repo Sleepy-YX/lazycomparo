@@ -114,12 +114,16 @@
     section.stop:nth-of-type(even) { justify-content: flex-end; }
 
     .copy { max-width: 620px; position: relative; }
-    /* paper halo so text stays readable over the scene — near-opaque plateau
-       that covers the whole copy block (incl. the small eyebrow/number lines)
-       before it starts fading, so bright 3D props can't bleed through text */
+    /* paper scrim so text stays readable over the scene. A solid rounded
+       rectangle with a large blurred halo (box-shadow) — unlike the radial
+       gradient this replaced, coverage is uniform right into the corners,
+       so floating 3D props can never half-bleed through the eyebrow or
+       "01 / 03" lines; they're fully hidden behind the copy block. */
     .copy::before {
-      content: ''; position: absolute; inset: -16% -20%; z-index: -1;
-      background: radial-gradient(closest-side, rgba(246,241,231,.97) 55%, rgba(246,241,231,.8) 74%, rgba(246,241,231,0) 97%);
+      content: ''; position: absolute; inset: -14% -16%; z-index: -1;
+      background: rgba(246,241,231,.96);
+      border-radius: 18px;
+      box-shadow: 0 0 40px 26px rgba(246,241,231,.96);
     }
     .rule { width: 34px; height: 2px; background: var(--ink); margin-bottom: 14px; opacity: .8; }
     .stopno { font-size: 10px; letter-spacing: .3em; color: var(--ink-soft); margin-bottom: 6px; }
@@ -646,10 +650,15 @@
       scene.add(sp);
       return sp;
     }
+    // Tag positions are projection-tuned: at the stop-1 camera they stack
+    // vertically at 26–28% screen-x — over the arcade, fully LEFT of the
+    // copy block (46%+) and its scrim feather (fades in from ~33%) — so no
+    // tag ever sits half-washed behind the text. Verified against the hero
+    // camera too (they land 86–91%, clear of the left-aligned hero copy).
     var tags = [
-      { s: tagSprite('-70%', '#f3d9a4'), x: 22.5, y: 6.4, z: -4.4, ph: 0 },
-      { s: tagSprite('FREE', '#bfe3c9'), x: 26.5, y: 7.4, z: -7.8, ph: 2.1 },
-      { s: tagSprite('S$4.90', '#f3c4b4'), x: 29.6, y: 5.9, z: -4.2, ph: 4.2 },
+      { s: tagSprite('-70%', '#f3d9a4'), x: 19.2, y: 5.2, z: -4.8, ph: 0 },
+      { s: tagSprite('FREE', '#bfe3c9'), x: 19.5, y: 8.8, z: -7.5, ph: 2.1 },
+      { s: tagSprite('S$4.90', '#f3c4b4'), x: 19, y: 6.9, z: -6, ph: 4.2 },
       { s: tagSprite('98%', '#bfe3c9'), x: 3.6, y: 8.1, z: -5.2, ph: 1.2 }
     ];
     tags.forEach(function (t) { t.s.position.set(t.x, t.y, t.z); });
