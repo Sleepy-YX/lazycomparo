@@ -10,7 +10,12 @@
   <meta property="og:title" content="LazyComparo — We Do the Boring Comparison Work" />
   <meta property="og:description" content="Live game prices across Steam, Epic and GOG. Phone switching advice that counts ecosystem pain. Verdict first, specs second." />
   <meta property="og:url" content="https://lazycomparo.com/" />
+  <meta property="og:image" content="https://lazycomparo.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LazyComparo — we do the boring comparison work" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://lazycomparo.com/og-image.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%23a78bfa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2' fill='url(%23g)'/%3E%3C/svg%3E" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -153,6 +158,63 @@
     }
     .arrowlink:hover { opacity: .65; }
 
+    /* ---------- scroll progress rail ---------- */
+    .rail {
+      position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
+      z-index: 10; display: flex; flex-direction: column; gap: 14px;
+    }
+    .rail button {
+      position: relative; width: 12px; height: 12px; padding: 0;
+      border-radius: 50%; border: 1.5px solid rgba(28,26,23,.35);
+      background: rgba(246,241,231,.6); cursor: pointer;
+      transition: background .25s, border-color .25s, transform .25s;
+    }
+    .rail button:hover { border-color: var(--ink); }
+    .rail button.on { background: var(--accent); border-color: var(--accent); transform: scale(1.25); }
+    .rail .lbl {
+      position: absolute; right: 24px; top: 50%; transform: translateY(-50%);
+      font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
+      color: var(--ink-soft); background: rgba(246,241,231,.92);
+      border: 1px solid rgba(28,26,23,.1); border-radius: 3px;
+      padding: 4px 9px; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .rail button:hover .lbl, .rail button:focus-visible .lbl { opacity: 1; }
+
+    /* ---------- hero scroll hint ---------- */
+    .scrollhint {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+      z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 7px;
+      font-size: 9px; font-weight: 700; letter-spacing: .34em; text-transform: uppercase;
+      color: var(--ink-soft); pointer-events: none; transition: opacity .5s;
+    }
+    .scrollhint svg { width: 14px; height: 22px; animation: hintbob 1.8s ease-in-out infinite; }
+    .scrollhint.gone { opacity: 0; }
+    @keyframes hintbob {
+      0%, 100% { transform: translateY(0); opacity: .5; }
+      50% { transform: translateY(7px); opacity: 1; }
+    }
+
+    /* ---------- live Epic freebie pill (games stop) ---------- */
+    .livefree {
+      margin-top: 26px; display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      background: #fdfaf3; border: 1px solid rgba(28,26,23,.12); border-radius: 5px;
+      padding: 12px 16px; font-size: 12.5px; line-height: 1.5; color: var(--ink);
+      box-shadow: 0 10px 26px -18px rgba(28,26,23,.5);
+    }
+    .livefree .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #2e9e5b; flex: none;
+      box-shadow: 0 0 0 0 rgba(46,158,91,.45); animation: livepulse 2s infinite;
+    }
+    .livefree b { font-weight: 600; }
+    .livefree a { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .livefree a:hover { text-decoration: underline; }
+    @keyframes livepulse {
+      0% { box-shadow: 0 0 0 0 rgba(46,158,91,.45); }
+      70% { box-shadow: 0 0 0 8px rgba(46,158,91,0); }
+      100% { box-shadow: 0 0 0 0 rgba(46,158,91,0); }
+    }
+
     /* reveal on scroll */
     .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .8s ease; }
     .reveal.in { opacity: 1; transform: none; }
@@ -201,10 +263,14 @@
       section.stop, section.stop:nth-of-type(even) { justify-content: flex-start; padding: 14vh 6vw; }
       .cards { grid-template-columns: 1fr; max-width: 480px; }
       .copy::before { inset: -12% -14%; }
+      .rail { right: 8px; gap: 12px; }
+      .rail .lbl { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       .reveal { opacity: 1 !important; transform: none !important; transition: none; }
+      .scrollhint svg { animation: none; }
+      .livefree .dot { animation: none; }
     }
   </style>
 </head>
@@ -230,6 +296,21 @@
     <a class="cta-pill" href="https://pcgames.lazycomparo.com/">Start comparing</a>
   </header>
 
+  <nav class="rail" aria-label="Page sections">
+    <button type="button" data-stop="0" class="on" aria-label="Intro"><span class="lbl" aria-hidden="true">Intro</span></button>
+    <button type="button" data-stop="1" aria-label="PC Games"><span class="lbl" aria-hidden="true">PC Games</span></button>
+    <button type="button" data-stop="2" aria-label="Phones"><span class="lbl" aria-hidden="true">Phones</span></button>
+    <button type="button" data-stop="3" aria-label="How it works"><span class="lbl" aria-hidden="true">How it works</span></button>
+    <button type="button" data-stop="4" aria-label="Get started"><span class="lbl" aria-hidden="true">Get started</span></button>
+  </nav>
+
+  <div class="scrollhint" aria-hidden="true">
+    <span>Scroll</span>
+    <svg viewBox="0 0 14 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 3l5 6 5-6M2 12l5 6 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
   <main>
     <!-- stop 0 · hero -->
     <section class="stop">
@@ -254,6 +335,11 @@
         <h2>Never overpay for a game again.</h2>
         <p class="sub">Live prices across Steam, Epic and GOG. All-time-low flags, dollars-per-hour value scores, and this week's free games — all in one lazy glance.</p>
         <div class="taglist"><span>Steam · Epic · GOG</span><span>Free-game alerts</span><span>$ / hour value</span></div>
+        <div class="livefree" id="livefree" hidden>
+          <span class="dot" aria-hidden="true"></span>
+          <span id="livefree-text"></span>
+          <a id="livefree-link" href="https://store.epicgames.com/en-US/free-games" target="_blank" rel="noopener">Claim it&nbsp;→</a>
+        </div>
         <div class="actions"><a class="arrowlink" href="https://pcgames.lazycomparo.com/">Open the games comparator&nbsp;&nbsp;→</a></div>
       </div>
     </section>
@@ -568,6 +654,27 @@
     ];
     tags.forEach(function (t) { t.s.position.set(t.x, t.y, t.z); });
 
+    // Live-data hook: repaint the "FREE" tag with the actual Epic freebie's
+    // title once /api/epic-free responds (see fetch at the bottom of the page).
+    window.__setFreeTag = function (title) {
+      var cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+      var c = cv.getContext('2d');
+      c.fillStyle = '#bfe3c9'; c.beginPath();
+      if (c.roundRect) { c.roundRect(8, 8, 240, 112, 18); } else { c.rect(8, 8, 240, 112); }
+      c.fill();
+      c.fillStyle = '#1c1a17'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '700 42px Inter, sans-serif';
+      c.fillText('FREE', 128, 44);
+      var t = String(title); if (t.length > 17) t = t.slice(0, 16) + '…';
+      c.font = '600 21px Inter, sans-serif';
+      c.fillText(t, 128, 90);
+      var sp = tags[1].s;
+      if (sp.material.map) sp.material.map.dispose();
+      sp.material.map = new THREE.CanvasTexture(cv);
+      sp.material.needsUpdate = true;
+      if (!running) renderer.render(scene, camera); // reduced-motion: scene is static, repaint once
+    };
+
     /* ---------- phones corner (-x): paper monoliths ---------- */
     // Three phones in a row [x, height, body, screen, smallYaw, depthOffset].
     // The camera approaches this corner diagonally (from +x+z), so the whole
@@ -716,6 +823,62 @@
       entries.forEach(function (en) { if (en.isIntersecting) en.target.classList.add('in'); });
     }, { threshold: 0.25 });
     els.forEach(function (e) { io.observe(e); });
+  })();
+
+  /* ---------- progress rail + scroll hint ---------- */
+  (function () {
+    var dots = [].slice.call(document.querySelectorAll('.rail button'));
+    var sections = [].slice.call(document.querySelectorAll('main section.stop'));
+    var hint = document.querySelector('.scrollhint');
+    var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!dots.length || !sections.length) return;
+
+    function update() {
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      var p = max > 0 ? (window.scrollY / max) : 0;
+      var idx = Math.round(p * (sections.length - 1));
+      dots.forEach(function (d, i) { d.classList.toggle('on', i === idx); });
+      if (hint) hint.classList.toggle('gone', window.scrollY > 40);
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+
+    dots.forEach(function (d, i) {
+      d.addEventListener('click', function () {
+        sections[i].scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+      });
+    });
+  })();
+
+  /* ---------- live Epic freebie (from the games site's edge function) ---------- */
+  (function () {
+    var box = document.getElementById('livefree');
+    var txt = document.getElementById('livefree-text');
+    var link = document.getElementById('livefree-link');
+    if (!box || !window.fetch) return;
+
+    fetch('https://pcgames.lazycomparo.com/api/epic-free')
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error(r.status)); })
+      .then(function (d) {
+        var g = d && d.current && d.current[0];
+        if (!g || !g.title) return;
+
+        var when = '';
+        if (g.end) {
+          var end = new Date(g.end);
+          if (!isNaN(end)) when = end.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' });
+        }
+        txt.appendChild(document.createTextNode('Free on Epic right now: '));
+        var b = document.createElement('b'); b.textContent = g.title;
+        txt.appendChild(b);
+        var extra = (g.worth ? ' · worth ' + g.worth : '') + (when ? ' · until ' + when : '');
+        if (extra) txt.appendChild(document.createTextNode(extra));
+        if (g.url && /^https:\/\/store\.epicgames\.com\//.test(g.url)) link.href = g.url;
+        box.hidden = false;
+
+        if (window.__setFreeTag) window.__setFreeTag(g.title);
+      })
+      .catch(function () { /* endpoint down or offline: pill stays hidden, page unaffected */ });
   })();
   </script>
 </body>
