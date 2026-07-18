@@ -70,6 +70,8 @@
     ::-webkit-scrollbar-track { background: #12100d; }
     ::-webkit-scrollbar-thumb { background: #3a332c; border-radius: 6px; }
     ::-webkit-scrollbar-thumb:hover { background: #4f463c; }
+    .no-scrollbar { scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
     input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; }
     input[type="range"]::-webkit-slider-runnable-track {
       height: 6px; background: #2a2420; border-radius: 999px;
@@ -852,8 +854,8 @@
         {eyebrow && <div className="text-[11px] uppercase tracking-widest text-accent-soft/80 mb-2 flex items-center gap-2">
           {I && <I className="w-3.5 h-3.5" />}{eyebrow}
         </div>}
-        <h2 className="font-serif text-3xl md:text-4xl font-medium text-stone-50">{title}</h2>
-        {subtitle && <p className="text-stone-400 mt-1 max-w-2xl">{subtitle}</p>}
+        <h2 className="font-serif text-2xl md:text-4xl font-medium text-stone-50">{title}</h2>
+        {subtitle && <p className="hidden sm:block text-stone-400 mt-1 max-w-2xl">{subtitle}</p>}
       </div>
     );
 
@@ -1076,7 +1078,9 @@
                     )}
                   </div>
                 </div>
-                <div className="mt-3 space-y-1.5">
+                {/* On phones these bars duplicate the spec-matrix rows below and
+                    triple the scroll distance, so they're desktop-only. */}
+                <div className="hidden md:block mt-3 space-y-1.5">
                   <StatBar label="Combat" value={g.specs.combat} color={g.accent} sub={g.specs.combat} />
                   <StatBar label="Story" value={g.specs.story} color={g.accent} sub={g.specs.story} />
                   <StatBar label="Co-op" value={g.specs.coop} color={g.accent} sub={g.specs.coop} />
@@ -1343,7 +1347,9 @@
     // Compact strip under the header; full detail lives in the Free Games tab.
     const FreeGamesBar = ({ onSeeAll }) => {
       const { nowFree, status } = useFreebiesCtx();
-      const [open, setOpen] = useState(true);
+      // Expanded on desktop; collapsed on phones where the strip eats too much
+      // of the viewport (full detail lives in the Free Games tab anyway).
+      const [open, setOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
 
       return (
         <div className="relative border-b border-ink-800 bg-ink-900/40">
@@ -1375,7 +1381,7 @@
             </div>
 
             {open && (
-              <div className="mt-2 flex gap-2 overflow-x-auto pb-1 animate-fade-in">
+              <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar pb-1 animate-fade-in">
                 {status === 'loading' && (
                   <div className="text-xs text-stone-500 py-1.5">Checking Steam &amp; Epic for freebies…</div>
                 )}
@@ -1609,12 +1615,14 @@
     );
 
     /* ---------------- App shell ---------------- */
+    // `short` is the label used on the mobile bottom tab bar, where six
+    // columns leave ~60px each.
     const TABS = [
       { id: 'browse',  label: 'Browse',  icon: Layers },
       { id: 'compare', label: 'Compare', icon: Package },
       { id: 'advisor', label: 'Advisor', icon: Sparkles },
-      { id: 'value',   label: 'Best Value', icon: TrendingUp },
-      { id: 'free',    label: 'Free Games', icon: Gift },
+      { id: 'value',   label: 'Best Value', short: 'Value', icon: TrendingUp },
+      { id: 'free',    label: 'Free Games', short: 'Free', icon: Gift },
       { id: 'stores',  label: 'Stores', icon: Store },
     ];
 
@@ -1659,7 +1667,7 @@
        <GamesContext.Provider value={live}>
        <DealsContext.Provider value={dealsLive}>
        <FreebiesContext.Provider value={freebies}>
-        <div className="min-h-screen bg-ink-950">
+        <div className="min-h-screen bg-ink-950 pb-16 md:pb-0">
           {/* Ambient gradient */}
           <div className="pointer-events-none fixed inset-0 overflow-hidden opacity-60">
             <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.25), transparent 70%)' }} />
@@ -1682,7 +1690,7 @@
                 </div>
               </a>
 
-              <nav className="ml-4 flex bg-ink-900 rounded-lg p-1 ring-1 ring-ink-800 overflow-x-auto min-w-0">
+              <nav className="ml-4 hidden md:flex bg-ink-900 rounded-lg p-1 ring-1 ring-ink-800 overflow-x-auto min-w-0">
                 {TABS.map(({ id, label, icon: I }) => (
                   <button key={id} onClick={() => setTab(id)}
                           className={cx('px-3 py-1.5 text-sm rounded-md inline-flex items-center gap-1.5 transition shrink-0 whitespace-nowrap',
@@ -1695,7 +1703,7 @@
                 ))}
               </nav>
 
-              <div className="ml-auto hidden md:flex items-center gap-2 text-xs text-stone-500 shrink-0">
+              <div className="ml-auto flex items-center gap-2 text-[11px] md:text-xs text-stone-500 shrink-0 text-right">
                 {live.status === 'live' ? (
                   <span className="inline-flex items-center gap-1.5 text-teal-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
@@ -1738,6 +1746,26 @@
               </div>
             </div>
           </footer>
+
+          {/* Mobile bottom tab bar — the header nav is desktop-only */}
+          <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-ink-950/90 backdrop-blur-md border-t border-ink-800"
+               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="grid grid-cols-6">
+              {TABS.map(({ id, label, short, icon: I }) => (
+                <button key={id}
+                        onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}
+                        aria-label={label}
+                        className={cx('relative flex flex-col items-center gap-0.5 pt-2 pb-1.5 text-[10px] whitespace-nowrap transition',
+                          tab === id ? 'text-accent-soft' : 'text-stone-500 hover:text-stone-300')}>
+                  <I className="w-5 h-5" />
+                  {short || label}
+                  {id === 'compare' && shortlist.length > 0 && (
+                    <span className="absolute top-0.5 left-1/2 ml-2 text-[9px] bg-accent text-ink-950 rounded-full px-1 leading-4 font-semibold">{shortlist.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </nav>
         </div>
        </FreebiesContext.Provider>
        </DealsContext.Provider>
