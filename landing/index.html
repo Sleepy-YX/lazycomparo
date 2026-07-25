@@ -16,20 +16,61 @@
   <meta property="og:image:alt" content="LazyComparo — we do the boring comparison work" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://lazycomparo.com/og-image.png" />
+  <meta name="theme-color" content="#f6f1e7" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%23a78bfa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2' fill='url(%23g)'/%3E%3C/svg%3E" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- three.js (3D stage) and the games site's edge API (live prices + freebie)
+       are both hit on every load — warm the connections during head parse. -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="preconnect" href="https://pcgames.lazycomparo.com" />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,480;9..144,560&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "LazyComparo",
-    "url": "https://lazycomparo.com/",
-    "description": "Lazy comparison and buying advisors — we do the boring comparison work for you.",
-    "publisher": { "@type": "Organization", "name": "LazyComparo", "url": "https://lazycomparo.com/" }
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://lazycomparo.com/#org",
+        "name": "LazyComparo",
+        "url": "https://lazycomparo.com/",
+        "logo": "https://lazycomparo.com/og-image.png",
+        "slogan": "We do the boring comparison work.",
+        "foundingLocation": { "@type": "Place", "address": { "@type": "PostalAddress", "addressCountry": "SG" } },
+        "sameAs": ["https://github.com/Sleepy-YX/lazycomparo"]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://lazycomparo.com/#site",
+        "name": "LazyComparo",
+        "url": "https://lazycomparo.com/",
+        "description": "Lazy comparison and buying advisors — we do the boring comparison work for you.",
+        "inLanguage": "en-SG",
+        "publisher": { "@id": "https://lazycomparo.com/#org" }
+      },
+      {
+        "@type": "WebApplication",
+        "name": "LazyComparo PC Game Comparator",
+        "url": "https://pcgames.lazycomparo.com/",
+        "applicationCategory": "ShoppingApplication",
+        "operatingSystem": "Any",
+        "description": "Live PC game prices across Steam, Epic and GOG in SGD, with all-time-low flags, dollars-per-hour value scores and this week's free games.",
+        "publisher": { "@id": "https://lazycomparo.com/#org" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "SGD" }
+      },
+      {
+        "@type": "WebApplication",
+        "name": "LazyComparo Phone Switching Advisor",
+        "url": "https://mobile.lazycomparo.com/",
+        "applicationCategory": "ShoppingApplication",
+        "operatingSystem": "Any",
+        "description": "Phone upgrade advice that scores your priorities and counts the friction of leaving your current ecosystem, then gives an honest verdict.",
+        "publisher": { "@id": "https://lazycomparo.com/#org" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "SGD" }
+      }
+    ]
   }
   </script>
 
@@ -77,11 +118,38 @@
         linear-gradient(to top, rgba(246,241,231,.9), transparent 18%);
     }
 
+    /* keyboard focus ring — the browser default is nearly invisible on the
+       accent-coloured buttons and on the dark finale panel */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+    .copy.darkpanel :focus-visible, footer :focus-visible { outline-color: #f6f1e7; }
+
+    .skiplink {
+      position: fixed; top: 8px; left: 8px; z-index: 100;
+      transform: translateY(-160%);
+      background: var(--ink); color: var(--paper); text-decoration: none;
+      font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      padding: 12px 18px; border-radius: 3px;
+      transition: transform .2s;
+    }
+    .skiplink:focus { transform: none; }
+
     /* ---------- header ---------- */
     header {
       position: fixed; top: 0; left: 0; right: 0; z-index: 10;
       display: flex; align-items: center; gap: 28px;
       padding: 18px 4vw;
+      transition: background .25s, box-shadow .25s, backdrop-filter .25s;
+    }
+    /* once scrolled off the hero the header sits over 3D props, not empty
+       paper — give it its own paper backing so the wordmark stays legible */
+    header.docked {
+      background: rgba(246,241,231,.82);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 1px 0 rgba(28,26,23,.09), 0 10px 30px -26px rgba(28,26,23,.6);
     }
     .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
     .brand svg { width: 26px; height: 26px; }
@@ -161,6 +229,57 @@
       padding-bottom: 4px; transition: opacity .2s;
     }
     .arrowlink:hover { opacity: .65; }
+
+    /* ---------- hero proof strip ---------- */
+    /* Claims are cheap; the hero earns trust by showing the actual catalogue
+       size and, once /api/steam answers, real SGD prices pulled live. */
+    .proof {
+      margin-top: 38px; padding-top: 22px;
+      border-top: 1px solid rgba(28,26,23,.14);
+      display: flex; gap: 34px; flex-wrap: wrap;
+    }
+    .proof .stat .n {
+      font-family: var(--serif); font-size: 27px; font-weight: 560;
+      line-height: 1; color: var(--ink);
+    }
+    .proof .stat .l {
+      margin-top: 6px;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    /* live Steam price ticker — hidden until real data lands */
+    .ticker {
+      margin-top: 24px; display: none;
+      font-size: 12px; color: var(--ink-soft);
+    }
+    .ticker.on { display: block; }
+    .ticker .head {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .ticker .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #2e9e5b; flex: none;
+      animation: livepulse 2s infinite;
+    }
+    .ticker ul { list-style: none; display: flex; gap: 10px; flex-wrap: wrap; }
+    .ticker li {
+      display: inline-flex; align-items: baseline; gap: 8px;
+      background: #fdfaf3; border: 1px solid rgba(28,26,23,.12); border-radius: 5px;
+      padding: 9px 13px; box-shadow: 0 10px 26px -20px rgba(28,26,23,.6);
+      max-width: 100%;
+    }
+    .ticker .t {
+      font-weight: 600; color: var(--ink);
+      max-width: 21ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .ticker .p { font-weight: 700; color: var(--ink); white-space: nowrap; }
+    .ticker .off {
+      font-size: 10px; font-weight: 700; letter-spacing: .04em;
+      color: #fff; background: var(--accent); border-radius: 3px; padding: 2px 6px;
+      white-space: nowrap;
+    }
 
     /* ---------- scroll progress rail ---------- */
     .rail {
@@ -263,24 +382,76 @@
     footer .brandline { font-family: var(--serif); color: #f6f1e7; font-size: 17px; margin-bottom: 8px; }
 
     @media (max-width: 760px) {
-      nav.top { display: none; }
+      header { gap: 12px; padding: 14px 5vw; }
+      /* Keep the two product links reachable on mobile — dropping the whole
+         nav stranded the phone advisor behind the games-only CTA pill. The
+         in-page "How it works" link goes, since the scroll rail covers it. */
+      nav.top { margin-left: auto; gap: 0; padding: 3px; }
+      nav.top a { padding: 7px 10px; letter-spacing: .1em; font-size: 10px; }
+      nav.top a.inpage { display: none; }
+      .cta-pill { display: none; }
       section.stop, section.stop:nth-of-type(even) { justify-content: flex-start; padding: 14vh 6vw; }
       .cards { grid-template-columns: 1fr; max-width: 480px; }
       .copy::before { inset: -12% -14%; }
       .rail { right: 8px; gap: 12px; }
       .rail .lbl { display: none; }
+      /* Hero is height-critical on phones: the h1 alone eats ~106px and the
+         section is min-height:100vh. Stats stay (they wrap 2x2 and are cheap);
+         the ticker is dropped rather than letting the hero outgrow the
+         viewport and push the CTAs below the fold. */
+      .proof { gap: 14px 20px; margin-top: 26px; padding-top: 16px; }
+      .proof .stat { min-width: 92px; }
+      .proof .stat .n { font-size: 20px; }
+      .proof .stat .l { font-size: 8.5px; letter-spacing: .14em; margin-top: 4px; }
+      .ticker, .ticker.on { display: none; }
+    }
+    /* narrow phones: brand wordmark + two nav links overrun 375px and
+       overflow-x:hidden silently clips the last link's padding */
+    @media (max-width: 420px) {
+      header { padding: 12px 4vw; gap: 8px; }
+      .brand { gap: 7px; }
+      .brand b { font-size: 17px; }
+      .brand svg { width: 22px; height: 22px; }
+      nav.top a { padding: 6px 8px; font-size: 9.5px; letter-spacing: .08em; }
+    }
+    /* smallest phones (320-360px): drop the wordmark, keep the bolt — two
+       nav links plus "LazyComparo" cannot both fit honestly */
+    @media (max-width: 360px) {
+      .brand b { display: none; }
+    }
+    /* laptops: same squeeze, less severe */
+    @media (min-width: 761px) and (max-height: 900px) {
+      .proof { margin-top: 26px; padding-top: 16px; gap: 26px; }
+      .proof .stat .n { font-size: 22px; }
+      .ticker { margin-top: 16px; }
+      .ticker li { padding: 7px 11px; }
+      .ticker .head { margin-bottom: 9px; }
+    }
+    /* Short desktop viewports (720p, split screens). The display type is sized
+       off viewport WIDTH, so on a wide-but-short screen the h1 alone is ~330px
+       and the hero outgrows the fold. Scale it off height here instead. */
+    @media (min-width: 761px) and (max-height: 820px) {
+      section.stop { padding: 8vh 4vw; }
+      h1 { font-size: clamp(44px, 6vw, 76px); }
+      h2 { font-size: clamp(38px, 5vw, 66px); }
+      .sub { margin-top: 20px; }
+      .actions { margin-top: 26px; }
+      .proof { margin-top: 20px; padding-top: 12px; }
+      .ticker { margin-top: 12px; }
     }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       .reveal { opacity: 1 !important; transform: none !important; transition: none; }
       .scrollhint svg { animation: none; }
-      .livefree .dot { animation: none; }
+      .livefree .dot, .ticker .dot { animation: none; }
+      .pcard, .pcard:hover { transition: none; }
     }
   </style>
 </head>
 <body>
+  <a class="skiplink" href="#main">Skip to content</a>
   <canvas id="stage" aria-hidden="true"></canvas>
-  <div class="vignette"></div>
+  <div class="vignette" aria-hidden="true"></div>
 
   <header>
     <a class="brand" href="/">
@@ -292,10 +463,10 @@
       </svg>
       <b>LazyComparo</b>
     </a>
-    <nav class="top">
+    <nav class="top" aria-label="Products">
       <a href="https://pcgames.lazycomparo.com/">PC Games</a>
       <a href="https://mobile.lazycomparo.com/">Phones</a>
-      <a href="#how">How it works</a>
+      <a class="inpage" href="#how">How it works</a>
     </nav>
     <a class="cta-pill" href="https://pcgames.lazycomparo.com/">Start comparing</a>
   </header>
@@ -315,28 +486,38 @@
     </svg>
   </div>
 
-  <main>
+  <main id="main">
     <!-- stop 0 · hero -->
-    <section class="stop">
+    <section class="stop" aria-labelledby="h-hero">
       <div class="copy reveal">
         <div class="rule"></div>
         <div class="eyebrow">The lazy way to buy well</div>
-        <h1>Decisions,<br/>minus the homework.</h1>
+        <h1 id="h-hero">Decisions,<br/>minus the homework.</h1>
         <p class="sub">LazyComparo watches prices, ratings and trade-offs across stores and brands — then just tells you what's actually worth your money. You stay lazy. We compare.</p>
         <div class="actions">
           <a class="btn primary" href="https://pcgames.lazycomparo.com/">Compare PC games</a>
           <a class="btn ghost" href="https://mobile.lazycomparo.com/">Compare phones</a>
         </div>
+        <div class="proof">
+          <div class="stat"><div class="n">60</div><div class="l">Games tracked</div></div>
+          <div class="stat"><div class="n">40</div><div class="l">Phones scored</div></div>
+          <div class="stat"><div class="n">3</div><div class="l">Stores compared</div></div>
+          <div class="stat"><div class="n">S$0</div><div class="l">To use, forever</div></div>
+        </div>
+        <div class="ticker" id="ticker" aria-live="polite">
+          <div class="head"><span class="dot" aria-hidden="true"></span><span>Live from the Steam SG store</span></div>
+          <ul id="ticker-list"></ul>
+        </div>
       </div>
     </section>
 
     <!-- stop 1 · games -->
-    <section class="stop">
+    <section class="stop" aria-labelledby="h-games">
       <div class="copy reveal">
         <div class="rule"></div>
         <div class="stopno">01 / 03</div>
         <div class="eyebrow">PC Games</div>
-        <h2>Never overpay for a game again.</h2>
+        <h2 id="h-games">Never overpay for a game again.</h2>
         <p class="sub">Live prices across Steam, Epic and GOG. All-time-low flags, dollars-per-hour value scores, and this week's free games — all in one lazy glance.</p>
         <div class="taglist"><span>Steam · Epic · GOG</span><span>Free-game alerts</span><span>$ / hour value</span></div>
         <div class="livefree" id="livefree" hidden>
@@ -349,12 +530,12 @@
     </section>
 
     <!-- stop 2 · phones -->
-    <section class="stop">
+    <section class="stop" aria-labelledby="h-phones">
       <div class="copy reveal">
         <div class="rule"></div>
         <div class="stopno">02 / 03</div>
         <div class="eyebrow">Phones</div>
-        <h2>Upgrade only when it's worth it.</h2>
+        <h2 id="h-phones">Upgrade only when it's worth it.</h2>
         <p class="sub">The only phone advisor that counts the pain of leaving iMessage or DeX. Set your budget and priorities, and get an honest verdict: worth upgrading, marginal, or wait a generation.</p>
         <div class="taglist"><span>Ecosystem penalty</span><span>Priority sliders</span><span>Honest verdicts</span></div>
         <div class="actions"><a class="arrowlink" href="https://mobile.lazycomparo.com/">Open the phone advisor&nbsp;&nbsp;→</a></div>
@@ -362,12 +543,12 @@
     </section>
 
     <!-- stop 3 · how it works -->
-    <section class="stop" id="how">
+    <section class="stop" id="how" aria-labelledby="h-how">
       <div class="copy reveal" style="max-width: 900px;">
         <div class="rule"></div>
         <div class="stopno">03 / 03</div>
         <div class="eyebrow">How it works</div>
-        <h2>Lazy for you.<br/>Not for us.</h2>
+        <h2 id="h-how">Lazy for you.<br/>Not for us.</h2>
         <div class="cards">
           <div class="pcard"><div class="num">LIVE</div><div class="k">Real prices</div><p>Prices and review scores refresh straight from official store feeds — Steam, Epic, GOG and IsThereAnyDeal — cached at the edge, never hand-typed.</p></div>
           <div class="pcard"><div class="num">MATH</div><div class="k">Honest scoring</div><p>Weighted priority scores, an ecosystem-friction penalty for switching brands, and $-per-hour value ranking. The spreadsheet you'd never build yourself.</p></div>
@@ -377,11 +558,11 @@
     </section>
 
     <!-- stop 4 · finale -->
-    <section class="stop">
+    <section class="stop" aria-labelledby="h-finale">
       <div class="copy darkpanel reveal">
         <div class="rule"></div>
         <div class="eyebrow">Free · No sign-up · Built in Singapore</div>
-        <h2>Stop researching. Start deciding.</h2>
+        <h2 id="h-finale">Stop researching. Start deciding.</h2>
         <div class="actions">
           <a class="btn primary" href="https://pcgames.lazycomparo.com/">Compare PC games</a>
           <a class="btn ghost" href="https://mobile.lazycomparo.com/">Compare phones</a>
@@ -393,14 +574,22 @@
   <footer>
     <div class="cols">
       <div>
-        <div class="brandline">⚡ LazyComparo</div>
+        <div class="brandline">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" style="vertical-align:-2px">
+            <defs><linearGradient id="lgf" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/>
+            </linearGradient></defs>
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="url(#lgf)"/>
+          </svg>
+          LazyComparo
+        </div>
         We do the boring comparison work.<br/>Built in Singapore. Free to use.
       </div>
-      <div>
+      <nav aria-label="Footer">
         <a href="https://pcgames.lazycomparo.com/">PC game comparator</a><br/>
         <a href="https://mobile.lazycomparo.com/">Phone switching advisor</a><br/>
         <a href="https://github.com/Sleepy-YX/lazycomparo">GitHub</a>
-      </div>
+      </nav>
       <div style="max-width:340px;">
         Game prices live from the Steam SG store, Epic &amp; GOG via IsThereAnyDeal. Editorial specs and verdict math are ours. © 2026 LazyComparo.
       </div>
@@ -416,6 +605,46 @@
        3 overhead (how it works) · 4 pull-back finale
      Falls back to a flat paper gradient if WebGL/three.js is unavailable.
      ===================================================================== */
+
+  /* Scroll position expressed in "stops": p === i exactly when section i is
+     centred in the viewport, interpolating linearly between neighbours.
+     This replaces scrollY/scrollHeight, which spread the five stops across
+     the WHOLE document including the footer — so the finale camera (and the
+     last rail dot) only arrived once you had scrolled past the footer, well
+     after the finale copy was already on screen. Both the camera loop and
+     the rail read this, so they can never disagree.
+     Centres are cached because the render loop calls this every frame and
+     getBoundingClientRect() forces layout; layout only moves on resize or
+     late webfont reflow, so those invalidate the cache. */
+  var __centers = null;
+  function stopCenters() {
+    if (__centers) return __centers;
+    __centers = [].slice.call(document.querySelectorAll('main section.stop'))
+      .map(function (s) {
+        var r = s.getBoundingClientRect();
+        return r.top + window.scrollY + r.height / 2;
+      });
+    return __centers;
+  }
+  function invalidateCenters() { __centers = null; }
+  window.addEventListener('resize', invalidateCenters);
+  window.addEventListener('load', invalidateCenters);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(invalidateCenters);
+
+  function stopProgress() {
+    var c = stopCenters();
+    if (c.length < 2) return 0;
+    var vc = window.scrollY + window.innerHeight / 2;
+    if (vc <= c[0]) return 0;
+    for (var k = 0; k < c.length - 1; k++) {
+      if (vc <= c[k + 1]) {
+        var span = c[k + 1] - c[k];
+        return span > 0 ? k + (vc - c[k]) / span : k;
+      }
+    }
+    return c.length - 1;
+  }
+
   (function () {
     var canvas = document.getElementById('stage');
     var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -432,13 +661,43 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     var scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(PAPER, 55, 115);
+    scene.fog = new THREE.Fog(PAPER, 58, 125);
 
     var camera = new THREE.PerspectiveCamera(small ? 55 : 42, 1, 0.1, 300);
 
+    /* ---------- environment ----------
+       Metal and glossy plastic only read as such if there is something to
+       reflect; with no envMap, metalness renders near-black. RoomEnvironment
+       + PMREMGenerator live in examples/jsm, which the pinned r158 UMD build
+       does not ship, so this is a hand-rolled equirect: a warm sky fading
+       through a horizon band into ground bounce. 128x64 is plenty — it is
+       only ever seen blurred in a reflection, never directly (the scene
+       background stays the flat paper clear-colour). */
+    (function () {
+      var cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
+      var c = cv.getContext('2d');
+      var g = c.createLinearGradient(0, 0, 0, 64);
+      g.addColorStop(0.00, '#fffdf7');
+      g.addColorStop(0.42, '#f7efdd');
+      g.addColorStop(0.52, '#e4d8bf');   // horizon
+      g.addColorStop(0.75, '#c3b69b');
+      g.addColorStop(1.00, '#a89b81');   // ground bounce
+      c.fillStyle = g; c.fillRect(0, 0, 128, 64);
+      // a soft warm "sun" blob so highlights have a hotspot to catch
+      var s = c.createRadialGradient(34, 16, 0, 34, 16, 22);
+      s.addColorStop(0, 'rgba(255,246,222,1)'); s.addColorStop(1, 'rgba(255,246,222,0)');
+      c.fillStyle = s; c.fillRect(0, 0, 128, 40);
+      var tx = new THREE.CanvasTexture(cv);
+      tx.mapping = THREE.EquirectangularReflectionMapping;
+      tx.colorSpace = THREE.SRGBColorSpace;
+      scene.environment = tx;
+    })();
+
     /* ---------- lights ---------- */
-    scene.add(new THREE.HemisphereLight(0xfff6e6, 0xcdc3ae, 0.85));
-    var sun = new THREE.DirectionalLight(0xffe8c8, 1.5);
+    // hemisphere pulled back from 0.85 — scene.environment now supplies most
+    // of the ambient fill, and stacking both washes the models out flat
+    scene.add(new THREE.HemisphereLight(0xfff6e6, 0xcdc3ae, 0.34));
+    var sun = new THREE.DirectionalLight(0xffe8c8, 1.75);
     sun.position.set(24, 34, 18);
     sun.castShadow = true;
     sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048);
@@ -446,16 +705,28 @@
     sun.shadow.camera.top = 55; sun.shadow.camera.bottom = -55;
     sun.shadow.camera.far = 120;
     sun.shadow.bias = -0.0006;
+    sun.shadow.normalBias = 0.035;   // kills the shadow acne bevels introduce
     scene.add(sun);
+    // cool rim from behind-left so dark chassis edges separate from the fog
+    var rim = new THREE.DirectionalLight(0xdce8ff, 0.5);
+    rim.position.set(-26, 14, -22);
+    scene.add(rim);
 
-    /* ---------- material helper (flat "folded paper" shading) ---------- */
+    /* ---------- material helper ----------
+       `flat` defaults to true: the paper world (ground plinths, keycap dice,
+       planes, masts) is folded-paper low-poly on purpose. The hardware props
+       pass flat:false and lean on roughness/metalness instead — that split is
+       what separates "paper village" from "grey boxes". */
     function mat(color, opts) {
       var o = opts || {};
       return new THREE.MeshStandardMaterial({
-        color: color, flatShading: true,
-        roughness: o.rough != null ? o.rough : 0.95, metalness: 0,
+        color: color,
+        flatShading: o.flat != null ? o.flat : true,
+        roughness: o.rough != null ? o.rough : 0.95,
+        metalness: o.metal != null ? o.metal : 0,
         emissive: o.emissive || 0x000000,
-        emissiveIntensity: o.ei != null ? o.ei : 1
+        emissiveIntensity: o.ei != null ? o.ei : 1,
+        envMapIntensity: o.env != null ? o.env : 0.75
       });
     }
     function put(geo, m, x, y, z, ry, group) {
@@ -468,10 +739,143 @@
     }
     // deterministic pseudo-noise so the terrain is identical every load
     function nz(x, z) { var s = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return s - Math.floor(s); }
+    // smoothstep-interpolated value noise — nz() sampled per-vertex gave every
+    // triangle an independent height, which read as harsh spiky faceting
+    function vnz(x, z) {
+      var xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi;
+      var u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);
+      var a = nz(xi, zi), b = nz(xi + 1, zi), c = nz(xi, zi + 1), e = nz(xi + 1, zi + 1);
+      return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + e * u) * v;
+    }
+
+    /* ---------- rounded/bevelled box ----------
+       The single biggest "raw render" tell is a hard 90-degree edge: real
+       hardware has a chamfer that catches a highlight. RoundedBoxGeometry is
+       an examples/jsm class the UMD build lacks, so this builds one from a
+       rounded-rect Shape + ExtrudeGeometry's bevel. Note the bevel grows
+       OUTWARD from the shape, so the shape is inset by the bevel to land on
+       the requested outer w/h/d. Geometry is cached — the racks alone would
+       otherwise rebuild the same sled hundreds of times. */
+    var _boxCache = {};
+    function rbox(w, h, d, r) {
+      var key = w + '_' + h + '_' + d + '_' + r;
+      if (_boxCache[key]) return _boxCache[key];
+      var b = Math.max(0.006, Math.min(r, w * 0.24, h * 0.24, d * 0.45));
+      var sw = w - 2 * b, sh = h - 2 * b, sd = Math.max(0.002, d - 2 * b);
+      var cr = Math.max(0.0001, Math.min(r - b, sw / 2 - 0.001, sh / 2 - 0.001));
+      var s = new THREE.Shape();
+      s.moveTo(-sw / 2 + cr, -sh / 2);
+      s.lineTo(sw / 2 - cr, -sh / 2);
+      s.quadraticCurveTo(sw / 2, -sh / 2, sw / 2, -sh / 2 + cr);
+      s.lineTo(sw / 2, sh / 2 - cr);
+      s.quadraticCurveTo(sw / 2, sh / 2, sw / 2 - cr, sh / 2);
+      s.lineTo(-sw / 2 + cr, sh / 2);
+      s.quadraticCurveTo(-sw / 2, sh / 2, -sw / 2, sh / 2 - cr);
+      s.lineTo(-sw / 2, -sh / 2 + cr);
+      s.quadraticCurveTo(-sw / 2, -sh / 2, -sw / 2 + cr, -sh / 2);
+      var g = new THREE.ExtrudeGeometry(s, {
+        depth: sd, bevelEnabled: true, bevelThickness: b, bevelSize: b,
+        bevelSegments: 2, curveSegments: 3, steps: 1
+      });
+      g.translate(0, 0, -sd / 2);
+      g.computeVertexNormals();
+      _boxCache[key] = g;
+      return g;
+    }
+
+    /* ---------- fake contact shadow ----------
+       The shadow map covers a 110-unit area, so where an object meets the
+       ground it is far too soft to read as contact. A cheap darkening decal
+       under each cluster does the grounding the shadow map can't. */
+    var contactTex = (function () {
+      var cv = document.createElement('canvas'); cv.width = cv.height = 128;
+      var c = cv.getContext('2d');
+      var g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, 'rgba(74,62,44,.55)');
+      g.addColorStop(0.45, 'rgba(74,62,44,.28)');
+      g.addColorStop(1, 'rgba(74,62,44,0)');
+      c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+      var t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    var contactGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    function contact(x, z, rx, rz, op, group) {
+      var m = new THREE.Mesh(contactGeo, new THREE.MeshBasicMaterial({
+        map: contactTex, transparent: true, opacity: op == null ? 0.8 : op,
+        depthWrite: false, fog: true
+      }));
+      m.position.set(x, 0.035, z);
+      m.scale.set(rx, 1, rz == null ? rx : rz);
+      m.renderOrder = -1;
+      (group || scene).add(m);
+      return m;
+    }
+
+    /* ---------- screen content ----------
+       Solid cyan rectangles read as "untextured placeholder". Drawing the
+       product's actual UI into a canvas is what makes the props look like
+       machines doing something. Kept schematic — at these camera distances
+       real copy would be sub-pixel mush. */
+    function screenTex(kind) {
+      var cv = document.createElement('canvas');
+      var W = kind === 'phone' ? 220 : 512, H = kind === 'phone' ? 460 : 288;
+      cv.width = W; cv.height = H;
+      var c = cv.getContext('2d');
+      c.fillStyle = '#0d1424'; c.fillRect(0, 0, W, H);
+
+      if (kind === 'phone') {
+        c.fillStyle = '#182238'; c.fillRect(0, 0, W, 54);
+        c.fillStyle = '#22d3ee'; c.fillRect(18, 22, 74, 9);
+        // verdict card
+        c.fillStyle = '#14361f'; c.fillRect(16, 74, W - 32, 92);
+        c.fillStyle = '#4ade80'; c.fillRect(30, 96, 108, 13);
+        c.fillStyle = '#2c5138'; c.fillRect(30, 122, 150, 8);
+        c.fillStyle = '#2c5138'; c.fillRect(30, 138, 116, 8);
+        // spec bars
+        for (var i = 0; i < 5; i++) {
+          var y = 194 + i * 44;
+          c.fillStyle = '#243350'; c.fillRect(16, y, W - 32, 30);
+          c.fillStyle = '#33415e'; c.fillRect(28, y + 11, 46, 8);
+          var w = 40 + (nz(i, 3) * 78) | 0;
+          c.fillStyle = i % 2 ? '#a78bfa' : '#22d3ee';
+          c.fillRect(88, y + 10, w, 10);
+        }
+        c.fillStyle = '#d9482b'; c.fillRect(16, H - 52, W - 32, 34);
+      } else {
+        // comparison table: header bar, then rows of title / bar / price chip
+        c.fillStyle = '#131d33'; c.fillRect(0, 0, W, 46);
+        c.fillStyle = '#22d3ee'; c.fillRect(22, 18, 96, 10);
+        c.fillStyle = '#33415e'; c.fillRect(W - 150, 18, 60, 10);
+        c.fillStyle = '#a78bfa'; c.fillRect(W - 80, 15, 58, 16);
+        for (var r = 0; r < 6; r++) {
+          var ry = 60 + r * 37;
+          c.fillStyle = r % 2 ? '#101a2e' : '#152238';
+          c.fillRect(14, ry, W - 28, 31);
+          c.fillStyle = '#3d4c6b'; c.fillRect(26, ry + 11, 92, 9);   // title
+          var bw = 60 + (nz(r, 7) * 150) | 0;                        // value bar
+          c.fillStyle = r === 1 ? '#4ade80' : (r % 2 ? '#a78bfa' : '#22d3ee');
+          c.fillRect(136, ry + 10, bw, 11);
+          c.fillStyle = r === 1 ? '#d9482b' : '#2a3550';
+          c.fillRect(W - 78, ry + 8, 56, 15);                        // price chip
+        }
+      }
+      var t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 4;
+      return t;
+    }
+    function screenMat(kind, glow) {
+      var t = screenTex(kind);
+      return new THREE.MeshStandardMaterial({
+        map: t, emissive: 0xffffff, emissiveMap: t,
+        emissiveIntensity: glow == null ? 0.8 : glow,
+        roughness: 0.22, metalness: 0, envMapIntensity: 0.5
+      });
+    }
 
     /* ---------- ground: gently crumpled paper ---------- */
     var FLAT = [[0, 0, 17], [26, -6, 11], [-26, -8, 11]]; // keep village + vignettes level
-    var ground = new THREE.PlaneGeometry(240, 240, 56, 56);
+    var ground = new THREE.PlaneGeometry(240, 240, 120, 120);
     ground.rotateX(-Math.PI / 2);
     (function () {
       var p = ground.attributes.position;
@@ -481,27 +885,69 @@
           var d = Math.hypot(x - FLAT[f][0], z - FLAT[f][1]);
           damp = Math.min(damp, Math.max(0, Math.min(1, (d - FLAT[f][2]) / 10)));
         }
-        p.setY(i, (nz(x, z) - 0.5) * 1.7 * damp);
+        // two octaves of smooth noise: broad dunes plus a gentle ripple,
+        // instead of one spiky sample per vertex
+        var hgt = (vnz(x / 13, z / 13) - 0.5) * 2.6 + (vnz(x / 4.5, z / 4.5) - 0.5) * 0.5;
+        p.setY(i, hgt * damp);
       }
       ground.computeVertexNormals();
     })();
-    var gmesh = new THREE.Mesh(ground, mat(0xefe7d6));
+    // smooth-shaded: flat shading turned every one of these triangles into a
+    // visible facet, which was most of the "raw" look
+    var gmesh = new THREE.Mesh(ground, mat(0xece3d0, { flat: false, rough: 0.98, env: 0.35 }));
     gmesh.receiveShadow = true;
     scene.add(gmesh);
 
     /* ---------- central tech plaza ---------- */
     // server-rack skyline with glowing status lights (replaces the mountain ring)
+    // Shared across every rack so the geometry/material cost stays flat no
+    // matter how many sleds get stacked.
+    // two sled finishes so a stack doesn't read as one repeated grey bar
+    var SLED_BODY = mat(0x77839c, { flat: false, rough: 0.36, metal: 0.78, env: 1.0 });
+    var SLED_ALT = mat(0x5d6880, { flat: false, rough: 0.42, metal: 0.7, env: 0.95 });
+    var SLED_FACE = mat(0x141b2c, { flat: false, rough: 0.6, metal: 0.25 });
+    var RACK_RAIL = mat(0xb9c2d4, { flat: false, rough: 0.3, metal: 0.85, env: 1.1 });
+    var RACK_WELL = mat(0x0b1120, { flat: false, rough: 0.85, metal: 0.1, env: 0.2 });
+
     function rack(x, z, w, h, d, col, lit) {
       var g = new THREE.Group();
-      put(new THREE.BoxGeometry(w, h, d), mat(col), 0, h / 2, 0, 0, g);
-      var rows = Math.floor(h / 1.6), cols = Math.max(2, Math.floor(w / 1.4));
-      for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
-        if (nz(r * 7 + x, c * 13 + z) < 0.45) continue;   // some slots dark
-        var lamp = put(new THREE.PlaneGeometry(0.4, 0.18),
-          mat(lit, { emissive: lit, ei: 1.4, rough: 0.5 }),
-          -w / 2 + 0.8 + c * ((w - 1.6) / Math.max(1, cols - 1)), 1.1 + r * 1.5, d / 2 + 0.03, 0, g);
-        lamp.castShadow = false; lamp.receiveShadow = false;
+      var chassis = mat(col, { flat: false, rough: 0.42, metal: 0.6, env: 0.95 });
+      var lamps = mat(lit, { emissive: lit, ei: 2.2, rough: 0.4, flat: false });
+
+      put(rbox(w, h, d, 0.16), chassis, 0, h / 2, 0, 0, g);
+      // recessed bay the sleds sit in — the dark inset is what sells "rack"
+      // rather than "painted box"
+      put(rbox(w * 0.86, h - 0.9, 0.14, 0.04), RACK_WELL, 0, h / 2, d / 2 + 0.02, 0, g)
+        .castShadow = false;
+      // vertical mounting rails either side of the bay
+      [-1, 1].forEach(function (sx) {
+        put(rbox(0.12, h - 0.9, 0.1, 0.03), RACK_RAIL, sx * w * 0.44, h / 2, d / 2 + 0.05, 0, g)
+          .castShadow = false;
+      });
+
+      // 1U sleds: face plate, vent slot, drive handle, status LED
+      var pitch = 0.86, rows = Math.max(2, Math.floor((h - 1.4) / pitch));
+      var sw = w * 0.8;
+      for (var r = 0; r < rows; r++) {
+        var y = 0.75 + r * pitch;
+        var seed = nz(r * 7 + x, z * 13);
+        if (seed < 0.12) continue;                       // a few empty slots
+        put(rbox(sw, pitch * 0.78, 0.16, 0.035), seed > 0.6 ? SLED_ALT : SLED_BODY,
+          0, y, d / 2 + 0.07, 0, g).castShadow = false;
+        // vent slot across the face
+        put(rbox(sw * 0.52, pitch * 0.26, 0.04, 0.02), SLED_FACE, -sw * 0.12, y, d / 2 + 0.15, 0, g)
+          .castShadow = false;
+        // pull handle
+        put(rbox(sw * 0.1, pitch * 0.5, 0.06, 0.02), SLED_FACE, sw * 0.4, y, d / 2 + 0.15, 0, g)
+          .castShadow = false;
+        if (seed > 0.42) {                               // lit slots
+          var led = put(rbox(0.13, 0.13, 0.03, 0.05), lamps, -sw * 0.44, y, d / 2 + 0.16, 0, g);
+          led.castShadow = false; led.receiveShadow = false;
+        }
       }
+      // top cap + feet so it doesn't float
+      put(rbox(w * 1.04, 0.18, d * 1.04, 0.06), RACK_RAIL, 0, h + 0.04, 0, 0, g);
+      contact(0, 0, w * 2.4, d * 3.0, 0.75, g);
       g.position.set(x, 0, z);
       scene.add(g);
     }
@@ -511,95 +957,213 @@
     rack(8, -13,     4.5, 16,   4,   0x243354, 0x22d3ee);
     rack(14, -9,     4,   9.5,  3.5, 0x35507e, 0xffb75e);
 
+    /* ---------- reusable device parts ---------- */
+    var SHELL = mat(0x222c46, { flat: false, rough: 0.38, metal: 0.5, env: 0.95 });
+    var BEZEL = mat(0x0b1020, { flat: false, rough: 0.5, metal: 0.25 });
+    var FRAME = mat(0x1b2438, { flat: false, rough: 0.5, metal: 0.4 });
+    // shared by the comms mast and the plaza bollards further down
+    var POST_MAT = mat(0x39414f, { flat: false, rough: 0.35, metal: 0.7, env: 1.0 });
+
+    // A fan is the detail that most says "this is a real machine": shroud,
+    // hub, angled blades and an RGB ring, instead of the flat glowing disc
+    // that was here before.
+    function fanUnit(r, blade, glow) {
+      var g = new THREE.Group();
+      put(new THREE.TorusGeometry(r, r * 0.15, 8, 26), FRAME, 0, 0, 0, 0, g).castShadow = false;
+      var hub = put(new THREE.CylinderGeometry(r * 0.3, r * 0.3, 0.12, 18), FRAME, 0, 0, 0, 0, g);
+      hub.rotation.x = Math.PI / 2; hub.castShadow = false;
+      var bm = mat(blade, { flat: false, rough: 0.45, metal: 0.15, env: 0.8 });
+      var bgeo = rbox(r * 0.6, r * 0.22, 0.05, 0.04);
+      for (var i = 0; i < 7; i++) {
+        var a = i / 7 * Math.PI * 2;
+        var b = new THREE.Mesh(bgeo, bm);
+        b.position.set(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5, 0);
+        b.rotation.z = a + 0.6;
+        b.castShadow = false;
+        g.add(b);
+      }
+      var ring = put(new THREE.TorusGeometry(r * 0.92, r * 0.05, 6, 26),
+        mat(glow, { emissive: glow, ei: 2.6, rough: 0.4, flat: false }), 0, 0, 0.03, 0, g);
+      ring.castShadow = false;
+      return g;
+    }
+
+    // panel + bezel + inset screen, so the display reads as a device rather
+    // than a coloured rectangle floating in a box
+    function monitorRig(w, h, kind) {
+      var g = new THREE.Group();
+      put(rbox(w, h, 0.3, 0.1), SHELL, 0, 0, 0, 0, g);
+      put(rbox(w - 0.18, h - 0.18, 0.08, 0.05), BEZEL, 0, 0, 0.16, 0, g).castShadow = false;
+      var sc = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.46, h - 0.46), screenMat(kind, 0.85));
+      sc.position.set(0, 0, 0.21);
+      sc.castShadow = false; sc.receiveShadow = false;
+      g.add(sc);
+      return g;
+    }
+
     // giant monitor + RGB PC tower (the plaza's "house")
     var setup = new THREE.Group();
-    put(new THREE.BoxGeometry(7, 4.2, 0.55), mat(0x232f4e), 0, 4.1, 0, 0, setup);
-    var big = put(new THREE.PlaneGeometry(6.2, 3.4),
-      mat(0x22d3ee, { emissive: 0x18b6d6, ei: 1.1, rough: 0.4 }), 0, 4.1, 0.31, 0, setup);
-    big.castShadow = false;
-    put(new THREE.BoxGeometry(0.9, 1.6, 0.9), mat(0x2c3e6b), 0, 1.2, 0, 0, setup);
-    put(new THREE.BoxGeometry(3, 0.35, 1.7), mat(0x2c3e6b), 0, 0.6, 0, 0, setup);
-    // tower with a violet light strip and two fan discs
-    put(new THREE.BoxGeometry(2.2, 5, 3.6), mat(0x35507e), 5.2, 2.5, 0.2, -0.12, setup);
-    var strip = put(new THREE.PlaneGeometry(0.28, 4.4),
-      mat(0xa78bfa, { emissive: 0xa78bfa, ei: 1.3, rough: 0.5 }), 4.35, 2.5, 2.03, -0.12, setup);
-    strip.castShadow = false;
-    [1.6, 3.4].forEach(function (fy) {
-      var fan = put(new THREE.CylinderGeometry(0.62, 0.62, 0.1, 10),
-        mat(0x67e8f9, { emissive: 0x22d3ee, ei: 0.9, rough: 0.5 }), 5.45, fy, 2.05, 0, setup);
-      fan.rotation.x = Math.PI / 2; fan.castShadow = false;
+    var bigMon = monitorRig(7, 4.2, 'compare');
+    bigMon.position.set(0, 4.1, 0);
+    setup.add(bigMon);
+    put(rbox(0.8, 1.7, 0.5, 0.14), SHELL, 0, 1.2, 0, 0, setup);          // neck
+    put(rbox(3.1, 0.28, 1.8, 0.1), SHELL, 0, 0.5, 0.1, 0, setup);        // foot
+
+    // tower: chassis, tempered-glass side, intake fans, RGB strip
+    var tower = new THREE.Group();
+    put(rbox(2.2, 5, 3.6, 0.14), mat(0x2b3b60, { flat: false, rough: 0.36, metal: 0.55, env: 1.0 }),
+      0, 2.5, 0, 0, tower);
+    // smoked side panel — low roughness + transparency is what reads as glass
+    var glass = put(rbox(0.06, 4.3, 3.1, 0.03), new THREE.MeshStandardMaterial({
+      color: 0x121a2e, roughness: 0.08, metalness: 0.2, transparent: true,
+      opacity: 0.55, envMapIntensity: 1.4
+    }), 1.11, 2.55, 0, 0, tower);
+    glass.castShadow = false;
+    put(rbox(2.0, 0.12, 3.3, 0.05), FRAME, 0, 5.02, 0, 0, tower);        // top vent cap
+    [1.45, 3.25].forEach(function (fy) {
+      var f = fanUnit(0.62, 0x67e8f9, 0x22d3ee);
+      f.position.set(0, fy, 1.83);
+      tower.add(f);
     });
+    var strip = put(rbox(0.14, 4.2, 0.06, 0.04),
+      mat(0xa78bfa, { emissive: 0xa78bfa, ei: 2.2, rough: 0.4, flat: false }), -0.96, 2.5, 1.82, 0, tower);
+    strip.castShadow = false;
+    [[-0.85, 1.5], [0.85, 1.5], [-0.85, -1.5], [0.85, -1.5]].forEach(function (f) {
+      put(rbox(0.22, 0.16, 0.22, 0.05), FRAME, f[0], 0.08, f[1], 0, tower).castShadow = false;
+    });
+    tower.position.set(5.2, 0, 0.2);
+    tower.rotation.y = -0.12;
+    setup.add(tower);
+    contact(5.2, 0.2, 5.2, 6.4, 0.85, setup);
+    contact(0, 0.1, 6.2, 3.6, 0.7, setup);
+
     setup.position.set(-0.5, 0, -5.5);
     scene.add(setup);
 
-    // chunky paper gamepad centerpiece on a plinth
+    // chunky gamepad centrepiece on a paper plinth
     var pad = new THREE.Group();
-    put(new THREE.CylinderGeometry(4.2, 4.7, 0.5, 8), mat(0xe6dcc4), 0, 0.25, 0, 0, pad);
-    put(new THREE.BoxGeometry(3.6, 0.85, 1.7), mat(0xc0452a), 0, 0.95, 0, 0, pad);
-    put(new THREE.BoxGeometry(1.15, 0.85, 2.3), mat(0xb93a20), -1.55, 0.9, 0.45, 0.35, pad);
-    put(new THREE.BoxGeometry(1.15, 0.85, 2.3), mat(0xb93a20), 1.55, 0.9, 0.45, -0.35, pad);
-    // face buttons (right) + d-pad (left)
-    [[0.95, 0.12, 0x22d3ee], [1.45, -0.12, 0xd8b56a], [0.95, -0.36, 0xa78bfa], [0.45, -0.12, 0x3c5d49]]
+    put(new THREE.CylinderGeometry(4.2, 4.7, 0.5, 32), mat(0xe6dcc4, { rough: 0.92 }), 0, 0.25, 0, 0, pad);
+    var padShell = mat(0xc0452a, { flat: false, rough: 0.42, metal: 0.12, env: 0.85 });
+    var padGrip = mat(0xa8341c, { flat: false, rough: 0.62, metal: 0.05 });
+    put(rbox(3.6, 0.9, 1.75, 0.38), padShell, 0, 1.0, 0, 0, pad);
+    put(rbox(1.25, 0.95, 2.4, 0.44), padGrip, -1.5, 0.95, 0.5, 0.35, pad);
+    put(rbox(1.25, 0.95, 2.4, 0.44), padGrip, 1.5, 0.95, 0.5, -0.35, pad);
+    // recessed centre plate + thumbsticks
+    put(rbox(1.5, 0.1, 0.9, 0.06), mat(0x2b3550, { flat: false, rough: 0.5 }), 0, 1.45, 0.15, 0, pad)
+      .castShadow = false;
+    [[-0.55, 0.55], [0.55, 0.55]].forEach(function (s) {
+      var well = put(new THREE.CylinderGeometry(0.3, 0.3, 0.08, 24), mat(0x2b3550, { flat: false, rough: 0.6 }),
+        s[0], 1.44, s[1], 0, pad);
+      well.castShadow = false;
+      put(new THREE.CylinderGeometry(0.22, 0.26, 0.26, 24), mat(0x1b2233, { flat: false, rough: 0.45 }),
+        s[0], 1.58, s[1], 0, pad);
+    });
+    // face buttons (right cluster) + d-pad (left)
+    [[0.95, -0.35, 0x22d3ee], [1.42, -0.62, 0xd8b56a], [0.95, -0.89, 0xa78bfa], [0.48, -0.62, 0x4ade80]]
       .forEach(function (b) {
-        var btn = put(new THREE.CylinderGeometry(0.17, 0.17, 0.22, 8),
-          mat(b[2], { emissive: b[2], ei: 0.5, rough: 0.6 }), b[0], 1.42, b[1], 0, pad);
+        var btn = put(new THREE.CylinderGeometry(0.19, 0.19, 0.16, 20),
+          mat(b[2], { emissive: b[2], ei: 0.75, rough: 0.35, flat: false, env: 0.9 }), b[0], 1.5, b[1], 0, pad);
         btn.castShadow = false;
       });
-    put(new THREE.BoxGeometry(0.75, 0.2, 0.26), mat(0x232f4e), -0.95, 1.42, -0.1, 0, pad);
-    put(new THREE.BoxGeometry(0.26, 0.2, 0.75), mat(0x232f4e), -0.95, 1.42, -0.1, 0, pad);
+    put(rbox(0.8, 0.16, 0.28, 0.06), mat(0x232f4e, { flat: false, rough: 0.5 }), -0.95, 1.5, -0.62, 0, pad);
+    put(rbox(0.28, 0.16, 0.8, 0.06), mat(0x232f4e, { flat: false, rough: 0.5 }), -0.95, 1.5, -0.62, 0, pad);
+    contact(0, 0, 9.6, 9.6, 0.7, pad);
     pad.position.set(0.5, 0, 1.5);
     scene.add(pad);
 
-    // paper keyboard with popped keycaps (WASD glows)
+    // mechanical keyboard: chamfered case, floating sculpted caps, lit WASD
     var kb = new THREE.Group();
-    put(new THREE.BoxGeometry(4.6, 0.45, 2), mat(0x2c3e6b), 0, 0.22, 0, 0, kb);
+    put(rbox(4.8, 0.5, 2.2, 0.1), mat(0x2c3e6b, { flat: false, rough: 0.4, metal: 0.35, env: 0.9 }),
+      0, 0.25, 0, 0, kb);
+    put(rbox(4.4, 0.1, 1.9, 0.05), mat(0x151d33, { flat: false, rough: 0.7 }), 0, 0.48, 0, 0, kb)
+      .castShadow = false;
+    var capGeo = rbox(0.5, 0.3, 0.5, 0.09);
+    var capPlain = mat(0xe6dcc4, { flat: false, rough: 0.72 });
+    var capLit = mat(0x22d3ee, { emissive: 0x22d3ee, ei: 1.3, rough: 0.4, flat: false });
     for (var kr = 0; kr < 3; kr++) for (var kc = 0; kc < 7; kc++) {
       var glow = (kr === 0 && kc === 2) || (kr === 1 && (kc === 1 || kc === 2 || kc === 3));
-      var cap = put(new THREE.BoxGeometry(0.48, 0.3, 0.48),
-        mat(glow ? 0x22d3ee : 0xe6dcc4, glow ? { emissive: 0x22d3ee, ei: 0.8, rough: 0.6 } : { rough: 0.9 }),
-        -1.86 + kc * 0.62, 0.58, -0.62 + kr * 0.62, 0, kb);
+      var cap = put(capGeo, glow ? capLit : capPlain,
+        -1.86 + kc * 0.62, 0.62, -0.62 + kr * 0.62, 0, kb);
       if (glow) cap.castShadow = false;
     }
+    contact(0, 0, 6.4, 3.6, 0.6, kb);
     kb.position.set(6.5, 0, 4.5);
     kb.rotation.y = -0.5;
     scene.add(kb);
 
-    // giant GPU card leaning on a rack
+    // giant GPU card leaning on a rack — backplate, shroud, twin fans, bracket
     var gpu = new THREE.Group();
-    put(new THREE.BoxGeometry(4.6, 1.7, 0.4), mat(0x232f4e), 0, 0, 0, 0, gpu);
-    [-1.15, 1.15].forEach(function (fx) {
-      var f = put(new THREE.CylinderGeometry(0.55, 0.55, 0.12, 10),
-        mat(0xa78bfa, { emissive: 0xa78bfa, ei: 0.8, rough: 0.5 }), fx, 0, 0.24, 0, gpu);
-      f.rotation.x = Math.PI / 2; f.castShadow = false;
+    put(rbox(4.6, 1.75, 0.42, 0.09), mat(0x1c2540, { flat: false, rough: 0.35, metal: 0.6, env: 1.0 }),
+      0, 0, 0, 0, gpu);
+    put(rbox(4.3, 1.5, 0.14, 0.06), mat(0x2a3556, { flat: false, rough: 0.45, metal: 0.4 }),
+      0, 0, 0.26, 0, gpu).castShadow = false;
+    [-1.1, 1.1].forEach(function (fx) {
+      var f = fanUnit(0.52, 0x8b93ad, 0xa78bfa);
+      f.position.set(fx, 0, 0.34);
+      gpu.add(f);
     });
+    put(rbox(0.12, 1.9, 0.5, 0.04), RACK_RAIL, -2.4, -0.05, 0.1, 0, gpu);   // PCIe bracket
     gpu.position.set(11.6, 2.4, -6.2);
     gpu.rotation.z = 0.62; gpu.rotation.y = 0.25;
     scene.add(gpu);
 
-    // scattered keycap dice
+    // scattered loose keycaps — these were plain hard-edged cubes, which stood
+    // out badly once everything around them gained a chamfer
+    var capBody = rbox(0.86, 0.72, 0.86, 0.13);
+    var capTop = rbox(0.6, 0.06, 0.6, 0.08);
     [[-6, 3, 0xc0452a], [-8.5, 6.5, 0x2c3e6b], [4, 7.5, 0xd8b56a], [-3.5, 9, 0x3c5d49], [9, 9.5, 0x35507e]]
       .forEach(function (kd, i) {
-        put(new THREE.BoxGeometry(0.8, 0.8, 0.8), mat(kd[2]), kd[0], 0.4, kd[1], nz(i, 4) * 1.5);
+        var g = new THREE.Group();
+        put(capBody, mat(kd[2], { flat: false, rough: 0.5, metal: 0.1, env: 0.85 }), 0, 0, 0, 0, g);
+        put(capTop, mat(0xf3ece0, { flat: false, rough: 0.6 }), 0, 0.34, 0, 0, g).castShadow = false;
+        g.position.set(kd[0], 0.36, kd[1]);
+        g.rotation.y = nz(i, 4) * 1.5;
+        g.rotation.z = (nz(i, 9) - 0.5) * 0.16;
+        scene.add(g);
+        contact(kd[0], kd[1], 1.9, 1.9, 0.5);
       });
 
-    // antenna mast with a blinking-red paper beacon
-    put(new THREE.CylinderGeometry(0.1, 0.16, 7, 5), mat(0x3a352c), -12.5, 3.5, -5.5);
-    var beacon = put(new THREE.SphereGeometry(0.32, 6, 5),
-      mat(0xd9482b, { emissive: 0xd9482b, ei: 1.6, rough: 0.5 }), -12.5, 7.2, -5.5);
-    beacon.castShadow = false;
+    // comms mast: footing, tapered sections, collar, cross arm, beacon
+    var beaconMat = mat(0xd9482b, { emissive: 0xd9482b, ei: 1.8, rough: 0.4, flat: false });
+    (function () {
+      var g = new THREE.Group();
+      put(new THREE.CylinderGeometry(0.52, 0.62, 0.22, 20), POST_MAT, 0, 0.11, 0, 0, g);
+      put(new THREE.CylinderGeometry(0.15, 0.22, 4.2, 12), POST_MAT, 0, 2.3, 0, 0, g);
+      put(new THREE.CylinderGeometry(0.09, 0.15, 3.0, 12), POST_MAT, 0, 5.85, 0, 0, g);
+      put(new THREE.TorusGeometry(0.26, 0.05, 6, 16), POST_MAT, 0, 4.4, 0, 0, g)
+        .rotation.x = Math.PI / 2;
+      // cross arm with two dish elements
+      put(rbox(1.9, 0.1, 0.1, 0.04), POST_MAT, 0, 5.5, 0, 0, g);
+      [-0.8, 0.8].forEach(function (dx) {
+        var dish = put(new THREE.CylinderGeometry(0.05, 0.32, 0.24, 16),
+          mat(0xe9e1cf, { flat: false, rough: 0.6 }), dx, 5.72, 0, 0, g);
+        dish.rotation.x = 0.5;
+      });
+      put(rbox(0.3, 0.34, 0.3, 0.08), POST_MAT, 0, 7.32, 0, 0, g);
+      var lens = put(new THREE.SphereGeometry(0.2, 14, 10), beaconMat, 0, 7.6, 0, 0, g);
+      lens.castShadow = false;
+      g.position.set(-12.5, 0, -5.5);
+      scene.add(g);
+      contact(-12.5, -5.5, 2.4, 2.4, 0.6);
+    })();
 
     // gold circuit traces with solder vias (replace stone paths)
+    // Narrower and plated rather than painted — at the old 0.5 width with a
+    // matte gold they read as plumbing laid on the ground instead of traces
+    // etched into it.
+    var TRACE_MAT = mat(0xc9a961, { flat: false, rough: 0.32, metal: 0.85, env: 1.1 });
+    var VIA_MAT = mat(0xd8b56a, { flat: false, emissive: 0x6b5220, ei: 0.3, rough: 0.28, metal: 0.9, env: 1.1 });
     function via(x, z, big) {
-      var v = put(new THREE.CylinderGeometry(big ? 0.5 : 0.32, big ? 0.55 : 0.36, 0.18, 6),
-        mat(0xd8b56a, { emissive: 0x8a6a2f, ei: 0.35, rough: 0.7 }), x, 0.09, z);
+      var v = put(new THREE.CylinderGeometry(big ? 0.34 : 0.21, big ? 0.38 : 0.24, 0.09, 20),
+        VIA_MAT, x, 0.05, z);
       v.castShadow = false;
     }
     function trace(pts) {
       for (var i = 0; i < pts.length - 1; i++) {
         var ax = pts[i][0], az = pts[i][1], bx = pts[i + 1][0], bz = pts[i + 1][1];
         var lx = Math.abs(bx - ax), lz = Math.abs(bz - az);
-        var seg = put(new THREE.BoxGeometry(lx > lz ? lx + 0.5 : 0.5, 0.07, lz > lx ? lz + 0.5 : 0.5),
-          mat(0xd8b56a, { rough: 0.85 }), (ax + bx) / 2, 0.04, (az + bz) / 2);
+        var seg = put(new THREE.BoxGeometry(lx > lz ? lx + 0.34 : 0.34, 0.05, lz > lx ? lz + 0.34 : 0.34),
+          TRACE_MAT, (ax + bx) / 2, 0.03, (az + bz) / 2);
         seg.castShadow = false;
         via(ax, az, i === 0);
       }
@@ -609,29 +1173,54 @@
     trace([[-1.5, 1.5], [-5.5, 1.5], [-5.5, -3], [-14, -3], [-14, -7], [-23.5, -7]]); // plaza → phones
     trace([[0.5, 3.5], [0.5, 8], [3, 8], [3, 13.5]]);                            // toward the viewer
 
-    // RGB pylons lighting the plaza (cyan / violet heads)
+    // RGB bollards lighting the plaza. Previously a 5-sided stick with a glowing
+    // cube on top, which read as a lollipop; now a weighted base, a tapered
+    // post and a housing with a recessed lens.
     [[3.2, 1.5, 0x22d3ee], [-2.8, 3.8, 0xa78bfa], [7, 8, 0x22d3ee], [-6.5, 9, 0xa78bfa]]
       .forEach(function (l) {
-        put(new THREE.CylinderGeometry(0.09, 0.12, 1.5, 5), mat(0x3a352c), l[0], 0.75, l[1]);
-        var head = put(new THREE.BoxGeometry(0.42, 0.5, 0.42),
-          mat(l[2], { emissive: l[2], ei: 1.3, rough: 0.5 }), l[0], 1.68, l[1]);
-        head.castShadow = false;
+        var g = new THREE.Group();
+        put(new THREE.CylinderGeometry(0.3, 0.36, 0.14, 20), POST_MAT, 0, 0.07, 0, 0, g);
+        put(new THREE.CylinderGeometry(0.07, 0.1, 1.5, 14), POST_MAT, 0, 0.85, 0, 0, g);
+        put(rbox(0.4, 0.52, 0.4, 0.1), POST_MAT, 0, 1.78, 0, 0, g);
+        var lens = put(rbox(0.26, 0.34, 0.06, 0.05),
+          mat(l[2], { emissive: l[2], ei: 2.4, rough: 0.35, flat: false }), 0, 1.78, 0.2, 0, g);
+        lens.castShadow = false;
+        g.position.set(l[0], 0, l[1]);
+        scene.add(g);
+        contact(l[0], l[1], 1.5, 1.5, 0.55);
       });
 
     /* ---------- games corner (+x): paper arcade ---------- */
     var games = new THREE.Group();
-    put(new THREE.CylinderGeometry(6.4, 7, 0.55, 8), mat(0xe6dcc4), 0, 0.27, 0, 0, games);
-    // monitor
-    put(new THREE.BoxGeometry(5.4, 3.3, 0.5), mat(0x232f4e), 0, 3.2, -1.2, -0.14, games);
-    var screen = put(new THREE.PlaneGeometry(4.7, 2.6),
-      mat(0x22d3ee, { emissive: 0x18b6d6, ei: 1.15, rough: 0.4 }), 0, 3.2, -0.93, -0.14, games);
-    screen.castShadow = false;
-    put(new THREE.BoxGeometry(0.7, 1.7, 0.7), mat(0x2c3e6b), 0, 1.2, -1.35, 0, games);
-    put(new THREE.BoxGeometry(2.6, 0.3, 1.5), mat(0x2c3e6b), 0, 0.65, -1.3, 0, games);
-    // giant paper "game cartridges" leaning about
-    put(new THREE.BoxGeometry(1.5, 2.1, 0.45), mat(0xc0452a), -3.4, 1.35, 1.6, 0.5, games).rotation.z = -0.12;
-    put(new THREE.BoxGeometry(1.5, 2.1, 0.45), mat(0x3c5d49), 3.3, 1.32, 1.3, -0.6, games).rotation.z = 0.14;
-    put(new THREE.BoxGeometry(1.5, 2.1, 0.45), mat(0xd8b56a), 2.2, 1.3, 3.1, 0.9, games).rotation.z = -0.08;
+    put(new THREE.CylinderGeometry(6.4, 7, 0.55, 40), mat(0xe6dcc4, { rough: 0.92 }), 0, 0.27, 0, 0, games);
+    // monitor on a proper stand, showing the comparison table
+    var gMon = monitorRig(5.4, 3.3, 'compare');
+    gMon.position.set(0, 3.2, -1.2);
+    gMon.rotation.y = -0.14;
+    games.add(gMon);
+    put(rbox(0.62, 1.8, 0.42, 0.12), SHELL, 0, 1.2, -1.35, 0, games);
+    put(rbox(2.7, 0.26, 1.6, 0.09), SHELL, 0, 0.62, -1.3, 0, games);
+    // game cases: chamfered shell with a printed spine and cover panel
+    // A light panel on a coloured shell read as an open paperback; box art is
+    // dark with a colour band, which reads as a game case.
+    function gameCase(x, z, ry, rz, col, band) {
+      var g = new THREE.Group();
+      put(rbox(1.5, 2.1, 0.46, 0.09), mat(col, { flat: false, rough: 0.34, metal: 0.1, env: 0.9 }),
+        0, 0, 0, 0, g);
+      put(rbox(1.18, 1.78, 0.06, 0.04), mat(0x151d30, { flat: false, rough: 0.42, env: 0.7 }),
+        0, 0.04, 0.25, 0, g).castShadow = false;                       // cover art
+      put(rbox(1.18, 0.3, 0.07, 0.03), mat(band, { flat: false, rough: 0.45 }),
+        0, 0.72, 0.26, 0, g).castShadow = false;                       // title band
+      put(rbox(0.16, 1.9, 0.06, 0.03), mat(0x151d30, { flat: false, rough: 0.5 }),
+        -0.7, 0.04, 0.06, 0, g).castShadow = false;                    // printed spine
+      g.position.set(x, 1.35, z);
+      g.rotation.y = ry; g.rotation.z = rz;
+      games.add(g);
+    }
+    gameCase(-3.4, 1.6, 0.5, -0.12, 0xc0452a, 0x22d3ee);
+    gameCase(3.3, 1.3, -0.6, 0.14, 0x3c5d49, 0xd8b56a);
+    gameCase(2.2, 3.1, 0.9, -0.08, 0xd8b56a, 0xa78bfa);
+    contact(0, -1.2, 7.2, 4.4, 0.7, games);
     games.position.set(26, 0, -6);
     scene.add(games);
 
@@ -692,18 +1281,34 @@
     // phone") instead of side by side. Spacing 3.2 > body width 2.3 leaves
     // clear air between them; no z-lean, so tops don't tilt into neighbors.
     var phones = new THREE.Group();
-    put(new THREE.CylinderGeometry(6.2, 6.8, 0.55, 8), mat(0xe6dcc4), 0, 0.27, 0, 0, phones);
+    put(new THREE.CylinderGeometry(6.2, 6.8, 0.55, 40), mat(0xe6dcc4, { rough: 0.92 }), 0, 0.27, 0, 0, phones);
     [[-3.2, 4.6, 0x232f4e, 0xa78bfa, 0.1, 0.5], [0, 5.6, 0x2c3e6b, 0x22d3ee, -0.06, -0.4], [3.2, 4.2, 0x35507e, 0x67e8f9, 0.12, 0.3]]
-      .forEach(function (ph) {
+      .forEach(function (ph, i) {
         var g = new THREE.Group();
-        put(new THREE.BoxGeometry(2.3, ph[1], 0.5), mat(ph[2]), 0, ph[1] / 2 + 0.5, 0, 0, g);
-        var sc = put(new THREE.PlaneGeometry(1.86, ph[1] - 0.7),
-          mat(ph[3], { emissive: ph[3], ei: 0.75, rough: 0.4 }), 0, ph[1] / 2 + 0.5, 0.26, 0, g);
-        sc.castShadow = false;
+        var h = ph[1], cy = h / 2 + 0.5;
+        // brushed metal rail around a rounded slab — the chamfer plus a real
+        // metalness is what turns a blue box into a phone
+        put(rbox(2.3, h, 0.42, 0.26), mat(ph[2], { flat: false, rough: 0.3, metal: 0.7, env: 1.1 }),
+          0, cy, 0, 0, g);
+        put(rbox(2.1, h - 0.22, 0.1, 0.2), BEZEL, 0, cy, 0.2, 0, g).castShadow = false;
+        var sc = new THREE.Mesh(new THREE.PlaneGeometry(1.88, h - 0.5), screenMat('phone', 0.8));
+        sc.position.set(0, cy, 0.25);
+        sc.castShadow = false; sc.receiveShadow = false;
+        g.add(sc);
+        // rear camera bump reads even in silhouette from the approach angle
+        var bump = put(rbox(0.78, 0.78, 0.1, 0.16),
+          mat(ph[2], { flat: false, rough: 0.35, metal: 0.6 }), -0.6, cy + h / 2 - 0.85, -0.24, 0, g);
+        bump.castShadow = false;
+        [[-0.75, 0.16], [-0.45, 0.16]].forEach(function (l) {
+          put(new THREE.CylinderGeometry(l[1], l[1], 0.06, 16),
+            mat(0x0b1020, { flat: false, rough: 0.15, metal: 0.4 }),
+            l[0], cy + h / 2 - 0.85, -0.29, 0, g).rotation.x = Math.PI / 2;
+        });
         g.position.set(ph[0], 0, ph[5]);
         g.rotation.y = ph[4];
         phones.add(g);
       });
+    contact(0, 0, 9.2, 6.4, 0.7, phones);
     phones.position.set(-26, 0, -8);
     phones.rotation.y = 0.4;
     scene.add(phones);
@@ -742,20 +1347,17 @@
     var curT = new THREE.Vector3().fromArray(STOPS[0].t);
     var mx = 0, my = 0;
 
-    function scrollProgress() {
-      var max = document.documentElement.scrollHeight - window.innerHeight;
-      var pr = max > 0 ? (window.scrollY / max) : 0;
-      return pr * (STOPS.length - 1);
-    }
     function ease(x) { return x * x * (3 - 2 * x); } // smoothstep
 
+    // reused every frame — cloning these allocated four Vector3s per frame
     var tmpP = new THREE.Vector3(), tmpT = new THREE.Vector3();
+    var nxtP = new THREE.Vector3(), nxtT = new THREE.Vector3();
     function targetPose() {
-      var p = Math.max(0, Math.min(STOPS.length - 1, scrollProgress()));
+      var p = Math.max(0, Math.min(STOPS.length - 1, stopProgress()));
       var k = Math.min(STOPS.length - 2, Math.floor(p));
       var f = ease(p - k);
-      tmpP.fromArray(STOPS[k].p).lerp(tmpP.clone().fromArray(STOPS[k + 1].p), f);
-      tmpT.fromArray(STOPS[k].t).lerp(tmpT.clone().fromArray(STOPS[k + 1].t), f);
+      tmpP.fromArray(STOPS[k].p).lerp(nxtP.fromArray(STOPS[k + 1].p), f);
+      tmpT.fromArray(STOPS[k].t).lerp(nxtT.fromArray(STOPS[k + 1].t), f);
     }
 
     function resize() {
@@ -811,6 +1413,8 @@
         tags.forEach(function (tg, i) {
           tg.s.position.y = tg.y + Math.sin(t * 1.1 + tg.ph) * 0.35;
         });
+        // the mast beacon has always been described as blinking; now it does
+        beaconMat.emissiveIntensity = 1.15 + Math.pow((Math.sin(t * 1.6) + 1) / 2, 3) * 1.9;
       }
       renderer.render(scene, camera);
     }
@@ -834,22 +1438,30 @@
     els.forEach(function (e) { io.observe(e); });
   })();
 
-  /* ---------- progress rail + scroll hint ---------- */
+  /* ---------- progress rail + scroll hint + header state ---------- */
   (function () {
     var dots = [].slice.call(document.querySelectorAll('.rail button'));
     var sections = [].slice.call(document.querySelectorAll('main section.stop'));
     var hint = document.querySelector('.scrollhint');
+    var head = document.querySelector('header');
     var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!dots.length || !sections.length) return;
 
     function update() {
-      var max = document.documentElement.scrollHeight - window.innerHeight;
-      var p = max > 0 ? (window.scrollY / max) : 0;
-      var idx = Math.round(p * (sections.length - 1));
-      dots.forEach(function (d, i) { d.classList.toggle('on', i === idx); });
+      var idx = Math.round(stopProgress());   // same source of truth as the camera
+      dots.forEach(function (d, i) {
+        var on = i === idx;
+        d.classList.toggle('on', on);
+        if (on) d.setAttribute('aria-current', 'true');
+        else d.removeAttribute('aria-current');
+      });
       if (hint) hint.classList.toggle('gone', window.scrollY > 40);
+      if (head) head.classList.toggle('docked', window.scrollY > 60);
     }
+    // deliberately not rAF-throttled: rAF freezes in hidden tabs and browsers
+    // already coalesce scroll events
     window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
     update();
 
     dots.forEach(function (d, i) {
@@ -888,6 +1500,81 @@
         if (window.__setFreeTag) window.__setFreeTag(g.title);
       })
       .catch(function () { /* endpoint down or offline: pill stays hidden, page unaffected */ });
+  })();
+
+  /* ---------- live Steam price ticker (hero) ----------
+     Turns the hero's claim into proof: real SGD prices, straight off the same
+     /api/steam edge function the games site uses (it sends
+     Access-Control-Allow-Origin: *, so the landing origin may call it).
+     /api/steam returns prices keyed by AppID and no titles, so the sample
+     below carries its own title + slug. MAINTENANCE: these must stay a subset
+     of the catalog in games/index.html — a renamed slug just makes the chip
+     link 404 into the app shell, so it fails soft. Keep <= 20 ids (the
+     function's MAX_IDS cap). */
+  (function () {
+    var box = document.getElementById('ticker');
+    var list = document.getElementById('ticker-list');
+    if (!box || !list || !window.fetch) return;
+
+    var SAMPLE = [
+      { id: 1086940, slug: 'baldurs-gate-3', t: "Baldur's Gate 3" },
+      { id: 553850, slug: 'helldivers-2', t: 'Helldivers 2' },
+      { id: 1145350, slug: 'hades-2', t: 'Hades II' },
+      { id: 1627720, slug: 'lies-of-p', t: 'Lies of P' },
+      { id: 1868140, slug: 'dave-the-diver', t: 'Dave the Diver' },
+      { id: 1244090, slug: 'sea-of-stars', t: 'Sea of Stars' },
+      { id: 1601580, slug: 'frostpunk-2', t: 'Frostpunk 2' },
+      { id: 1458140, slug: 'pacific-drive', t: 'Pacific Drive' },
+      { id: 526870, slug: 'satisfactory', t: 'Satisfactory' },
+      { id: 1604030, slug: 'v-rising', t: 'V Rising' },
+      { id: 1282100, slug: 'remnant2', t: 'Remnant II' },
+      { id: 2358720, slug: 'black-myth-wukong', t: 'Black Myth: Wukong' }
+    ];
+
+    fetch('https://pcgames.lazycomparo.com/api/steam?ids=' + SAMPLE.map(function (g) { return g.id; }).join(','))
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error(r.status)); })
+      .then(function (d) {
+        if (!d || !d.games) return;
+
+        var rows = SAMPLE.map(function (g) {
+          var live = d.games[g.id];
+          if (!live || live.error || live.price == null) return null;
+          return {
+            t: g.t, slug: g.slug,
+            price: live.priceFormatted || ('S$' + live.price.toFixed(2)),
+            off: live.discount > 0 ? live.discount : 0,
+            sort: live.discount > 0 ? live.discount : -live.price
+          };
+        }).filter(Boolean);
+        if (!rows.length) return;
+
+        // best discounts first; with nothing on sale, cheapest first — either
+        // way the three chips are a genuine reason to click through
+        rows.sort(function (a, b) { return b.sort - a.sort; });
+
+        rows.slice(0, 3).forEach(function (r) {
+          var li = document.createElement('li');
+          var a = document.createElement('a');
+          a.href = 'https://pcgames.lazycomparo.com/game/' + r.slug;
+          a.style.cssText = 'display:inline-flex;align-items:baseline;gap:8px;text-decoration:none;color:inherit';
+
+          var t = document.createElement('span');
+          t.className = 't'; t.textContent = r.t;
+          var p = document.createElement('span');
+          p.className = 'p'; p.textContent = r.price;
+          a.appendChild(t); a.appendChild(p);
+
+          if (r.off) {
+            var o = document.createElement('span');
+            o.className = 'off'; o.textContent = '−' + r.off + '%';
+            a.appendChild(o);
+          }
+          li.appendChild(a);
+          list.appendChild(li);
+        });
+        box.classList.add('on');
+      })
+      .catch(function () { /* offline or endpoint down: ticker stays hidden */ });
   })();
   </script>
 </body>

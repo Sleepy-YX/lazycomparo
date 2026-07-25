@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Root-domain sitemap. The subdomains each ship their own
+     (pcgames.lazycomparo.com/sitemap.xml lists every /game/<slug> page);
+     they are listed here so a crawler that only finds lazycomparo.com still
+     discovers both apps. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://lazycomparo.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://pcgames.lazycomparo.com/</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://mobile.lazycomparo.com/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+</urlset>

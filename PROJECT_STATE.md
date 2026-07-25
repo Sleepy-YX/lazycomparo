@@ -81,6 +81,56 @@ redeploys all three in ~30–60 s. Local path: `C:\Users\yeowy\Claude\Lazycompar
 - Papercraft three.js world; 5 camera stops map to the 5 `<section>`s. WebGL /
   THREE failure → `body.no3d` CSS gradient fallback; reduced-motion → static
   camera; hidden tab → rAF pause; 0×0-viewport boot self-heals.
+- **Scene look (rebuilt 2026-07-25).** Two deliberate material families: the
+  paper world (ground plinths, loose keycaps, planes) keeps `flatShading`, the
+  hardware props pass `flat:false` and carry real roughness/metalness. Keeping
+  that split is what stops it becoming either "grey boxes" or a plastic toy.
+  - `rbox(w,h,d,r)` builds a chamfered box from a rounded-rect `Shape` +
+    `ExtrudeGeometry` bevel — `RoundedBoxGeometry` is examples/jsm, which the
+    pinned UMD build lacks. **The bevel grows outward, so the shape is inset by
+    the bevel** to land on the requested outer size. Geometry is cached by
+    dimension key; without it the rack sleds alone rebuild one geometry each.
+  - `scene.environment` is a hand-rolled 128x64 equirect canvas gradient.
+    **Metalness renders near-black without it** — do not remove it while any
+    material has `metal > 0`. The scene *background* stays the flat paper
+    clear-colour; the env map is only ever seen in reflections.
+  - Because the env map supplies ambient fill, `HemisphereLight` sits at 0.34
+    (was 0.85). Raising both at once flattens everything out.
+  - Screens are canvas-drawn product UI (`screenTex`) used as both `map` and
+    `emissiveMap`, not solid emissive rectangles.
+  - `contact()` paints a soft radial decal under each cluster. The shadow map
+    spans ~110 units, far too coarse to read as ground contact on its own.
+  - Ground uses `vnz()` (smoothstep-interpolated value noise) and smooth
+    shading. Sampling `nz()` per vertex gave every triangle its own height,
+    which was most of the old "raw" faceting.
+  - **Cost check (1280x800):** 437 meshes but only ~103 draw calls and ~45k
+    triangles per frame after culling, 0.6 ms/render, 80 shadow casters.
+    Small parts set `castShadow = false` deliberately — that is what keeps the
+    shadow pass cheap. Re-measure with a temporary
+    `window.__lcDebug = {renderer, scene, camera}` hook if props are added.
+- **`stopProgress()` is the single source of truth for "where are we"** — used
+  by both the camera loop and the progress rail, so they can't disagree. It
+  measures section *centres* (cached; invalidated on resize / `load` /
+  `fonts.ready`), NOT `scrollY / scrollHeight` — the old formula spread the 5
+  stops across the whole document *including the footer*, so the finale camera
+  sat at stop 3.77 when the finale copy was already centred and only reached
+  4.0 once you'd scrolled the last 172 px of footer.
+- **Hero proof strip + live ticker.** Hard-coded counts (60 games / 40 phones /
+  3 stores) plus a live `/api/steam` call showing the 3 best current SGD
+  discounts, each linking to `pcgames…/game/<slug>`. The endpoint returns no
+  titles, so `SAMPLE` in the ticker IIFE carries its own `{id, slug, title}` —
+  **keep those AppIDs/slugs a subset of the catalog in `games/index.html`**
+  (≤20 ids, the function's `MAX_IDS`). Fails soft: fetch error → ticker stays
+  hidden; stale slug → link lands on the app shell.
+- The hero is height-critical. Display type is sized off viewport *width*, so
+  on wide-but-short screens (720p, split screens) the h1 alone ran ~330 px and
+  pushed the CTAs below the fold — hence the `max-height: 820px` type tier.
+  Mobile drops the ticker entirely (stats stay, wrapping 2×2).
+- Mobile header keeps the two product links; only the in-page "How it works"
+  link and the CTA pill are dropped. (Hiding the whole nav stranded the phone
+  advisor behind a games-only CTA.)
+- `robots.txt` + `sitemap.xml` live in `landing/` and cover the root domain;
+  the subdomains ship their own.
 - **Copy scrim is a solid feathered rectangle** (solid rgba + same-color blurred
   box-shadow), not a radial gradient — radials have weak corners that let 3D
   props show through half-washed.
@@ -142,7 +192,7 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 ## Roadmap & costs
 
 - **Phase 1 (current) — static validation.** Live. Pending: extract
-  `phones.json`, grow phone catalog (14 now; wants mid-range/older-gen), buy
+  `phones.json`, grow phone catalog (40 now; wants mid-range/older-gen), buy
   custom domain.
 - **Phase 2 — real stack:** Next.js (Vercel or CF Pages) + Supabase (Postgres,
   auth, storage); phones move to a table. Timing depends on validation.
@@ -189,6 +239,19 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-07-25** Landing: 3D scene rebuilt for realism — chamfered geometry
+  (`rbox`), procedural env map so metalness reads, canvas-drawn product UI on
+  every screen, fan units with blades/RGB rings, rack sleds with vents and
+  handles, contact-shadow decals, smooth-noise terrain. Comms mast and RGB
+  bollards remodelled; loose keycaps replace hard-edged cubes; circuit traces
+  slimmed and plated. Narrow-phone header tiers (<=420px, <=360px).
+- **2026-07-25** Landing: hero proof strip + live Steam SGD price ticker
+  (3 best current discounts, deep-linked to per-game pages); camera + rail now
+  driven by section geometry instead of raw document scroll (finale stop was
+  arriving 172 px late); short-viewport type tier so the hero fits 720p;
+  mobile keeps both product links; skip link, focus rings, `aria-current`,
+  labelled sections; header docks on scroll; `robots.txt` + `sitemap.xml` for
+  the root domain; JSON-LD expanded to Organization + WebSite + both apps.
 - **2026-07-25** Games: catalog 30 -> 60 (all AppIDs verified against Steam;
   ratings/prices pulled from live data, not guessed). Steam header artwork on
   Browse cards + Compare chips, lazy-loaded with an accent-tile fallback.

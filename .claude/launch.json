@@ -26,6 +26,18 @@
       "port": 5174
     },
     {
+      "name": "landing",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", ".claude\\serve.ps1",
+        "5175",
+        "landing"
+      ],
+      "port": 5175
+    },
+    {
       "name": "games-advisor-alt",
       "runtimeExecutable": "powershell",
       "runtimeArgs": [
