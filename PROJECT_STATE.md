@@ -1,6 +1,6 @@
 # LazyComparo — Project State
 
-_Last updated: 2026-07-18. Update this file whenever state changes materially._
+_Last updated: 2026-07-25. Update this file whenever state changes materially._
 
 > **How to resume in a new Claude session:** paste this whole file into your first
 > message, or say "read `PROJECT_STATE.md`". Everything Claude needs is here.
@@ -43,6 +43,9 @@ redeploys all three in ~30–60 s. Local path: `C:\Users\yeowy\Claude\Lazycompar
   chunks of 15 (2 subrequests/game vs Cloudflare's 50/invocation cap), 30-min
   edge cache; front-end falls back to built-in reference data when unreachable.
 - **`/api/deals`** — IsThereAnyDeal proxy (per-store prices + all-time lows).
+  **Caps at `MAX_IDS` (40) by TRUNCATING, not erroring** — the front-end chunks
+  requests at `DEALS_CHUNK` (30) so a 60-game catalog doesn't silently lose the
+  tail. Raise both together if the catalog grows past 80.
   **Requires `ITAD_API_KEY` env var on the Pages project** (free key from
   isthereanydeal.com/apps/; returns 503 without it, UI silently falls back).
   Converts non-SGD prices to SGD via open.er-api.com (keyless), flagged
@@ -173,13 +176,26 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 - **Add a phone:** edit `PHONES` array in `mobile/index.html` (~line 178), push.
 - **Add a game:** edit the catalog in `games/index.html` AND the `GAMES` list in
-  `games/functions/_middleware.js` (+ sitemap), push.
+  `games/functions/_middleware.js` (+ sitemap), push. Also: map the new `genre`
+  string in `GENRE_BUCKETS` (unmapped genres fall into an "Other" bucket), and
+  add cross-store availability to `EXTRA_STORES` — read the real answer off
+  `/api/deals?ids=<appId>` rather than guessing. Verify the AppID first via
+  `store.steampowered.com/api/appdetails?appids=<id>&cc=sg`.
+- **Card artwork** comes free from Steam's CDN via `steamArtUrl()`, keyed off
+  `appId` — nothing to upload. Missing/404 art falls back to the accent tile.
 - **Change UI:** edit the relevant `index.html`, preview via `serve.ps1`, push.
 - **Rebrand:** grep for `LazyComparo` across `mobile/`, `games/`, `landing/`,
   `README.md`; regenerate `og-image.png`.
 
 ## Changelog
 
+- **2026-07-25** Games: catalog 30 -> 60 (all AppIDs verified against Steam;
+  ratings/prices pulled from live data, not guessed). Steam header artwork on
+  Browse cards + Compare chips, lazy-loaded with an accent-tile fallback.
+  Genre filter now works on ~8 buckets (`GENRE_BUCKETS`) instead of 41
+  near-unique labels — the specific genre still shows on the card. Added an
+  on-sale-only filter, a result count and a clear-filters control. Fixed
+  `/api/deals` silently dropping games past its 40-id cap by chunking client-side.
 - **2026-07-18** Landing: legibility fix (solid feathered scrim,
   projection-tuned price tags). Landing: scroll progress rail + hero hint,
   og:image share card, live Epic freebie pill. Games: persisted

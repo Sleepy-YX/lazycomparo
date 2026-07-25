@@ -60,6 +60,8 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Steam's CDN serves every card's header art; warm the connection early. -->
+  <link rel="preconnect" href="https://shared.cloudflare.steamstatic.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,480;9..144,560&display=swap" rel="stylesheet" />
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -424,7 +426,277 @@
         tags: ['Co-op', 'Sandbox', '2D', 'Crafting'],
         pros: ['Absurd amount of content for the price — best $/hour on this list', 'Still gets free major updates over a decade later', 'Huge build variety across classes (melee/ranged/magic/summoner)'],
         cons: ['2D pixel-art style is a turn-off for some', 'UI/crafting menus feel dated compared to newer survival games', 'Progression pacing assumes you look up a wiki eventually'] },
+
+      /* ---- Second batch (catalog 30 -> 60) ----------------------------------
+         Also newest-first. Array order is presentation-irrelevant — Browse
+         sorts at runtime and defaults to Newest — so new games can be appended
+         as their own block rather than interleaved into the batch above. */
+
+      { id: 'monster-hunter-wilds', appId: 2246340, title: 'Monster Hunter Wilds', studio: 'Capcom', genre: 'Co-op Action RPG', year: 2025, price: 99.9, accent: '#e8842c', maxPlayers: 4,
+        specs: { combat: 94, story: 55, coop: 88, replay: 82 },
+        displayInfo: { hoursToBeat: 20, rating: 48, players: '1-4 co-op hunts', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Action RPG', 'Monster Hunter'],
+        pros: ['Weapon combat is the most fluid the series has been', 'Seamless open maps with dynamic weather events', 'Drop-in hunts with friends are effortless to set up'],
+        cons: ['Rough PC performance is the main review complaint', 'Endgame content thinner than World at launch', 'Story mode holds your hand far longer than veterans want'] },
+
+      { id: 'silksong', appId: 1030300, title: 'Hollow Knight: Silksong', studio: 'Team Cherry', genre: 'Metroidvania', year: 2025, price: 18.5, accent: '#dc2626', maxPlayers: 1,
+        specs: { combat: 88, story: 72, coop: 2, replay: 74 },
+        displayInfo: { hoursToBeat: 30, rating: 89, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Singleplayer', 'Metroidvania', 'Precision Combat'],
+        pros: ['Hornet is faster and more aggressive than the Knight', 'Enormous hand-drawn world with real secrets', 'Extraordinary value for the asking price'],
+        cons: ['Difficulty spikes hard and early', 'Sparse in-game direction — expect to get lost', 'No co-op or assist options of any kind'] },
+
+      { id: 'armored-core-6', appId: 1888160, title: 'Armored Core VI: Fires of Rubicon', studio: 'FromSoftware', genre: 'Mech Action', year: 2023, price: 79.9, accent: '#64748b', maxPlayers: 1,
+        specs: { combat: 93, story: 58, coop: 5, replay: 80 },
+        displayInfo: { hoursToBeat: 17, rating: 91, players: 'Single-player campaign + PvP', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Mech', 'Action'],
+        pros: ['Mech building is deep and genuinely changes how you fight', 'Boss fights hit as hard as any FromSoftware game', 'Short missions make it easy to play in bursts'],
+        cons: ['No co-op — PvP is the only multiplayer', 'Campaign is short compared to their Soulslikes', 'Assembly menus are intimidating for newcomers'] },
+
+      { id: 'resident-evil-4', appId: 2050650, title: 'Resident Evil 4', studio: 'Capcom', genre: 'Survival Horror', year: 2023, price: 49.9, accent: '#b45309', maxPlayers: 1,
+        specs: { combat: 90, story: 74, coop: 3, replay: 78 },
+        displayInfo: { hoursToBeat: 16, rating: 97, players: 'Single-player', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Horror', 'Third-person Shooter', 'Remake'],
+        pros: ['One of the best-reviewed remakes ever made', 'Knife parry system rewards nerve over caution', 'Runs well across a wide range of hardware'],
+        cons: ['No co-op — strictly single-player', 'Horror is more action-forward than classic RE', 'Mercenaries mode is the only real post-game hook'] },
+
+      { id: 'cities-skylines-2', appId: 949230, title: 'Cities: Skylines II', studio: 'Colossal Order', genre: 'City Builder', year: 2023, price: 59, accent: '#0ea5e9', maxPlayers: 1,
+        specs: { combat: 2, story: 12, coop: 3, replay: 84 },
+        displayInfo: { hoursToBeat: 40, rating: 55, players: 'Single-player', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'City Builder', 'Simulation'],
+        pros: ['Far deeper economy and road tools than the original', 'Cities sprawl to a genuinely impressive scale', 'Heavy mod support through Paradox Mods'],
+        cons: ['Performance problems drove the Mixed review score', 'Shipped missing features the first game had', 'Steep learning curve without tutorials'] },
+
+      { id: 'vampire-survivors', appId: 1794680, title: 'Vampire Survivors', studio: 'poncle', genre: 'Survivors-like', year: 2022, price: 5.99, accent: '#a855f7', maxPlayers: 4,
+        specs: { combat: 70, story: 8, coop: 45, replay: 97 },
+        displayInfo: { hoursToBeat: 15, rating: 98, players: 'Local co-op up to 4', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Roguelike', 'Bullet Heaven', 'Cheap'],
+        pros: ['Almost certainly the best $/hour on the entire site', 'Unlock loop is relentlessly moreish', 'Runs on literally any machine'],
+        cons: ['Intentionally simple — you mostly just move', 'Screen becomes visual soup at high levels', 'Co-op is local only, no online'] },
+
+      { id: 'total-war-warhammer-3', appId: 1142710, title: 'Total War: WARHAMMER III', studio: 'Creative Assembly', genre: 'Grand Strategy', year: 2022, price: 69, accent: '#b91c1c', maxPlayers: 8,
+        specs: { combat: 78, story: 40, coop: 55, replay: 92 },
+        displayInfo: { hoursToBeat: 45, rating: 70, players: 'Up to 8 in multiplayer campaigns', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Strategy', 'Warhammer', 'Turn-based + Real-time'],
+        pros: ['Immortal Empires is a staggeringly large sandbox', 'Every faction plays genuinely differently', 'Co-op campaigns with a friend are excellent'],
+        cons: ['Aggressive DLC pricing drags the review score down', 'Late-game turns get slow on older CPUs', 'Overwhelming amount of systems for newcomers'] },
+
+      { id: 'age-of-empires-4', appId: 1466860, title: 'Age of Empires IV', studio: "World's Edge", genre: 'RTS', year: 2021, price: 56.9, accent: '#f59e0b', maxPlayers: 8,
+        specs: { combat: 74, story: 52, coop: 60, replay: 86 },
+        displayInfo: { hoursToBeat: 20, rating: 85, players: 'Up to 8 online, co-op vs AI', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Strategy', 'RTS', 'Historical'],
+        pros: ['Asymmetric civilisations keep matchups fresh', 'Campaign documentaries are a genuinely lovely touch', 'Still getting substantial free updates'],
+        cons: ['Art style divides long-time Age fans', 'Ranked ladder can be brutal for beginners', 'Fewer civs than Age of Empires II after decades of expansions'] },
+
+      { id: 'cyberpunk-2077', appId: 1091500, title: 'Cyberpunk 2077', studio: 'CD PROJEKT RED', genre: 'Open-World RPG', year: 2020, price: 69, accent: '#fde047', maxPlayers: 1,
+        specs: { combat: 82, story: 92, coop: 2, replay: 72 },
+        displayInfo: { hoursToBeat: 25, rating: 86, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Open World', 'Sci-Fi', 'RPG'],
+        pros: ['Night City is the densest open world on PC', 'The 2.0 rework fixed the systems people complained about', 'Branching quests with meaningfully different endings'],
+        cons: ['Still heavy on older GPUs at high settings', 'No co-op or multiplayer at all', 'Some launch-era jank survives in side content'] },
+
+      { id: 'doom-eternal', appId: 782330, title: 'DOOM Eternal', studio: 'id Software', genre: 'FPS', year: 2020, price: 38.9, accent: '#e11d48', maxPlayers: 1,
+        specs: { combat: 96, story: 42, coop: 8, replay: 80 },
+        displayInfo: { hoursToBeat: 15, rating: 91, players: 'Single-player + Battlemode PvP', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'FPS', 'Fast-paced'],
+        pros: ['The best-feeling shooter combat loop on PC', 'Runs beautifully even on modest hardware', 'Two large campaign expansions to follow it up'],
+        cons: ['Resource-juggling combat puzzle is not for everyone', 'Platforming sections divide players', 'No co-op campaign — PvP only'] },
+
+      { id: 'risk-of-rain-2', appId: 632360, title: 'Risk of Rain 2', studio: 'Hopoo Games', genre: 'Co-op Roguelike', year: 2020, price: 22, accent: '#06b6d4', maxPlayers: 4,
+        specs: { combat: 84, story: 20, coop: 90, replay: 94 },
+        displayInfo: { hoursToBeat: 20, rating: 93, players: '1-4 online co-op', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Co-op', 'Roguelike', 'Third-person Shooter'],
+        pros: ['Item stacking produces absurd, hilarious builds', 'Escalating difficulty clock creates real tension', 'Excellent drop-in co-op with friends'],
+        cons: ['Later DLC had a rocky reception', 'Can feel repetitive solo', 'Little in the way of story or direction'] },
+
+      { id: 'factorio', appId: 427520, title: 'Factorio', studio: 'Wube Software', genre: 'Factory Building', year: 2020, price: 30, accent: '#f97316', maxPlayers: 8,
+        specs: { combat: 30, story: 15, coop: 70, replay: 98 },
+        displayInfo: { hoursToBeat: 60, rating: 97, players: 'Online co-op, dedicated servers', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Co-op', 'Factory Building', 'Automation'],
+        pros: ['The gold standard for automation games', 'Famously never goes on sale — but never needs to', 'Mod scene is enormous and well supported'],
+        cons: ['Genuinely addictive in a way that eats weekends', 'Top-down 2D art undersells the depth', 'Combat is the least interesting system'] },
+
+      { id: 'outer-wilds', appId: 753640, title: 'Outer Wilds', studio: 'Mobius Digital', genre: 'Mystery Adventure', year: 2020, price: 25, accent: '#fdba74', maxPlayers: 1,
+        specs: { combat: 5, story: 95, coop: 2, replay: 30 },
+        displayInfo: { hoursToBeat: 16, rating: 95, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Exploration', 'Mystery', 'Space'],
+        pros: ['One of the best-designed mysteries in any game', 'Knowledge, not gear, is the only progression', 'The ending lands like nothing else on this list'],
+        cons: ['Almost no replay value once you know the answers', 'Zero-g flying takes real practice', 'Time loop pressure frustrates some players'] },
+
+      { id: 'phasmophobia', appId: 739630, title: 'Phasmophobia', studio: 'Kinetic Games', genre: 'Co-op Horror', year: 2020, price: 18.5, accent: '#a1a1aa', maxPlayers: 4,
+        specs: { combat: 10, story: 25, coop: 95, replay: 86 },
+        displayInfo: { hoursToBeat: 20, rating: 94, players: '1-4 co-op investigations', earlyAccess: true, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Horror', 'Early Access', 'Voice Chat'],
+        pros: ['Voice recognition means ghosts hear what you actually say', 'Terrifying with friends, genuinely tense solo', 'Still getting free content years into Early Access'],
+        cons: ['Still Early Access with rough edges', 'Investigation loop repeats once you learn the ghosts', 'Best experience needs voice chat and ideally VR'] },
+
+      { id: 'red-dead-redemption-2', appId: 1174180, title: 'Red Dead Redemption 2', studio: 'Rockstar Games', genre: 'Open-World Action', year: 2019, price: 79.9, accent: '#c2410c', maxPlayers: 1,
+        specs: { combat: 76, story: 97, coop: 15, replay: 62 },
+        displayInfo: { hoursToBeat: 50, rating: 92, players: 'Single-player + Red Dead Online', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Open World', 'Western', 'Story-rich'],
+        pros: ['Arguably the finest story and cast in any open world', 'Detail density that still has not been matched', 'Enormous amount of content for one purchase'],
+        cons: ['Deliberately slow, weighty movement frustrates some', 'Red Dead Online is effectively abandoned', 'Very large install and demanding at high settings'] },
+
+      { id: 'sekiro', appId: 814380, title: 'Sekiro: Shadows Die Twice', studio: 'FromSoftware', genre: 'Soulslike', year: 2019, price: 84, accent: '#be123c', maxPlayers: 1,
+        specs: { combat: 97, story: 70, coop: 2, replay: 76 },
+        displayInfo: { hoursToBeat: 30, rating: 95, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Soulslike', 'Precision Combat'],
+        pros: ['Deflection combat is the sharpest FromSoftware has written', 'Sengoku Japan setting is gorgeous and distinct', 'Grappling hook makes traversal genuinely fun'],
+        cons: ['No summons or co-op — you beat the bosses alone', 'Almost no build variety to fall back on', 'Hardest entry point of any FromSoftware game'] },
+
+      { id: 'slay-the-spire', appId: 646570, title: 'Slay the Spire', studio: 'Mega Crit', genre: 'Roguelike Deckbuilder', year: 2019, price: 23.99, accent: '#eab308', maxPlayers: 1,
+        specs: { combat: 55, story: 10, coop: 3, replay: 97 },
+        displayInfo: { hoursToBeat: 27, rating: 97, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Singleplayer', 'Roguelike', 'Deckbuilder', 'Cards'],
+        pros: ['The game that defined the roguelike deckbuilder genre', 'Four characters with completely different deck identities', 'Ascension levels give hundreds of hours of difficulty'],
+        cons: ['No multiplayer of any kind', 'Presentation is plain next to newer deckbuilders', 'Run losses can hinge on bad card draws'] },
+
+      { id: 'disco-elysium', appId: 632470, title: 'Disco Elysium - The Final Cut', studio: 'ZA/UM', genre: 'CRPG', year: 2019, price: 36.99, accent: '#f472b6', maxPlayers: 1,
+        specs: { combat: 5, story: 98, coop: 2, replay: 68 },
+        displayInfo: { hoursToBeat: 22, rating: 92, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Singleplayer', 'CRPG', 'Story-rich', 'Detective'],
+        pros: ['Some of the best writing in the medium, full stop', 'Your skills argue with you as separate characters', 'Fully voiced in the Final Cut at no extra cost'],
+        cons: ['Zero combat — it is a reading game', 'Dense prose is a real time investment', 'Studio turmoil means no sequel is coming'] },
+
+      { id: 'monster-hunter-world', appId: 582010, title: 'Monster Hunter: World', studio: 'Capcom', genre: 'Co-op Action RPG', year: 2018, price: 36.9, accent: '#22c55e', maxPlayers: 4,
+        specs: { combat: 92, story: 45, coop: 90, replay: 94 },
+        displayInfo: { hoursToBeat: 48, rating: 88, players: '1-4 co-op hunts', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Action RPG', 'Monster Hunter'],
+        pros: ['Still the best-value entry point to the series', 'Fourteen weapon types that play like different games', 'Iceborne expansion nearly doubles the content'],
+        cons: ['Menus and crafting systems are labyrinthine', 'Multiplayer session flow is famously clunky', 'Frequently discounted — rarely worth full price'] },
+
+      { id: 'celeste', appId: 504230, title: 'Celeste', studio: 'Maddy Makes Games', genre: 'Precision Platformer', year: 2018, price: 18.5, accent: '#38bdf8', maxPlayers: 1,
+        specs: { combat: 2, story: 82, coop: 2, replay: 70 },
+        displayInfo: { hoursToBeat: 8, rating: 97, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Singleplayer', 'Platformer', 'Story-rich', 'Pixel Art'],
+        pros: ['Tight controls that make failure feel fair every time', 'Handles anxiety and self-doubt with real care', 'Assist mode makes it accessible without judgement'],
+        cons: ['Genuinely demanding platforming in later chapters', 'Short main story if you skip B-sides', 'No multiplayer at all'] },
+
+      { id: 'dead-cells', appId: 588650, title: 'Dead Cells', studio: 'Motion Twin', genre: 'Roguevania', year: 2018, price: 29.99, accent: '#14b8a6', maxPlayers: 1,
+        specs: { combat: 90, story: 25, coop: 3, replay: 93 },
+        displayInfo: { hoursToBeat: 25, rating: 97, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Singleplayer', 'Roguelike', 'Metroidvania', 'Pixel Art'],
+        pros: ['Combat feels razor-sharp and responsive', 'Years of free updates on top of paid DLC', 'Boss Cell difficulty tiers give it a long tail'],
+        cons: ['No co-op or multiplayer', 'Weapon RNG can stall a promising run', 'DLC is priced steeply relative to the base game'] },
+
+      { id: 'rimworld', appId: 294100, title: 'RimWorld', studio: 'Ludeon Studios', genre: 'Colony Sim', year: 2018, price: 29, accent: '#84cc16', maxPlayers: 1,
+        specs: { combat: 55, story: 88, coop: 5, replay: 98 },
+        displayInfo: { hoursToBeat: 80, rating: 97, players: 'Single-player', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Singleplayer', 'Colony Sim', 'Emergent Story'],
+        pros: ['The AI storyteller generates disasters you will retell for years', 'Mod ecosystem is one of the largest on Steam', 'Effectively unlimited replayability'],
+        cons: ['Sparse visuals hide a very deep game', 'No co-op — colony management is solo', 'Expansions add up in cost'] },
+
+      { id: 'subnautica', appId: 264710, title: 'Subnautica', studio: 'Unknown Worlds', genre: 'Survival Crafting', year: 2018, price: 40, accent: '#2dd4bf', maxPlayers: 1,
+        specs: { combat: 25, story: 80, coop: 3, replay: 45 },
+        displayInfo: { hoursToBeat: 30, rating: 97, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Singleplayer', 'Survival', 'Underwater', 'Exploration'],
+        pros: ['Ocean exploration nothing else has matched', 'Genuine sense of dread without being a horror game', 'Base building and story pull in the same direction'],
+        cons: ['No co-op in the base game', 'Thalassophobia makes it unplayable for some', 'Little reason to replay once the map is known'] },
+
+      { id: 'hollow-knight', appId: 367520, title: 'Hollow Knight', studio: 'Team Cherry', genre: 'Metroidvania', year: 2017, price: 14.5, accent: '#818cf8', maxPlayers: 1,
+        specs: { combat: 84, story: 78, coop: 2, replay: 76 },
+        displayInfo: { hoursToBeat: 27, rating: 96, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Singleplayer', 'Metroidvania', 'Atmospheric', 'Hand-drawn'],
+        pros: ['Outstanding value — huge world for the price', 'Hallownest is atmospheric and quietly devastating', 'Four free content expansions post-launch'],
+        cons: ['Deliberately vague about where to go next', 'No map until you find the cartographer each area', 'Late-game challenges are punishing'] },
+
+      { id: 'dark-souls-3', appId: 374320, title: 'Dark Souls III', studio: 'FromSoftware', genre: 'Soulslike', year: 2016, price: 59.9, accent: '#9ca3af', maxPlayers: 4,
+        specs: { combat: 92, story: 72, coop: 45, replay: 88 },
+        displayInfo: { hoursToBeat: 32, rating: 94, players: 'Co-op via summon signs (up to 3 phantoms)', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Soulslike', 'Co-op', 'Dark Fantasy'],
+        pros: ['The most refined and approachable of the Dark Souls trilogy', 'Boss design is consistently excellent', 'Summon co-op still has an active playerbase'],
+        cons: ['Co-op is limited and fiddly to set up', 'Level design is more linear than Dark Souls I', 'PvP invasions can be unwelcome'] },
+
+      { id: 'civilization-6', appId: 289070, title: "Sid Meier's Civilization VI", studio: 'Firaxis Games', genre: '4X Strategy', year: 2016, price: 74.9, accent: '#a78bfa', maxPlayers: 12,
+        specs: { combat: 45, story: 30, coop: 58, replay: 95 },
+        displayInfo: { hoursToBeat: 30, rating: 86, players: 'Up to 12 online', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Strategy', '4X', 'Turn-based'],
+        pros: ['The definitive "one more turn" game', 'District system gives cities real spatial planning', 'Deeply discounted bundles appear constantly'],
+        cons: ['Base game is thin — the expansions are close to mandatory', 'Late-game turns drag badly', 'AI struggles at higher difficulties without bonuses'] },
+
+      { id: 'dont-starve-together', appId: 322330, title: "Don't Starve Together", studio: 'Klei Entertainment', genre: 'Co-op Survival', year: 2016, price: 14.5, accent: '#f59e0b', maxPlayers: 6,
+        specs: { combat: 50, story: 30, coop: 92, replay: 90 },
+        displayInfo: { hoursToBeat: 40, rating: 94, players: 'Up to 6 co-op (dedicated servers)', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Co-op', 'Survival', 'Roguelike', 'Hand-drawn'],
+        pros: ['Distinctive Tim Burton-ish art that has aged perfectly', 'Still receiving free content a decade on', 'Cheap, and often bundled two-for-one to gift a friend'],
+        cons: ['Brutally unforgiving without a wiki open', 'Permadeath frustrates a lot of new players', 'Character unlocks take a long grind'] },
+
+      { id: 'witcher-3', appId: 292030, title: 'The Witcher 3: Wild Hunt', studio: 'CD PROJEKT RED', genre: 'Open-World RPG', year: 2015, price: 50.39, accent: '#b91c1c', maxPlayers: 1,
+        specs: { combat: 68, story: 96, coop: 2, replay: 78 },
+        displayInfo: { hoursToBeat: 51, rating: 96, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Singleplayer', 'Open World', 'Story-rich', 'Fantasy'],
+        pros: ["Side quests written better than most games' main stories", 'Two enormous expansions included in most editions', 'Free next-gen update keeps it looking modern'],
+        cons: ['Combat is the weakest part of the package', 'Inventory and menus feel dated', 'Slow opening few hours before it opens up'] },
+
+      { id: 'project-zomboid', appId: 108600, title: 'Project Zomboid', studio: 'The Indie Stone', genre: 'Zombie Survival', year: 2013, price: 18.5, accent: '#65a30d', maxPlayers: 16,
+        specs: { combat: 60, story: 35, coop: 82, replay: 96 },
+        displayInfo: { hoursToBeat: 60, rating: 94, players: 'Online co-op, dedicated servers', earlyAccess: true, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Co-op', 'Survival', 'Zombies', 'Early Access'],
+        pros: ['The most detailed zombie survival sim on PC', 'Every death writes a story worth telling', 'Huge mod scene and active multiplayer servers'],
+        cons: ['Still Early Access after more than a decade', 'Isometric presentation hides a steep learning curve', 'You will die a lot before you understand why'] },
+
+      { id: 'portal-2', appId: 620, title: 'Portal 2', studio: 'Valve', genre: 'Puzzle', year: 2011, price: 10, accent: '#fb923c', maxPlayers: 2,
+        specs: { combat: 2, story: 88, coop: 78, replay: 40 },
+        displayInfo: { hoursToBeat: 8, rating: 98, players: 'Single-player + 2-player co-op campaign', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Co-op', 'Puzzle', 'Comedy', 'Story-rich'],
+        pros: ['Still one of the funniest games ever written', 'The 2-player co-op campaign is entirely separate content', 'Runs on anything and costs almost nothing'],
+        cons: ['Short, and puzzles rarely surprise on a replay', 'Co-op needs a committed partner to finish', 'No new Valve follow-up is coming'] },
     ];
+
+    /* ---------------- Genre buckets ----------------
+       `genre` on each game stays specific ("Roguelike Deckbuilder", "Metroidvania")
+       because that's the useful label to READ on a card. But filtering by it was
+       useless: 60 games spread over 30-odd genres left most of them holding a
+       single game, so picking one emptied the grid. The filter therefore works on
+       these ~8 buckets while the card still shows the specific genre.
+
+       Every genre string in GAMES must appear here — anything unmapped falls into
+       'Other', which is only offered as a filter option if something lands in it. */
+    const GENRE_BUCKETS = {
+      'Action RPG': 'RPG', 'Open-World RPG': 'RPG', 'Soulslike': 'RPG',
+      'Soulslike RPG': 'RPG', 'Turn-based RPG': 'RPG', 'CRPG': 'RPG',
+      'Co-op Action RPG': 'RPG',
+
+      'Roguelike': 'Roguelike', 'Roguelike Deckbuilder': 'Roguelike',
+      'Roguevania': 'Roguelike', 'Survivors-like': 'Roguelike',
+      'Co-op Roguelike': 'Roguelike',
+
+      'Co-op Shooter': 'Shooter', 'Soulslike Co-op Shooter': 'Shooter',
+      'Co-op Extraction Shooter': 'Shooter', 'FPS': 'Shooter',
+      'Mech Action': 'Shooter',
+
+      'Survival Crafting': 'Survival', 'Sandbox Survival': 'Survival',
+      'Survival Driving': 'Survival', 'Survival Vampire': 'Survival',
+      'Survival Extraction': 'Survival', 'Zombie Survival': 'Survival',
+      'Co-op Survival': 'Survival',
+
+      'City Builder': 'Builders & Sims', 'City Survival': 'Builders & Sims',
+      'Factory Building': 'Builders & Sims', 'Colony Sim': 'Builders & Sims',
+      'Farming Sim': 'Builders & Sims',
+
+      '4X Strategy': 'Strategy', 'Grand Strategy': 'Strategy', 'RTS': 'Strategy',
+
+      'Adventure': 'Adventure', 'Co-op Adventure': 'Adventure',
+      'Open-World Action': 'Adventure', 'Metroidvania': 'Adventure',
+      'Precision Platformer': 'Adventure', 'Mystery Adventure': 'Adventure',
+      'Puzzle': 'Adventure',
+
+      'Co-op Horror': 'Horror', 'Survival Horror': 'Horror',
+    };
+
+    // Display order for the filter dropdown; 'Other' is appended only if used.
+    const BUCKET_ORDER = ['RPG', 'Roguelike', 'Shooter', 'Survival',
+                          'Builders & Sims', 'Strategy', 'Adventure', 'Horror'];
+
+    const genreBucket = (game) => GENRE_BUCKETS[game.genre] || 'Other';
+
+    // Buckets actually represented in the catalog, in display order.
+    function bucketOptions(games) {
+      const present = new Set(games.map(genreBucket));
+      const ordered = BUCKET_ORDER.filter(b => present.has(b));
+      if (present.has('Other')) ordered.push('Other');
+      return ['All', ...ordered];
+    }
 
     /* ---------------- Store availability (editorial fallback) ---------------- */
     // Stores each game is sold on BESIDES Steam. Only used until live
@@ -444,6 +716,28 @@
       'hades': ['Epic'],
       'stardew-valley': ['GOG'],
       'terraria': ['GOG'],
+      // Second batch — taken from a live /api/deals response rather than
+      // guessed, so it matches what the cross-store feed reports. Games absent
+      // from this map are Steam-only as far as ITAD knows.
+      'cyberpunk-2077': ['Epic', 'GOG'],
+      'witcher-3': ['GOG'],
+      'red-dead-redemption-2': ['Epic'],
+      'doom-eternal': ['Epic', 'GOG'],
+      'silksong': ['GOG'],
+      'hollow-knight': ['GOG'],
+      'celeste': ['Epic'],
+      'dead-cells': ['Epic', 'GOG'],
+      'slay-the-spire': ['GOG'],
+      'vampire-survivors': ['Epic'],
+      'risk-of-rain-2': ['Epic'],
+      'factorio': ['GOG'],
+      'rimworld': ['Epic', 'GOG'],
+      'civilization-6': ['Epic'],
+      'total-war-warhammer-3': ['Epic'],
+      'disco-elysium': ['Epic', 'GOG'],
+      'outer-wilds': ['Epic'],
+      'subnautica': ['Epic'],
+      'project-zomboid': ['GOG'],
     };
 
     // Store list for a game: live deals data (with prices/links) when we have
@@ -523,6 +817,16 @@
 
     function steamStoreUrl(game) {
       return game.appId ? `https://store.steampowered.com/app/${game.appId}/` : null;
+    }
+
+    // Official Steam store artwork, served free from Valve's CDN and keyed only
+    // off the AppID we already store. 'header' is the 460x215 banner used on the
+    // cards; 'capsule' is the 231x87 version for tighter rows.
+    const STEAM_ART_BASE = 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps';
+    function steamArtUrl(game, kind = 'header') {
+      if (!game.appId) return null;
+      const file = kind === 'capsule' ? 'capsule_231x87.jpg' : 'header.jpg';
+      return `${STEAM_ART_BASE}/${game.appId}/${file}`;
     }
 
     function useSteamLive(baseGames) {
@@ -635,6 +939,9 @@
     // function batches server-side. When unreachable or keyless the UI falls
     // back to Steam-only pricing + the editorial EXTRA_STORES lists.
     const DEALS_ENDPOINT = '/api/deals';
+    // Must stay <= MAX_IDS in functions/api/deals.js, which silently truncates
+    // anything beyond it — an over-long request drops games with no error.
+    const DEALS_CHUNK = 30;
 
     function useDeals(baseGames) {
       const [deals, setDeals] = useState(null); // { [appId]: { stores:[...], historyLow } }
@@ -642,15 +949,29 @@
 
       useEffect(() => {
         let cancelled = false;
-        const ids = baseGames.map(g => g.appId).filter(Boolean).join(',');
+        const ids = baseGames.map(g => g.appId).filter(Boolean).map(String);
+        const chunks = [];
+        for (let i = 0; i < ids.length; i += DEALS_CHUNK) chunks.push(ids.slice(i, i + DEALS_CHUNK));
+
         (async () => {
           try {
-            const res = await fetch(`${DEALS_ENDPOINT}?ids=${ids}`);
-            if (!res.ok) throw new Error('bad status ' + res.status);
-            const data = await res.json();
-            const games = (data && data.games) || {};
+            // Chunks are independent: one failing (ITAD hiccup, cold cache
+            // timeout) shouldn't throw away the games the others resolved.
+            const parts = await Promise.all(chunks.map(async (c) => {
+              try {
+                const res = await fetch(`${DEALS_ENDPOINT}?ids=${c.join(',')}`);
+                if (!res.ok) throw new Error('bad status ' + res.status);
+                const data = await res.json();
+                return (data && data.games) || {};
+              } catch (e) {
+                return {};
+              }
+            }));
+            if (cancelled) return;
+            const games = Object.assign({}, ...parts);
             if (Object.keys(games).length === 0) throw new Error('empty');
-            if (!cancelled) { setDeals(games); setStatus('live'); }
+            setDeals(games);
+            setStatus('live');
           } catch (e) {
             if (!cancelled) setStatus('offline');
           }
@@ -882,6 +1203,40 @@
       </div>
     );
 
+    /* ---------------- Game artwork ----------------
+       Steam's own header banner, lazy-loaded (a full Browse grid is 60 images,
+       so they must not all fetch up front). Any game without an AppID — or whose
+       art 404s / is blocked — falls back to the accent-tinted gamepad tile the
+       cards used before, so a missing image never leaves a blank hole.
+       The image is decorative: the title is right below it as real text, and
+       alt text here would just make screen readers read every card twice. */
+    const GameArt = ({ game, selected, className = '' }) => {
+      const [failed, setFailed] = useState(false);
+      const src = steamArtUrl(game);
+      return (
+        <div className={cx('relative aspect-[460/215] overflow-hidden bg-ink-900', className)}>
+          {src && !failed ? (
+            <img src={src} alt="" aria-hidden="true" loading="lazy" decoding="async"
+                 onError={() => setFailed(true)}
+                 className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"
+                 style={{ background: `linear-gradient(135deg, ${game.accent}33, ${game.accent}0d)` }}>
+              <Gamepad className="w-8 h-8" style={{ color: game.accent }} />
+            </div>
+          )}
+          {/* Feather the art into the card body so the studio line never sits
+              against a hard horizontal edge. */}
+          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-ink-850 to-transparent pointer-events-none" />
+          {selected && (
+            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-black/50 tilt-float">
+              <Check className="w-3.5 h-3.5 text-ink-950" />
+            </div>
+          )}
+        </div>
+      );
+    };
+
     const SectionTitle = ({ eyebrow, title, subtitle, icon: I }) => (
       <div className="mb-6">
         {eyebrow && <div className="text-[11px] uppercase tracking-widest text-accent-soft/80 mb-2 flex items-center gap-2">
@@ -915,43 +1270,35 @@
         epicCurrent.some(f => normTitle(f.title) === normTitle(game.title)) ||
         giveaways.some(f => f.store === 'Epic' && normTitle(f.title) === normTitle(game.title));
       return (
-      <Card className={cx('p-4 relative animate-fade-in', selected && 'ring-2 ring-accent')}
+      <Card className={cx('relative animate-fade-in overflow-hidden', selected && 'ring-2 ring-accent')}
             onClick={onClick}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 tilt-float"
-               style={{ background: `${game.accent}22`, border: `1px solid ${game.accent}66` }}>
-            <Gamepad className="w-5 h-5" style={{ color: game.accent }} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs text-zinc-400">{game.studio}</div>
-            <div className="text-zinc-100 font-semibold truncate">{game.title}</div>
+        <GameArt game={game} selected={selected} />
+        <div className="p-4 pt-3">
+          <div className="min-w-0">
+            <div className="text-xs text-zinc-400 truncate">{game.studio}</div>
+            <div className="text-zinc-100 font-semibold truncate" title={game.title}>{game.title}</div>
             <div className="flex items-center gap-2 mt-1">
               <Pill>{game.genre}</Pill>
               {showPrice && <PriceTag g={game} />}
             </div>
           </div>
-          {selected && (
-            <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center shrink-0 tilt-float">
-              <Check className="w-3.5 h-3.5 text-ink-950" />
-            </div>
+          <div className="mt-3 space-y-1">
+            <StatBar label={game.displayInfo.ratingDesc ? `Steam · ${game.displayInfo.ratingDesc}` : 'Steam rating'}
+                     value={game.displayInfo.rating} sub={`${game.displayInfo.rating}%`} color={game.accent} />
+          </div>
+          <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+            <StoreBadges game={game} />
+            {freeOnEpic && <Pill tone="good"><Gift className="w-3 h-3" /> FREE on Epic now</Pill>}
+            {atLow && <Pill tone="accent"><Tag className="w-3 h-3" /> lowest price ever</Pill>}
+          </div>
+          {steamStoreUrl(game) && (
+            <a href={steamStoreUrl(game)} target="_blank" rel="noopener noreferrer"
+               onClick={(e) => e.stopPropagation()}
+               className="mt-2 inline-flex items-center gap-1 text-[10px] text-zinc-500 hover:text-accent-soft transition">
+              View on Steam <ExternalLink className="w-3 h-3" />
+            </a>
           )}
         </div>
-        <div className="mt-3 space-y-1">
-          <StatBar label={game.displayInfo.ratingDesc ? `Steam · ${game.displayInfo.ratingDesc}` : 'Steam rating'}
-                   value={game.displayInfo.rating} sub={`${game.displayInfo.rating}%`} color={game.accent} />
-        </div>
-        <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-          <StoreBadges game={game} />
-          {freeOnEpic && <Pill tone="good"><Gift className="w-3 h-3" /> FREE on Epic now</Pill>}
-          {atLow && <Pill tone="accent"><Tag className="w-3 h-3" /> lowest price ever</Pill>}
-        </div>
-        {steamStoreUrl(game) && (
-          <a href={steamStoreUrl(game)} target="_blank" rel="noopener noreferrer"
-             onClick={(e) => e.stopPropagation()}
-             className="mt-2 inline-flex items-center gap-1 text-[10px] text-zinc-500 hover:text-accent-soft transition">
-            View on Steam <ExternalLink className="w-3 h-3" />
-          </a>
-        )}
       </Card>
       );
     };
@@ -963,14 +1310,20 @@
       const [genre, setGenre] = useState('All');
       const [coop, setCoop] = useState('All');
       const [sort, setSort] = useState('year');
+      const [saleOnly, setSaleOnly] = useState(false);
 
-      const genres = ['All', ...Array.from(new Set(GAMES.map(g => g.genre)))];
+      const genres = bucketOptions(GAMES);
+      // How many are discounted right now — 0 until the live Steam feed lands,
+      // which is also when the toggle would filter everything out, so it's
+      // disabled until there's something to show.
+      const saleCount = GAMES.filter(g => g.discount > 0).length;
 
       const list = useMemo(() => {
         let out = GAMES.filter(g =>
-          (genre === 'All' || g.genre === genre) &&
+          (genre === 'All' || genreBucket(g) === genre) &&
           (coop === 'All' || (coop === 'Co-op' ? g.maxPlayers > 1 : g.maxPlayers === 1)) &&
-          (query.trim() === '' || (g.studio + ' ' + g.title).toLowerCase().includes(query.toLowerCase()))
+          (!saleOnly || g.discount > 0) &&
+          (query.trim() === '' || (g.studio + ' ' + g.title + ' ' + g.genre).toLowerCase().includes(query.toLowerCase()))
         );
         if (sort === 'rating') out = out.sort((a,b)=>b.displayInfo.rating-a.displayInfo.rating);
         if (sort === 'price-asc') out = out.sort((a,b)=>a.price-b.price);
@@ -979,19 +1332,19 @@
         if (sort === 'value') out = out.sort((a,b)=>dollarsPerHour(a)-dollarsPerHour(b));
         if (sort === 'discount') out = out.sort((a,b)=>(b.discount||0)-(a.discount||0));
         return out;
-      }, [GAMES, query, genre, coop, sort]);
+      }, [GAMES, query, genre, coop, sort, saleOnly]);
 
       return (
         <div className="animate-fade-in">
           <SectionTitle eyebrow="Catalog" icon={Layers}
             title="Browse games"
-            subtitle={`${GAMES.length} PC games across ${genres.length-1} genres, newest first. Steam prices and ratings are live from the Singapore store — with Epic and GOG prices on the store badges when the cross-store feed is up. Tap a card to add it to your comparison shortlist.`} />
+            subtitle={`${GAMES.length} PC games, newest first. Steam prices and ratings are live from the Singapore store — with Epic and GOG prices on the store badges when the cross-store feed is up. Tap a card to add it to your comparison shortlist.`} />
 
-          <Card className="p-3 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-2">
+          <Card className="p-3 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto_auto] gap-2">
               <div className="relative">
                 <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search studio or title..."
+                <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search title, studio or genre..."
                   className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500" />
               </div>
               <Selector value={genre} onChange={setGenre} options={genres} label="Genre" />
@@ -1000,8 +1353,33 @@
                 options={['year','rating','discount','price-asc','price-desc','value']}
                 labels={{year:'Newest', rating:'Top rated', discount:'On sale', 'price-asc':'Price ↑','price-desc':'Price ↓', value:'Best $/hour'}}
                 label="Sort" />
+              {/* Filter, not a sort — "show me only what's discounted right now". */}
+              <button type="button" onClick={() => setSaleOnly(v => !v)}
+                      disabled={saleCount === 0}
+                      aria-pressed={saleOnly}
+                      title={saleCount === 0 ? 'Waiting for live Steam prices' : `${saleCount} of ${GAMES.length} games are discounted right now`}
+                      className={cx('rounded-lg px-3 py-2 text-sm inline-flex items-center gap-1.5 ring-1 transition whitespace-nowrap',
+                        saleCount === 0 && 'opacity-40 cursor-not-allowed',
+                        saleOnly
+                          ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-500/50'
+                          : 'bg-ink-900 text-zinc-400 ring-ink-700 hover:text-zinc-200')}>
+                <Tag className="w-3.5 h-3.5" />
+                On sale
+                {saleCount > 0 && <span className={cx('text-[10px] rounded-full px-1.5 leading-4 font-semibold',
+                                                      saleOnly ? 'bg-emerald-400 text-ink-950' : 'bg-ink-700 text-zinc-300')}>{saleCount}</span>}
+              </button>
             </div>
           </Card>
+
+          <div className="mb-4 flex items-center justify-between gap-3 text-xs text-zinc-500">
+            <span>Showing {list.length} of {GAMES.length} games</span>
+            {(genre !== 'All' || coop !== 'All' || saleOnly || query.trim() !== '') && (
+              <button onClick={() => { setGenre('All'); setCoop('All'); setSaleOnly(false); setQuery(''); }}
+                      className="inline-flex items-center gap-1 hover:text-zinc-300 transition">
+                <X className="w-3 h-3" /> Clear filters
+              </button>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {list.map(g => (
@@ -1105,19 +1483,18 @@
           {/* Game chips row */}
           <div className={cx('grid gap-3 mb-6', picked.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
             {picked.map(g => (
-              <Card key={g.id} className="p-4 relative">
+              <Card key={g.id} className="relative overflow-hidden">
+                <GameArt game={g} />
+                {/* Sits over the artwork, so it carries its own scrim rather
+                    than relying on whatever happens to be behind it. */}
                 <button onClick={() => setShortlist(shortlist.filter(id => id !== g.id))}
-                        className="absolute top-3 right-3 text-zinc-500 hover:text-rose-400" title="Remove">
+                        className="absolute top-2 right-2 p-1 rounded-full bg-ink-950/70 backdrop-blur-sm text-zinc-300 hover:text-rose-400 transition" title="Remove">
                   <X className="w-4 h-4" />
                 </button>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                       style={{ background: `${g.accent}22`, border: `1px solid ${g.accent}66` }}>
-                    <Gamepad className="w-5 h-5" style={{ color: g.accent }} />
-                  </div>
-                  <div>
-                    <div className="text-xs text-zinc-400">{g.studio}</div>
-                    <div className="text-zinc-100 font-semibold">{g.title}</div>
+                <div className="p-4 pt-3">
+                  <div className="min-w-0">
+                    <div className="text-xs text-zinc-400 truncate">{g.studio}</div>
+                    <div className="text-zinc-100 font-semibold truncate" title={g.title}>{g.title}</div>
                     <div className="text-xs text-zinc-400 flex items-center gap-1.5 mt-0.5">
                       <PriceTag g={g} /> <span className="text-zinc-600">·</span> {g.year}
                     </div>
@@ -1128,14 +1505,14 @@
                       </a>
                     )}
                   </div>
-                </div>
-                {/* On phones these bars duplicate the spec-matrix rows below and
-                    triple the scroll distance, so they're desktop-only. */}
-                <div className="hidden md:block mt-3 space-y-1.5">
-                  <StatBar label="Combat" value={g.specs.combat} color={g.accent} sub={g.specs.combat} />
-                  <StatBar label="Story" value={g.specs.story} color={g.accent} sub={g.specs.story} />
-                  <StatBar label="Co-op" value={g.specs.coop} color={g.accent} sub={g.specs.coop} />
-                  <StatBar label="Replay" value={g.specs.replay} color={g.accent} sub={g.specs.replay} />
+                  {/* On phones these bars duplicate the spec-matrix rows below and
+                      triple the scroll distance, so they're desktop-only. */}
+                  <div className="hidden md:block mt-3 space-y-1.5">
+                    <StatBar label="Combat" value={g.specs.combat} color={g.accent} sub={g.specs.combat} />
+                    <StatBar label="Story" value={g.specs.story} color={g.accent} sub={g.specs.story} />
+                    <StatBar label="Co-op" value={g.specs.coop} color={g.accent} sub={g.specs.coop} />
+                    <StatBar label="Replay" value={g.specs.replay} color={g.accent} sub={g.specs.replay} />
+                  </div>
                 </div>
               </Card>
             ))}
@@ -1320,11 +1697,11 @@
     const ValueView = () => {
       const { games: GAMES } = useGames();
       const [genre, setGenre] = useState('All');
-      const genres = ['All', ...Array.from(new Set(GAMES.map(g => g.genre)))];
+      const genres = bucketOptions(GAMES);
 
       const rows = useMemo(() => {
         return GAMES
-          .filter(g => genre === 'All' || g.genre === genre)
+          .filter(g => genre === 'All' || genreBucket(g) === genre)
           .map(g => ({ game: g, perHour: dollarsPerHour(g) }))
           .sort((a, b) => a.perHour - b.perHour);
       }, [GAMES, genre]);

@@ -24,6 +24,8 @@
 
 const COUNTRY = 'SG'; // Singapore -> SGD pricing, matching /api/steam
 const TTL_SECONDS = 1800; // 30 min edge cache
+// Requests longer than this are TRUNCATED, not rejected — the front-end chunks
+// to DEALS_CHUNK (30) to stay under it. Raise both together if the catalog grows.
 const MAX_IDS = 40;
 const STEAM_SHOP_ID = 61; // ITAD's shop id for Steam
 
