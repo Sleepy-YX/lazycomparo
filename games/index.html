@@ -806,6 +806,52 @@
       return Math.round((game.price / game.displayInfo.hoursToBeat) * 100) / 100;
     }
 
+    /* ---------------- Deal heat ----------------
+       One semantic scale for "how good is this price, right now", used by every
+       surface that shows a price — cards, compare table, value tab — and mirrored
+       on the landing page's ticker, so a hot badge means the same thing on both
+       sites instead of every discount looking identical.
+
+       An all-time low outranks the raw percentage on purpose: 20% off a game
+       that has never been cheaper is a better moment to buy than a routine 50%
+       sale that comes round every quarter.
+
+       The class strings are spelled out in full because the Tailwind Play CDN
+       generates rules by scanning the document for literal class names —
+       anything assembled by string concatenation would never get a rule. */
+    const HEAT_ORDER = ['none', 'mild', 'warm', 'hot'];
+    const HEAT = {
+      hot: {
+        badge: 'bg-ember/25 text-orange-200 ring-ember/60',
+        text: 'text-orange-200',
+        ring: 'ring-ember/50',
+        dot: 'bg-ember',
+        glow: 'shadow-[0_0_16px_-3px_rgba(217,72,43,.85)]',
+      },
+      warm: {
+        badge: 'bg-amber-500/20 text-amber-200 ring-amber-500/40',
+        text: 'text-amber-200', ring: 'ring-amber-500/30', dot: 'bg-amber-400', glow: '',
+      },
+      mild: {
+        badge: 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/30',
+        text: 'text-emerald-300', ring: 'ring-emerald-500/25', dot: 'bg-emerald-400', glow: '',
+      },
+      none: {
+        badge: 'bg-ink-700 text-zinc-300 ring-ink-600',
+        text: 'text-zinc-300', ring: 'ring-ink-700', dot: 'bg-zinc-500', glow: '',
+      },
+    };
+
+    function dealHeat(game, deals) {
+      if (game.isFree || game.price === 0) return 'hot';
+      if (atHistoryLow(deals, game)) return 'hot';
+      const d = game.discount || 0;
+      if (d >= 60) return 'hot';
+      if (d >= 30) return 'warm';
+      if (d > 0) return 'mild';
+      return 'none';
+    }
+
     /* ---------------- Live Steam data ---------------- */
     // Pulls real SGD prices (incl. current sale) + review scores from our own
     // /api/steam Pages Function, which proxies Steam server-side. Ids are sent in
@@ -1123,6 +1169,7 @@
         meh:     'bg-amber-500/15 text-amber-300 ring-amber-500/30',
         bad:     'bg-rose-500/15 text-rose-300 ring-rose-500/30',
         accent:  'bg-accent/15 text-accent-soft ring-accent/40',
+        hot:     'bg-ember/20 text-orange-200 ring-ember/50',   // deal heat — see HEAT
       };
       return <span className={cx('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ring-1', tones[tone])}>{children}</span>;
     };
@@ -1133,16 +1180,28 @@
     const priceLabel = (g) => (g.isFree || g.price === 0) ? 'Free' : (g.priceFormatted || fmtPrice(g.price));
 
     // Price with an on-sale treatment: -X% badge + struck original when discounted.
+    // The badge is coloured by deal heat, so the size of the cut is readable
+    // before the number is — and an all-time low gets its own marker, because
+    // that is the one signal worth interrupting someone for.
     const PriceTag = ({ g, size = 'sm' }) => {
+      const { deals } = useDealsCtx();
       if (g.isFree || g.price === 0)
         return <span className="text-xs font-semibold text-teal-300">Free</span>;
       const onSale = g.discount > 0 && g.initialPrice;
+      const atLow = atHistoryLow(deals, g);
       const main = size === 'lg' ? 'text-sm font-semibold text-zinc-100' : 'text-xs font-semibold text-zinc-100';
-      if (!onSale) return <span className={cx(size === 'lg' ? 'text-sm' : 'text-xs', 'text-zinc-300')}>{priceLabel(g)}</span>;
+      if (!onSale && !atLow) return <span className={cx(size === 'lg' ? 'text-sm' : 'text-xs', 'text-zinc-300')}>{priceLabel(g)}</span>;
+      const h = HEAT[dealHeat(g, deals)];
       return (
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-          <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30">-{g.discount}%</span>
-          <s className="text-[11px] text-zinc-500">{fmtPrice(g.initialPrice)}</s>
+          {onSale && (
+            <span className={cx('text-[10px] font-bold px-1 py-0.5 rounded ring-1 tabular-nums', h.badge, h.glow)}>-{g.discount}%</span>
+          )}
+          {atLow && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded ring-1 bg-ember/25 text-orange-200 ring-ember/60"
+                  title="Cheapest this game has ever been, across tracked stores">Low</span>
+          )}
+          {onSale && <s className="text-[11px] text-zinc-500">{fmtPrice(g.initialPrice)}</s>}
           <span className={main}>{priceLabel(g)}</span>
         </span>
       );
@@ -1269,8 +1328,14 @@
       const freeOnEpic =
         epicCurrent.some(f => normTitle(f.title) === normTitle(game.title)) ||
         giveaways.some(f => f.store === 'Epic' && normTitle(f.title) === normTitle(game.title));
+      // Deal heat also warms the card edge — scanning a 60-card grid, the
+      // hot ones should be findable without reading a single price.
+      const heat = dealHeat(game, deals);
       return (
-      <Card className={cx('relative animate-fade-in overflow-hidden', selected && 'ring-2 ring-accent')}
+      <Card className={cx('relative animate-fade-in overflow-hidden',
+                          selected ? 'ring-2 ring-accent'
+                                   : heat === 'hot' ? cx('ring-1', HEAT.hot.ring, HEAT.hot.glow)
+                                   : heat === 'warm' ? cx('ring-1', HEAT.warm.ring) : null)}
             onClick={onClick}>
         <GameArt game={game} selected={selected} />
         <div className="p-4 pt-3">
@@ -1289,7 +1354,7 @@
           <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
             <StoreBadges game={game} />
             {freeOnEpic && <Pill tone="good"><Gift className="w-3 h-3" /> FREE on Epic now</Pill>}
-            {atLow && <Pill tone="accent"><Tag className="w-3 h-3" /> lowest price ever</Pill>}
+            {atLow && <Pill tone="hot"><Tag className="w-3 h-3" /> lowest price ever</Pill>}
           </div>
           {steamStoreUrl(game) && (
             <a href={steamStoreUrl(game)} target="_blank" rel="noopener noreferrer"
@@ -1394,12 +1459,107 @@
     };
 
     /* ---------------- Compare view ---------------- */
+    /* ---------------- Compare: verdict machinery ----------------
+       The landing page promises "verdict first, specs second"; this is the
+       verdict. It is computed from the SAME rows the table renders, so the
+       banner and the little award icons can never disagree with each other —
+       one source of truth, exactly like the landing page's stopProgress().
+
+       Weights say which rows actually decide a purchase. Release year and
+       Early Access are context, not merit: at weight 0 a 2024 game can't
+       out-argue a cheaper, better-reviewed 2019 one just for being new. */
+    const ROW_WEIGHT = {
+      rating: 2, value: 2, price: 1.5, cheapest: 1, hours: 1,
+      combat: 0.5, story: 0.5, replay: 0.5,
+      year: 0, stores: 0, alltimelow: 0, players: 0, earlyAccess: 0,
+    };
+    const SPEC_CAVEAT = {
+      combat: 'deeper combat',
+      story: 'a stronger story',
+      coop: 'proper co-op',
+      replay: 'more replay value',
+    };
+
+    function buildVerdict(picked, rows, deals) {
+      const score = {}, wins = {};
+      picked.forEach(g => { score[g.id] = 0; wins[g.id] = 0; });
+
+      let counted = 0, totalWeight = 0;
+      rows.forEach(row => {
+        const w = ROW_WEIGHT[row.key] || 0;
+        if (!row.cmp || !w) return;
+        counted++; totalWeight += w;
+        const sorted = [...picked].sort(row.cmp);        // worst → best
+        const best = sorted[sorted.length - 1];
+        // a dead heat shouldn't hand anyone the row
+        if (row.cmp(sorted[sorted.length - 2], best) === 0) return;
+        score[best.id] += w;
+        wins[best.id] += 1;
+      });
+
+      const ranked = [...picked].sort((a, b) =>
+        (score[b.id] - score[a.id]) || (b.displayInfo.rating - a.displayInfo.rating));
+      const top = ranked[0], next = ranked[1];
+      const margin = totalWeight ? (score[top.id] - score[next.id]) / totalWeight : 0;
+
+      // Reasons are concrete deltas against the runner-up, never adjectives.
+      const reasons = [];
+      if (atHistoryLow(deals, top)) reasons.push('it is at its all-time low right now');
+      const dTop = dollarsPerHour(top), dNext = dollarsPerHour(next);
+      if (dTop < dNext) reasons.push(`S$${dTop.toFixed(2)} an hour against S$${dNext.toFixed(2)}`);
+      const rd = top.displayInfo.rating - next.displayInfo.rating;
+      if (rd >= 3) reasons.push(`${rd} points better reviewed on Steam`);
+      const pd = Math.round((next.price - top.price) * 100) / 100;
+      const hourRatio = next.displayInfo.hoursToBeat
+        ? top.displayInfo.hoursToBeat / next.displayInfo.hoursToBeat : 1;
+      if (pd >= 3) reasons.push(`S$${pd.toFixed(2)} cheaper`);
+      else if (pd <= -3 && hourRatio >= 1.3) reasons.push(`S$${Math.abs(pd).toFixed(2)} more for ${hourRatio.toFixed(1)}× the playtime`);
+      const hd = top.displayInfo.hoursToBeat - next.displayInfo.hoursToBeat;
+      if (hd >= 5 && reasons.length < 3) reasons.push(`${hd} more hours in it`);
+
+      // The honest counterweight: where the runner-up genuinely wins.
+      let caveat = null, gapNeeded = 12;
+      Object.keys(SPEC_CAVEAT).forEach(k => {
+        const gap = (next.specs[k] || 0) - (top.specs[k] || 0);
+        if (gap > gapNeeded) { gapNeeded = gap; caveat = SPEC_CAVEAT[k]; }
+      });
+
+      return {
+        top, next, wins, counted,
+        close: margin < 0.12,
+        reasons: reasons.slice(0, 3),
+        caveat,
+      };
+    }
+
+    /* $/hour is the whole thesis of this site, so in the matrix it gets a
+       shape rather than being the smallest number on the row. Shorter bar =
+       cheaper fun; the best of the picked games is the only one in colour. */
+    const ValueBar = ({ v, max, best }) => {
+      const pct = Math.max(8, Math.min(100, (v / (max || 1)) * 100));
+      const isBest = v <= best + 0.001;
+      return (
+        <span className="block w-full min-w-[92px]">
+          <span className={cx('block text-sm font-semibold tabular-nums', isBest ? 'text-emerald-300' : 'text-zinc-200')}>
+            S${v.toFixed(2)}<span className="text-[10px] font-normal text-zinc-500"> /hr</span>
+          </span>
+          <span className="mt-1 block h-1.5 rounded-full bg-ink-800 overflow-hidden">
+            <span className={cx('block h-full rounded-full transition-all duration-500', isBest ? 'bg-emerald-400' : 'bg-zinc-600')}
+                  style={{ width: pct + '%' }} />
+          </span>
+        </span>
+      );
+    };
+
     const CompareView = ({ shortlist, setShortlist, onGoBrowse }) => {
       const { games: GAMES } = useGames();
       const { deals } = useDealsCtx();
       const picked = shortlist.map(id => GAMES.find(g => g.id === id)).filter(Boolean);
       const canAddMore = picked.length < 3;
       const [copied, setCopied] = useState(false);
+      // declared above the "fewer than 2 games" early return — hooks can't
+      // live behind a conditional
+      const [diffOnly, setDiffOnly] = useState(false);
 
       // Shareable link that re-opens Compare with this exact shortlist —
       // parseHash() understands the #compare=<ids> format on load.
@@ -1432,16 +1592,25 @@
         );
       }
 
+      // `raw` + `tol` exist for the "only differences" filter: raw gives the
+      // comparable value behind a cell that renders as JSX, tol is how close
+      // two games have to be before the row is noise rather than a difference
+      // (a 96% and a 95% rating is not a reason to pick one over the other).
+      const dphs = picked.map(dollarsPerHour);
+      const maxDph = Math.max(...dphs), bestDph = Math.min(...dphs);
+
       const specRows = [
-        { key: 'rating', label: 'Steam rating', get: (g) => `${g.displayInfo.rating}%`, cmp: (a,b) => a.displayInfo.rating - b.displayInfo.rating, icon: Star },
-        { key: 'price', label: 'Price on Steam', get: (g) => <PriceTag g={g} />, cmp: (a,b) => b.price - a.price, icon: DollarSign }, // lower price wins
-        { key: 'stores', label: 'Available on', get: (g) => <StoreBadges game={g} />, icon: Store },
+        { key: 'rating', label: 'Steam rating', get: (g) => `${g.displayInfo.rating}%`, raw: (g) => g.displayInfo.rating, tol: 2, cmp: (a,b) => a.displayInfo.rating - b.displayInfo.rating, icon: Star },
+        { key: 'price', label: 'Price on Steam', get: (g) => <PriceTag g={g} />, raw: (g) => g.price, tol: 0.5, cmp: (a,b) => b.price - a.price, icon: DollarSign }, // lower price wins
+        { key: 'stores', label: 'Available on', get: (g) => <StoreBadges game={g} />, raw: (g) => gameStores(g, deals).map(s => s.store).sort().join('/'), icon: Store },
         // Cross-store rows only make sense once live deals data has landed.
         ...(deals ? [
           { key: 'cheapest', label: 'Cheapest store', icon: Tag,
             get: (g) => { const m = minStore(g); return m ? `${m.store} · ${fmtStorePrice(m.price, m.currency, m.approx)}` : '—'; },
+            raw: (g) => { const m = minStore(g); return m ? `${m.store} ${m.price.toFixed(2)}` : '—'; },
             cmp: (a, b) => { const pa = minStore(a), pb = minStore(b); return (pb ? pb.price : Infinity) - (pa ? pa.price : Infinity); } }, // lower wins
           { key: 'alltimelow', label: 'All-time low price', icon: Clock,
+            raw: (g) => { const d = deals[String(g.appId)]; const low = d && d.historyLow; return low && typeof low.price === 'number' ? low.price : null; },
             get: (g) => {
               const d = deals[String(g.appId)]; const low = d && d.historyLow;
               if (!low || typeof low.price !== 'number') return '—';
@@ -1449,28 +1618,104 @@
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
                   {fmtStorePrice(low.price, low.currency, low.approx)}
                   {low.shop && <span className="text-zinc-500 text-xs">on {low.shop}</span>}
-                  {atHistoryLow(deals, g) && <Pill tone="good">at its low now</Pill>}
+                  {atHistoryLow(deals, g) && <Pill tone="hot">at its low now</Pill>}
                 </span>
               );
             } },
         ] : []),
-        { key: 'value', label: '$ / hour', get: (g) => `S$${dollarsPerHour(g)}`, cmp: (a,b) => dollarsPerHour(b) - dollarsPerHour(a), icon: TrendingUp }, // lower wins
-        { key: 'hours', label: 'Hours to beat', get: (g) => `${g.displayInfo.hoursToBeat}h`, cmp: (a,b) => a.displayInfo.hoursToBeat - b.displayInfo.hoursToBeat, icon: Clock },
-        { key: 'year', label: 'Released', get: (g) => g.year, cmp: (a,b) => a.year - b.year },
-        { key: 'combat', label: 'Combat depth', get: (g) => g.specs.combat, cmp: (a,b) => a.specs.combat - b.specs.combat, icon: Skull },
-        { key: 'story', label: 'Story depth', get: (g) => g.specs.story, cmp: (a,b) => a.specs.story - b.specs.story, icon: BookOpen },
-        { key: 'replay', label: 'Replayability', get: (g) => g.specs.replay, cmp: (a,b) => a.specs.replay - b.specs.replay, icon: Repeat },
-        { key: 'players', label: 'Players', get: (g) => g.displayInfo.players, icon: Users },
-        { key: 'earlyAccess', label: 'Early Access', get: (g) => g.displayInfo.earlyAccess ? 'Yes' : 'No, 1.0 release' },
+        { key: 'value', label: '$ / hour', get: (g) => <ValueBar v={dollarsPerHour(g)} max={maxDph} best={bestDph} />, raw: (g) => dollarsPerHour(g), tol: 0.05, cmp: (a,b) => dollarsPerHour(b) - dollarsPerHour(a), icon: TrendingUp }, // lower wins
+        { key: 'hours', label: 'Hours to beat', get: (g) => `${g.displayInfo.hoursToBeat}h`, raw: (g) => g.displayInfo.hoursToBeat, tol: 2, cmp: (a,b) => a.displayInfo.hoursToBeat - b.displayInfo.hoursToBeat, icon: Clock },
+        // No cmp: "newer" is not a win. Leaving it comparable meant the award
+        // icons outnumbered the scoreline, and a 2019 classic lost a row to a
+        // worse 2024 game for existing later.
+        { key: 'year', label: 'Released', get: (g) => g.year, raw: (g) => g.year },
+        { key: 'combat', label: 'Combat depth', get: (g) => g.specs.combat, raw: (g) => g.specs.combat, tol: 5, cmp: (a,b) => a.specs.combat - b.specs.combat, icon: Skull },
+        { key: 'story', label: 'Story depth', get: (g) => g.specs.story, raw: (g) => g.specs.story, tol: 5, cmp: (a,b) => a.specs.story - b.specs.story, icon: BookOpen },
+        { key: 'replay', label: 'Replayability', get: (g) => g.specs.replay, raw: (g) => g.specs.replay, tol: 5, cmp: (a,b) => a.specs.replay - b.specs.replay, icon: Repeat },
+        { key: 'players', label: 'Players', get: (g) => g.displayInfo.players, raw: (g) => g.displayInfo.players, icon: Users },
+        { key: 'earlyAccess', label: 'Early Access', get: (g) => g.displayInfo.earlyAccess ? 'Yes' : 'No, 1.0 release', raw: (g) => !!g.displayInfo.earlyAccess },
       ];
+
+      const verdict = buildVerdict(picked, specRows, deals);
+
+      // A row is "the same" when every picked game lands inside its tolerance
+      // (numbers) or renders the identical value (everything else).
+      const isTied = (row) => {
+        const vals = picked.map(g => (row.raw ? row.raw(g) : row.get(g)));
+        if (vals.every(v => typeof v === 'number')) {
+          return Math.max(...vals) - Math.min(...vals) <= (row.tol || 0);
+        }
+        return vals.every(v => String(v) === String(vals[0]));
+      };
+      const shownRows = diffOnly ? specRows.filter(r => !isTied(r)) : specRows;
+      const hiddenCount = specRows.length - shownRows.length;
 
       return (
         <div className="animate-fade-in">
           <SectionTitle eyebrow="Compare" icon={Layers}
             title="Side-by-side comparison"
-            subtitle="Green rows highlight the winner on each dimension." />
+            subtitle="The verdict first — the table underneath is the evidence for it." />
 
-          <div className="flex justify-end -mt-2 mb-4">
+          {/* ---- Verdict ----
+              Deliberately the loudest thing on the page: the site's promise is
+              "verdict first, specs second", and a spec matrix on its own is
+              still homework. Reasons are deltas against the runner-up, and the
+              caveat names where the runner-up genuinely wins — a verdict you
+              can argue with is a verdict worth trusting. */}
+          <Card className="relative overflow-hidden mb-5 ring-ember/30">
+            <div className="absolute inset-0 bg-gradient-to-r from-ember/15 via-ember/5 to-transparent pointer-events-none" />
+            <div className="relative flex flex-col sm:flex-row gap-4 p-4 sm:p-5">
+              <div className="w-full sm:w-44 shrink-0 rounded-xl overflow-hidden ring-1 ring-ink-700">
+                <GameArt game={verdict.top} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] uppercase tracking-widest text-orange-300/90 flex items-center gap-1.5 mb-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {verdict.close ? "It's close" : 'The verdict'}
+                </div>
+                <h3 className="font-serif text-2xl md:text-3xl font-medium text-zinc-50 leading-tight">
+                  {verdict.close
+                    ? <React.Fragment>Either works — {verdict.top.title} edges it.</React.Fragment>
+                    : <React.Fragment>Get {verdict.top.title}.</React.Fragment>}
+                </h3>
+                {verdict.reasons.length > 0 && (
+                  <p className="text-sm text-zinc-300 mt-2">
+                    Against {verdict.next.title}: {verdict.reasons.join(' · ')}.
+                  </p>
+                )}
+                {verdict.caveat && (
+                  <p className="text-sm text-zinc-400 mt-1.5">
+                    Pick <span className="text-zinc-200">{verdict.next.title}</span> instead if you want {verdict.caveat}.
+                  </p>
+                )}
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  <Pill tone="hot"><Award className="w-3 h-3" /> wins {verdict.wins[verdict.top.id]} of {verdict.counted} rows that matter</Pill>
+                  <PriceTag g={verdict.top} size="lg" />
+                  {steamStoreUrl(verdict.top) && (
+                    <a href={steamStoreUrl(verdict.top)} target="_blank" rel="noopener noreferrer"
+                       className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 bg-ember hover:bg-ember-soft text-white transition">
+                      Open on Steam <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+            {/* Hiding rows the games agree on is the difference between reading
+                a table and reading an answer. */}
+            <button onClick={() => setDiffOnly(v => !v)}
+              aria-pressed={diffOnly}
+              className={cx('inline-flex items-center gap-1.5 text-xs rounded-lg px-3 py-1.5 ring-1 transition',
+                            diffOnly
+                              ? 'bg-accent/15 text-accent-soft ring-accent/40'
+                              : 'ring-ink-700 bg-ink-900 text-zinc-300 hover:text-zinc-100 hover:ring-ink-600')}
+              title="Hide rows where these games are effectively the same">
+              <Zap className="w-3.5 h-3.5" />
+              Only show differences
+              {diffOnly && hiddenCount > 0 && <span className="text-[10px] text-zinc-400">({hiddenCount} hidden)</span>}
+            </button>
             <button onClick={copyShareLink}
               className="inline-flex items-center gap-1.5 text-xs rounded-lg px-3 py-1.5 ring-1 ring-ink-700 bg-ink-900 text-zinc-300 hover:text-zinc-100 hover:ring-ink-600 transition"
               title="Copy a link that opens this comparison">
@@ -1536,16 +1781,27 @@
                   <tr>
                     <th className="w-40 text-left px-4 py-3 font-medium">Spec</th>
                     {picked.map(g => (
-                      <th key={g.id} className="text-left px-4 py-3 font-medium text-zinc-200">{g.title}</th>
+                      <th key={g.id} className="text-left px-4 py-3 font-medium text-zinc-200 align-bottom">
+                        <span className="block truncate" title={g.title}>{g.title}</span>
+                        {/* the scoreline — the table's own running tally, from
+                            the same count the verdict banner quotes */}
+                        <span className={cx('mt-1 block text-[10px] normal-case tracking-normal font-semibold tabular-nums',
+                                            g.id === verdict.top.id ? 'text-orange-300' : 'text-zinc-500')}>
+                          {verdict.wins[g.id]} / {verdict.counted} wins
+                        </span>
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {specRows.map((row, i) => {
+                  {shownRows.map((row, i) => {
                     let winnerId = null;
                     if (row.cmp) {
                       const sorted = [...picked].sort(row.cmp);
-                      winnerId = sorted[sorted.length - 1].id;
+                      const best = sorted[sorted.length - 1];
+                      // ties award nobody — same rule the verdict tally uses,
+                      // so the award icons always add up to the scoreline
+                      if (row.cmp(sorted[sorted.length - 2], best) !== 0) winnerId = best.id;
                     }
                     const I = row.icon;
                     return (
@@ -1558,7 +1814,8 @@
                         </td>
                         {picked.map(g => (
                           <td key={g.id}
-                              className={cx('px-4 py-3', winnerId === g.id && 'text-emerald-300 font-medium')}>
+                              className={cx('px-4 py-3 relative', winnerId === g.id &&
+                                            'text-emerald-300 font-medium bg-emerald-400/[.06] shadow-[inset_2px_0_0_0_rgba(52,211,153,.5)]')}>
                             <span className="inline-flex items-center gap-2">
                               {row.get(g)}
                               {winnerId === g.id && <Award className="w-3.5 h-3.5" />}
@@ -1570,6 +1827,12 @@
                   })}
                 </tbody>
               </table>
+              {!shownRows.length && (
+                <div className="px-4 py-8 text-center text-sm text-zinc-400">
+                  These games are near-identical on every tracked spec — which is
+                  itself the answer: buy whichever is cheaper today.
+                </div>
+              )}
             </div>
           </Card>
 

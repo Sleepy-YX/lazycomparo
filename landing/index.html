@@ -85,6 +85,21 @@
       --indigo: #2c3e6b;
       --serif: 'Fraunces', Georgia, serif;
       --sans: 'Inter', system-ui, sans-serif;
+
+      /* deal heat — one semantic colour language for price state, shared with
+         the games app. Discount thresholds: >=60 hot, >=30 warm, >0 mild. */
+      --heat-hot: #d9482b;
+      --heat-warm: #c2691f;
+      --heat-mild: #7c6a4d;
+      --heat-none: #57524a;
+
+      /* motion tokens: one easing, three durations. Anything that moves on
+         this page uses these — that consistency is most of what reads as
+         "designed" rather than "animated". */
+      --ease: cubic-bezier(.16, 1, .3, 1);
+      --t-fast: .16s;
+      --t-mid: .28s;
+      --t-slow: .9s;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -93,6 +108,35 @@
       color: var(--ink);
       font-family: var(--sans);
       overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      hanging-punctuation: first last;   /* Safari only; harmless elsewhere */
+      text-rendering: optimizeLegibility;
+    }
+
+    /* ---------- film grain ----------
+       A single feTurbulence tile over the whole page. This is what makes the
+       WebGL canvas and the DOM read as one printed surface instead of two
+       different materials sitting next to each other. Sits above everything,
+       eats no pointer events. */
+    .grain {
+      position: fixed; inset: 0; z-index: 60; pointer-events: none;
+      opacity: .05;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      animation: grainshift 6s steps(1) infinite;
+    }
+    /* The jitter shifts background-position, not the element. Growing the
+       layer past the viewport instead (inset: -50%) reintroduced horizontal
+       overflow — body's overflow-x:hidden does not clip a fixed-position
+       child. The tile repeats, so shifting it can never expose an edge. */
+    @keyframes grainshift {
+      0%   { background-position: 0 0; }
+      20%  { background-position: -32px 22px; }
+      40%  { background-position: 26px -38px; }
+      60%  { background-position: -18px -14px; }
+      80%  { background-position: 36px 28px; }
+      100% { background-position: 0 0; }
     }
 
     /* ---------- fixed 3D stage ---------- */
@@ -170,7 +214,9 @@
       transition: background .2s, transform .2s;
       white-space: nowrap;
     }
-    .cta-pill:hover { background: var(--accent-dark); transform: translateY(-1px); }
+    /* hover lift is a variable, not a transform — the magnetic-cursor code
+       owns transform and the two would otherwise overwrite each other */
+    .cta-pill:hover { background: var(--accent-dark); --lift: -1px; }
 
     /* ---------- scroll sections ---------- */
     main { position: relative; z-index: 2; }
@@ -202,12 +248,19 @@
     h1, h2 {
       font-family: var(--serif); font-weight: 480; line-height: 1.02;
       letter-spacing: -0.015em; color: var(--ink);
+      /* Fraunces ships a real optical-size axis (9..144). Letting the browser
+         drive it means the 118px hero gets the high-contrast display cut and
+         the 44px headings get a sturdier one — the difference between "big
+         text" and typesetting. */
+      font-optical-sizing: auto;
+      text-wrap: balance;
     }
     h1 { font-size: clamp(52px, 8.5vw, 118px); }
     h2 { font-size: clamp(44px, 6.5vw, 96px); }
     .sub {
       margin-top: 26px; max-width: 44ch;
       font-size: 15px; line-height: 1.65; color: var(--ink-soft);
+      text-wrap: pretty;   /* no single-word last line */
     }
     .taglist { margin-top: 30px; display: flex; gap: 22px; flex-wrap: wrap; }
     .taglist span {
@@ -220,7 +273,7 @@
       text-decoration: none; padding: 15px 26px; border-radius: 3px; transition: all .2s;
     }
     .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 8px 22px -10px rgba(217,72,43,.65); }
-    .btn.primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+    .btn.primary:hover { background: var(--accent-dark); --lift: -1px; box-shadow: 0 14px 30px -12px rgba(217,72,43,.8); }
     .btn.ghost { color: var(--ink); border: 1.5px solid rgba(28,26,23,.4); }
     .btn.ghost:hover { border-color: var(--ink); background: rgba(28,26,23,.05); }
     .arrowlink {
@@ -241,6 +294,7 @@
     .proof .stat .n {
       font-family: var(--serif); font-size: 27px; font-weight: 560;
       line-height: 1; color: var(--ink);
+      font-variant-numeric: tabular-nums;   /* counters mustn't jitter */
     }
     .proof .stat .l {
       margin-top: 6px;
@@ -274,12 +328,20 @@
       font-weight: 600; color: var(--ink);
       max-width: 21ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .ticker .p { font-weight: 700; color: var(--ink); white-space: nowrap; }
+    .ticker .p { font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    /* deal heat: the badge colour IS the information — a 75%-off chip should
+       not look identical to a 10%-off chip. Same scale as the games app. */
     .ticker .off {
       font-size: 10px; font-weight: 700; letter-spacing: .04em;
-      color: #fff; background: var(--accent); border-radius: 3px; padding: 2px 6px;
-      white-space: nowrap;
+      color: #fff; background: var(--heat-mild); border-radius: 3px; padding: 2px 6px;
+      white-space: nowrap; font-variant-numeric: tabular-nums;
     }
+    .ticker .off.warm { background: var(--heat-warm); }
+    .ticker .off.hot {
+      background: var(--heat-hot);
+      box-shadow: 0 0 0 1px rgba(217,72,43,.25), 0 6px 16px -6px rgba(217,72,43,.75);
+    }
+    .ticker li:has(.off.hot) { border-color: rgba(217,72,43,.35); }
 
     /* ---------- scroll progress rail ---------- */
     .rail {
@@ -338,9 +400,80 @@
       100% { box-shadow: 0 0 0 0 rgba(46,158,91,0); }
     }
 
-    /* reveal on scroll */
-    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .8s ease; }
-    .reveal.in { opacity: 1; transform: none; }
+    /* ---------- reveal choreography ----------
+       The old version faded the whole copy block as one lump. Now the block
+       itself only fades its scrim in, and the parts arrive in reading order:
+       rule draws → eyebrow → headline lines mask up → sub → everything else.
+       Delays are a single stagger scale so adding an element means picking a
+       step, not inventing a number. */
+    .reveal { opacity: 0; transition: opacity .5s var(--ease); }
+    .reveal.in { opacity: 1; }
+
+    /* every staggered child starts offset; .in releases them */
+    .reveal .rule { transform: scaleX(0); transform-origin: left center; }
+    .reveal .stopno,
+    .reveal .eyebrow,
+    .reveal .sub,
+    .reveal .taglist,
+    .reveal .actions,
+    .reveal .proof,
+    .reveal .ticker.on,
+    .reveal .livefree { opacity: 0; transform: translateY(14px); }
+
+    .reveal.in .rule,
+    .reveal.in .stopno,
+    .reveal.in .eyebrow,
+    .reveal.in .sub,
+    .reveal.in .taglist,
+    .reveal.in .actions,
+    .reveal.in .proof,
+    .reveal.in .ticker.on,
+    .reveal.in .livefree { opacity: 1; transform: none; }
+
+    .reveal .rule { transition: transform .55s var(--ease); }
+    .reveal .stopno, .reveal .eyebrow, .reveal .sub, .reveal .taglist,
+    .reveal .actions, .reveal .proof, .reveal .ticker.on, .reveal .livefree {
+      transition: opacity .6s var(--ease), transform .6s var(--ease);
+    }
+    .reveal .stopno   { transition-delay: .06s; }
+    .reveal .eyebrow  { transition-delay: .10s; }
+    .reveal .sub      { transition-delay: .40s; }
+    .reveal .taglist  { transition-delay: .48s; }
+    .reveal .actions  { transition-delay: .54s; }
+    .reveal .proof    { transition-delay: .62s; }
+    .reveal .ticker.on{ transition-delay: .70s; }
+    .reveal .livefree { transition-delay: .62s; }
+
+    /* headline line masking — .ln is the window, .i is the line that slides up
+       through it. The window needs vertical slack or descenders (the "y" in
+       "Lazy for you.") get sheared off by overflow:hidden. */
+    h1 .ln, h2 .ln {
+      display: block; overflow: hidden;
+      padding-bottom: .14em; margin-bottom: -.14em;
+    }
+    h1 .ln .i, h2 .ln .i {
+      display: block;
+      transform: translateY(112%);
+      transition: transform var(--t-slow) var(--ease);
+      transition-delay: calc(.16s + var(--ln, 0) * .09s);
+    }
+    .reveal.in h1 .ln .i, .reveal.in h2 .ln .i { transform: none; }
+
+    /* card entrance is part of the same stagger, one step apart each */
+    .reveal .cards .pcard {
+      opacity: 0; transform: translateY(18px) perspective(800px) rotateX(1.5deg);
+      transition: opacity .6s var(--ease), transform .6s var(--ease);
+      transition-delay: calc(.52s + var(--c, 0) * .1s);
+    }
+    .reveal.in .cards .pcard { opacity: 1; transform: perspective(800px) rotateX(1.5deg); }
+
+    /* magnetic CTA: JS writes --mx/--my, CSS owns the actual transform so the
+       hover lift and the magnet can't fight over the same property */
+    .btn, .cta-pill, .arrowlink {
+      transform: translate3d(var(--mx, 0px), calc(var(--my, 0px) + var(--lift, 0px)), 0);
+      transition: transform var(--t-mid) var(--ease), background .2s, border-color .2s, box-shadow .2s, opacity .2s;
+    }
+    .btn.magnetic, .cta-pill.magnetic { transition-duration: var(--t-fast); }
 
     /* dark finale panel — bridges the paper landing into the dark app pages */
     .copy.darkpanel {
@@ -364,7 +497,13 @@
       transform: perspective(800px) rotateX(1.5deg);
       transition: transform .25s ease, box-shadow .25s ease;
     }
-    .pcard:hover { transform: perspective(800px) rotateX(0) translateY(-5px); box-shadow: 0 24px 44px -22px rgba(28,26,23,.45); }
+    /* specificity has to beat the .reveal.in stagger rule above, which also
+       writes transform on .pcard */
+    .pcard:hover,
+    .reveal.in .cards .pcard:hover {
+      transform: perspective(800px) rotateX(0) translateY(-5px);
+      box-shadow: 0 24px 44px -22px rgba(28,26,23,.45);
+    }
     .pcard .k { font-family: var(--serif); font-size: 26px; font-weight: 560; margin-bottom: 10px; }
     .pcard p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
     .pcard .num { font-size: 10px; letter-spacing: .3em; color: var(--accent); font-weight: 700; margin-bottom: 14px; }
@@ -441,10 +580,17 @@
     }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .reveal { opacity: 1 !important; transform: none !important; transition: none; }
+      /* everything the choreography offsets has to be released here too —
+         a masked headline that never animates is an invisible headline */
+      .reveal, .reveal *, .reveal.in * {
+        opacity: 1 !important; transform: none !important;
+        transition: none !important; transition-delay: 0s !important;
+      }
+      .reveal .rule { transform: scaleX(1) !important; }
       .scrollhint svg { animation: none; }
       .livefree .dot, .ticker .dot { animation: none; }
       .pcard, .pcard:hover { transition: none; }
+      .grain { animation: none; }
     }
   </style>
 </head>
@@ -452,6 +598,7 @@
   <a class="skiplink" href="#main">Skip to content</a>
   <canvas id="stage" aria-hidden="true"></canvas>
   <div class="vignette" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
 
   <header>
     <a class="brand" href="/">
@@ -1425,6 +1572,68 @@
     }
   })();
 
+  /* ---------- headline line masking ----------
+     Wraps each visual line of every display heading in an overflow-hidden
+     window so the line can slide up through it on reveal. Runs BEFORE the
+     intersection observer below, otherwise the hero (already on screen) gets
+     .in before the masks exist and never animates.
+     Lines are authored with <br>, so the split is explicit — no text
+     measuring, nothing to re-run on resize. */
+  (function () {
+    var heads = document.querySelectorAll('.copy h1, .copy h2');
+    [].forEach.call(heads, function (h) {
+      var groups = [[]];
+      [].forEach.call(h.childNodes, function (n) {
+        if (n.nodeName === 'BR') groups.push([]);
+        else groups[groups.length - 1].push(n);
+      });
+      var frag = document.createDocumentFragment(), idx = 0;
+      groups.forEach(function (g) {
+        if (!g.length) return;
+        var ln = document.createElement('span'); ln.className = 'ln';
+        var inner = document.createElement('span'); inner.className = 'i';
+        inner.style.setProperty('--ln', idx++);
+        g.forEach(function (n) { inner.appendChild(n); });   // moves the node
+        ln.appendChild(inner);
+        frag.appendChild(ln);
+      });
+      h.innerHTML = '';        // clears the now-empty <br>s left behind
+      h.appendChild(frag);
+    });
+    // index the how-it-works cards so they arrive one after another
+    [].forEach.call(document.querySelectorAll('.cards .pcard'), function (c, i) {
+      c.style.setProperty('--c', i);
+    });
+  })();
+
+  /* ---------- magnetic CTAs ----------
+     Buttons drift toward the cursor (capped at 9px) so they feel picked up
+     rather than hovered. Writes --mx/--my; the CSS composes them with the
+     hover --lift, so the two never clobber each other's transform.
+     Fine pointers only — on touch there is no hover state to reward. */
+  (function () {
+    var mm = window.matchMedia;
+    if (!mm || mm('(prefers-reduced-motion: reduce)').matches) return;
+    if (!mm('(hover: hover) and (pointer: fine)').matches) return;
+
+    var MAX = 9, PULL = 0.3;
+    [].forEach.call(document.querySelectorAll('.btn, .cta-pill, .arrowlink'), function (el) {
+      el.addEventListener('pointermove', function (e) {
+        var r = el.getBoundingClientRect();
+        var dx = (e.clientX - (r.left + r.width / 2)) * PULL;
+        var dy = (e.clientY - (r.top + r.height / 2)) * PULL;
+        el.classList.add('magnetic');
+        el.style.setProperty('--mx', Math.max(-MAX, Math.min(MAX, dx)).toFixed(2) + 'px');
+        el.style.setProperty('--my', Math.max(-MAX, Math.min(MAX, dy)).toFixed(2) + 'px');
+      }, { passive: true });
+      el.addEventListener('pointerleave', function () {
+        el.classList.remove('magnetic');   // longer transition = it settles back
+        el.style.setProperty('--mx', '0px');
+        el.style.setProperty('--my', '0px');
+      });
+    });
+  })();
+
   /* ---------- text reveal on scroll ---------- */
   (function () {
     var els = document.querySelectorAll('.reveal');
@@ -1566,7 +1775,10 @@
 
           if (r.off) {
             var o = document.createElement('span');
-            o.className = 'off'; o.textContent = '−' + r.off + '%';
+            // deal heat — same thresholds the games app uses, so a "hot" chip
+            // here and a hot badge there mean the same thing
+            o.className = 'off' + (r.off >= 60 ? ' hot' : r.off >= 30 ? ' warm' : '');
+            o.textContent = '−' + r.off + '%';
             a.appendChild(o);
           }
           li.appendChild(a);

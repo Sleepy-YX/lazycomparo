@@ -36,6 +36,22 @@ redeploys all three in ~30–60 s. Local path: `C:\Users\yeowy\Claude\Lazycompar
 - Brand: warm charcoal ink (`#0c0a08`), paper `#f6f1e7`, persimmon/ember
   `#d9482b`, Fraunces serif + Inter; apps stay dark, landing is light paper.
 
+## Deal heat (cross-site colour language)
+
+One semantic scale for "how good is this price right now", so a badge means
+the same thing on the landing page and in the app:
+`hot` (ember + glow) · `warm` (amber) · `mild` (emerald) · `none` (zinc).
+Thresholds: **at its ITAD all-time low → always hot**, else discount `>=60`
+hot, `>=30` warm, `>0` mild. An all-time low outranks the raw percentage on
+purpose — 20% off a game that has never been cheaper beats a routine 50% sale.
+
+- Games app: `HEAT` map + `dealHeat()` in `games/index.html` (just after
+  `dollarsPerHour`). Drives the `PriceTag` discount badge, the "Low" marker,
+  the `GameCard` ring/glow, and `Pill tone="hot"`. **Class strings are spelled
+  out in full on purpose** — never build them by concatenation.
+- Landing: `--heat-*` vars + `.ticker .off.hot/.warm`, same thresholds in the
+  ticker IIFE. If you move a threshold, move it in both files.
+
 ## Live-data contracts (games site)
 
 - **`/api/steam?ids=…`** — real SGD prices (incl. sale %) + review scores from
@@ -76,6 +92,27 @@ redeploys all three in ~30–60 s. Local path: `C:\Users\yeowy\Claude\Lazycompar
   bootstrap `catch` also reveal (CDN failure → SEO content shows); `<noscript>`
   unaffected.
 
+## Compare view (games site)
+
+- **Verdict first.** `buildVerdict()` (above `CompareView`) picks a winner from
+  the *same* `specRows` the table renders, so the banner and the per-row award
+  icons can never disagree — the same single-source-of-truth rule as
+  `stopProgress()` on the landing. `ROW_WEIGHT` says which rows decide a
+  purchase (rating 2, $/hr 2, price 1.5, cheapest 1, hours 1, specs 0.5);
+  everything else is 0 and stays off the tally.
+  - **The `year` row deliberately has no `cmp`** — "newer" is not a win, and
+    while it was comparable the award icons outnumbered the scoreline.
+  - Ties award nobody, in both the tally and the table, or the two disagree.
+  - Reasons are concrete deltas vs the runner-up, never adjectives; the caveat
+    line names the spec where the runner-up genuinely wins (gap > 12).
+  - Margin < 12% of total weight → "It's close." headline instead of "Get X."
+- **"Only show differences"** filters rows via `raw` (comparable value behind a
+  JSX cell) + `tol` (how close counts as "the same": rating 2, hours 2,
+  $/hr 0.05, specs 5, price 0.50). Add both to any new row.
+- `$ / hour` renders as `<ValueBar>` — longer bar = more expensive per hour,
+  best of the picked games is the only one in colour.
+- `useState` for `diffOnly` sits above the "fewer than 2 games" early return.
+
 ## Landing page notes
 
 - Papercraft three.js world; 5 camera stops map to the 5 `<section>`s. WebGL /
@@ -108,6 +145,25 @@ redeploys all three in ~30–60 s. Local path: `C:\Users\yeowy\Claude\Lazycompar
     Small parts set `castShadow = false` deliberately — that is what keeps the
     shadow pass cheap. Re-measure with a temporary
     `window.__lcDebug = {renderer, scene, camera}` hook if props are added.
+- **Reveal choreography.** `.reveal` no longer fades the copy block as one
+  lump: the container fades its scrim in, then children arrive in reading order
+  on a fixed delay ladder (rule draws → eyebrow → headline lines mask up → sub
+  → CTAs → proof → ticker). Headline lines are wrapped at load into
+  `.ln > .i` windows by a JS pass that **must run before the IntersectionObserver**
+  — the hero is already on screen, so if `.in` lands first it never animates.
+  Lines split on the authored `<br>`, so nothing re-measures on resize.
+  `.ln` carries `padding-bottom:.14em; margin-bottom:-.14em` or `overflow:hidden`
+  shears the descenders off "Lazy for you."
+  The reduced-motion block must release *every* offset child (`.reveal *`), or a
+  masked headline is simply an invisible headline.
+- **Grain overlay** (`.grain`) is one `feTurbulence` tile at 5% over everything;
+  it is what makes the WebGL canvas and the DOM read as one printed surface.
+  It jitters via `background-position`, **not** transform — growing the layer
+  past the viewport (`inset:-50%`) added real horizontal overflow, because
+  `body{overflow-x:hidden}` does not clip a fixed-position child.
+- **Magnetic CTAs** write `--mx/--my`; CSS composes them with the hover
+  `--lift`. Hover states must set `--lift`, never `transform`, or the two
+  clobber each other. Fine pointers + no-reduced-motion only.
 - **`stopProgress()` is the single source of truth for "where are we"** — used
   by both the camera loop and the progress rail, so they can't disagree. It
   measures section *centres* (cached; invalidated on resize / `load` /
@@ -239,6 +295,13 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-07-26** Design pass across both sites. Landing: film-grain overlay,
+  editorial type (optical sizing, balanced headlines, tabular figures),
+  staggered reveal choreography with masked headline lines, magnetic CTAs.
+  Games: Compare rebuilt verdict-first — verdict banner with concrete reasons
+  and an honest caveat, per-column scoreline, "only show differences" filter,
+  `$ / hour` as bars. Deal-heat colour system (hot/warm/mild/none) shared by
+  the landing ticker, game cards, price tags and the compare table.
 - **2026-07-25** Landing: 3D scene rebuilt for realism — chamfered geometry
   (`rbox`), procedural env map so metalness reads, canvas-drawn product UI on
   every screen, fan units with blades/RGB rings, rack sleds with vents and
