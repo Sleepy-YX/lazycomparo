@@ -1,6 +1,6 @@
 # LazyComparo — Project State
 
-_Last updated: 2026-07-25. Update this file whenever state changes materially._
+_Last updated: 2026-07-28. Update this file whenever state changes materially._
 
 > **How to resume in a new Claude session:** paste this whole file into your first
 > message, or say "read `PROJECT_STATE.md`". Everything Claude needs is here.
@@ -295,6 +295,15 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-07-28** Games: `robots.txt` now disallows `/api/`. Googlebot had
+  scraped the endpoint paths out of the inline JS and crawled them bare —
+  `/api/deals` and `/api/steam` answer 400 without `?ids=` ("Blocked due to
+  other 4xx issue"), `/api/epic-free` answers 200 JSON ("Crawled - currently
+  not indexed"). Search Console noise only, no user impact; the indexable
+  content is pre-rendered by `_middleware.js` so blocking the Functions costs
+  no ranking. The other two GSC reports were checked and are healthy:
+  `http://lazycomparo.com/` is a clean single-hop 301 to HTTPS, and
+  `https://www.lazycomparo.com/` is consolidated to the apex by its canonical.
 - **2026-07-26** Design pass across both sites. Landing: film-grain overlay,
   editorial type (optical sizing, balanced headlines, tabular figures),
   staggered reveal choreography with masked headline lines, magnetic CTAs.

@@ -1,4 +1,11 @@
 User-agent: *
 Allow: /
 
+# Pages Functions are data endpoints, not pages. Googlebot found /api/deals in
+# the fetch URL in index.html and crawled it bare (no ?ids=), which correctly
+# returns 400 — Search Console then files it as "Blocked due to other 4xx
+# issue". Nothing under /api/ is indexable, and the indexable content is
+# pre-rendered server-side by functions/_middleware.js, so this costs no ranking.
+Disallow: /api/
+
 Sitemap: https://pcgames.lazycomparo.com/sitemap.xml
