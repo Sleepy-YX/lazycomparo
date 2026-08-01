@@ -1,6 +1,6 @@
 # LazyComparo — Project State
 
-_Last updated: 2026-07-28. Update this file whenever state changes materially._
+_Last updated: 2026-08-01. Update this file whenever state changes materially._
 
 > **How to resume in a new Claude session:** paste this whole file into your first
 > message, or say "read `PROJECT_STATE.md`". Everything Claude needs is here.
@@ -29,6 +29,8 @@ redeploys all three in ~30–60 s. Local path: `C:\Users\yeowy\Claude\Lazycompar
   Play CDN + Babel Standalone (manual transform, `runtime: 'classic'`). Landing:
   vanilla JS + **three.js r158 UMD pinned via unpkg — do NOT bump; r160+ removed
   UMD builds.**
+  - Exception: the phone catalog is **data, not markup** — `mobile/phones.json`,
+    fetched at boot (see "Phone catalog" below). Games are still inline.
 - Cloudflare Pages Functions live under `games/functions/` (that project's root).
 - Local preview: PowerShell `.claude/serve.ps1` (no Node/Python on this PC).
   Ports in CWD-level `.claude/launch.json`: mobile 5173, games 5174 (alt 5184),
@@ -78,6 +80,44 @@ purpose — 20% off a game that has never been cheaper beats a routine 50% sale.
   (`/game/* /index.html 200`) serves the shell; `games/sitemap.xml` lists all
   game URLs. **Maintenance: the `GAMES` list in `_middleware.js` is a trimmed
   copy of the one in `games/index.html` — keep them in sync.**
+
+## Phone catalog (mobile site)
+
+- **`mobile/phones.json` is the source of truth** — a plain JSON array, one
+  object per phone, same shape the old inline `PHONES` array had. The app holds
+  `const PHONES = window.__LC_PHONES;` and the bootstrap fetches the file before
+  transforming/eval-ing the app source.
+- Chosen shape is a bare array (not `{updated, phones}`) because it is exactly
+  what a Supabase `select()` returns — Phase 2 swaps the loader, not the app.
+- **The mobile page must be served over http.** `fetch()` on a `file://` page
+  trips CORS, so double-clicking `index.html` now shows a "Couldn't load the
+  phone catalog" panel naming `serve.ps1` instead of booting. Preview via
+  `.claude/serve.ps1` (port 5173) as usual.
+- Costs one round trip before first paint. Not preloaded on purpose: `<link
+  rel="preload" as="fetch">` needs its crossorigin attribute to match the
+  request exactly or the browser fetches twice, and the React/Babel/Tailwind
+  CDN scripts dominate boot anyway.
+- A malformed `phones.json` is a blank site rather than a degraded one, so
+  `.claude/check-sync.ps1` validates it (see "Pre-push check").
+
+## Pre-push check
+
+`.claude/check-sync.ps1` — run before `git push`; exit 0 clean, 1 on drift:
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude\check-sync.ps1
+```
+
+Catches the silent failures in hand-maintained catalog copies: ids present in
+`games/index.html` but not `functions/_middleware.js` (crawlers get the homepage
+fallback), mirrored field values that drifted apart (Google indexes the stale
+one), missing/orphan `sitemap.xml` entries, genres absent from `GENRE_BUCKETS`
+(game falls into "Other"), `EXTRA_STORES` keys matching no game, and a
+`phones.json` that is invalid, incomplete, or has duplicate ids.
+
+It reads the JS literals with `.claude/JsLiteral.ps1`, a small JS-literal
+parser (no Node on this PC). **Both scripts must stay ASCII-only** — PS 5.1
+reads BOM-less `.ps1` as ANSI, so a literal `—` is a parse error.
 
 ## Client-side state (games site)
 
@@ -247,9 +287,9 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Roadmap & costs
 
-- **Phase 1 (current) — static validation.** Live. Pending: extract
-  `phones.json`, grow phone catalog (40 now; wants mid-range/older-gen), buy
-  custom domain.
+- **Phase 1 (current) — static validation.** Live. `phones.json` extracted
+  (2026-08-01). Pending: grow phone catalog (40 now; wants mid-range/older-gen
+  — now a `phones.json` edit).
 - **Phase 2 — real stack:** Next.js (Vercel or CF Pages) + Supabase (Postgres,
   auth, storage); phones move to a table. Timing depends on validation.
 - **Phase 3 — marketplace:** Supabase Auth, listings/photos/messages/
@@ -265,7 +305,6 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 - **Custom domain** — not purchased. Recommendation: `.sg` (SGD 30/yr) for local
   SEO + `.com` (USD 9/yr, CF Registrar) defensive. `www.lazycomparo.com` also
   still unclaimed (add to landing project).
-- **`phones.json` extraction** — pending; prerequisite for Supabase migration.
 - **GitHub About panel** — stale description, concatenated topics. Not blocking.
 
 ## User preferences (for future Claude sessions)
@@ -280,7 +319,8 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Quick reference
 
-- **Add a phone:** edit `PHONES` array in `mobile/index.html` (~line 178), push.
+- **Add a phone:** append an object to `mobile/phones.json` (copy the shape of
+  an existing entry — every phone must carry the same keys), push.
 - **Add a game:** edit the catalog in `games/index.html` AND the `GAMES` list in
   `games/functions/_middleware.js` (+ sitemap), push. Also: map the new `genre`
   string in `GENRE_BUCKETS` (unmapped genres fall into an "Other" bucket), and
@@ -290,11 +330,22 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 - **Card artwork** comes free from Steam's CDN via `steamArtUrl()`, keyed off
   `appId` — nothing to upload. Missing/404 art falls back to the accent tile.
 - **Change UI:** edit the relevant `index.html`, preview via `serve.ps1`, push.
+- **Before pushing:** run `.claude\check-sync.ps1` (see "Pre-push check").
 - **Rebrand:** grep for `LazyComparo` across `mobile/`, `games/`, `landing/`,
   `README.md`; regenerate `og-image.png`.
 
 ## Changelog
 
+- **2026-08-01** Mobile: phone catalog extracted from `mobile/index.html` into
+  `mobile/phones.json` (40 phones), fetched at boot — the Phase 2 prerequisite,
+  and adding a phone is now a data edit. Verified lossless: the browser's own
+  JSON of the catalog is byte-identical before and after (32,697 chars, same
+  hash). New `.claude/check-sync.ps1` pre-push check (+ `JsLiteral.ps1`, a JS
+  literal parser, since there's no Node here) covering the three hand-kept
+  games lists and `phones.json`; it found 9 real drifts on its first run —
+  `players`/`pro` values in `_middleware.js` left stale by the 2026-07-26
+  design pass, i.e. Google was being served copy the site no longer showed.
+  Those are now synced from the app catalog.
 - **2026-07-28** Games: `robots.txt` now disallows `/api/`. Googlebot had
   scraped the endpoint paths out of the inline JS and crawled them bare —
   `/api/deals` and `/api/steam` answer 400 without `?ids=` ("Blocked due to
