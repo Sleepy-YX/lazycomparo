@@ -23,6 +23,12 @@ Mister-Mobile-meets-Carousell used-phone marketplace for Singapore.
 Repo: https://github.com/Sleepy-YX/lazycomparo — every `git push origin main`
 redeploys all three in ~30–60 s. Local path: `C:\Users\yeowy\Claude\Lazycomparo`.
 
+**Domain: `lazycomparo.com`, purchased and live** — apex and `www` both serve
+200, `http://` is a single-hop 301 to HTTPS, and `www` is consolidated to the
+apex by its canonical. **`.com` only — the `.sg` was considered and dropped**,
+so `lazycomparo.sg` is not registered and not planned. Don't re-open it as a
+"pending" decision.
+
 ## Tech stack
 
 - **Single-file apps, no build step.** Games + mobile: React 18 UMD + Tailwind
@@ -297,14 +303,11 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
   **IMEI validation** (SG anti-theft, Carousell has it); trade-in flow (admin is
   buyer); **ToS + Privacy Policy via lawyer, PDPA compliance, register with
   PDPC**; MAS Major Payment Institution license possibly needed if escrowing funds.
-- Costs: $0 now (Pages free tier) → ~SGD 3/mo with domain → Phase 2 free at low
+- Costs: ~SGD 3/mo today (Pages free tier + the `.com`) → Phase 2 free at low
   scale, ~USD 45/mo at ~1k users (Vercel Pro + Supabase Pro).
 
 ## Open decisions
 
-- **Custom domain** — not purchased. Recommendation: `.sg` (SGD 30/yr) for local
-  SEO + `.com` (USD 9/yr, CF Registrar) defensive. `www.lazycomparo.com` also
-  still unclaimed (add to landing project).
 - **GitHub About panel** — stale description, concatenated topics. Not blocking.
 
 ## User preferences (for future Claude sessions)
