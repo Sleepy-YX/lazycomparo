@@ -1451,5 +1451,405 @@
       "Glyph is more novelty than utility",
       "Limited carrier availability in US"
     ]
+  },
+  {
+    "id": "pixel-8a",
+    "brand": "Google",
+    "model": "Google Pixel 8a",
+    "tier": "mid-range",
+    "year": 2024,
+    "price": 449,
+    "launchPrice": 799,
+    "ecosystem": "Pixel",
+    "ecosystemFamily": "Android",
+    "accent": "#fbbf77",
+    "specs": {
+      "camera": 86,
+      "battery": 80,
+      "performance": 76,
+      "display": 80,
+      "build": 78
+    },
+    "displayInfo": {
+      "cameraMP": "64MP main + 13MP ultra",
+      "batteryMah": "4,492 mAh",
+      "chipset": "Tensor G3",
+      "display": "6.1\" OLED",
+      "refreshRate": "60-120Hz",
+      "ram": "8GB",
+      "storage": "128/256GB"
+    },
+    "ecosystemFeatures": ["Google Photos AI edits", "Call Screen", "Magic Eraser", "Pixel Feature Drops", "7 years of updates"],
+    "sentimentScore": 85,
+    "pros": [
+      "Flagship-grade photos at mid-range money",
+      "7 years of OS and security updates",
+      "Clean Android with no duplicate apps"
+    ],
+    "cons": [
+      "Tensor G3 runs warm and trails Snapdragon",
+      "Dimmer panel than rivals at this price",
+      "18W charging is slow by 2024 standards"
+    ]
+  },
+  {
+    "id": "pixel-9-pro-xl",
+    "brand": "Google",
+    "model": "Google Pixel 9 Pro XL",
+    "tier": "flagship-plus",
+    "year": 2024,
+    "price": 1049,
+    "launchPrice": 1749,
+    "ecosystem": "Pixel",
+    "ecosystemFamily": "Android",
+    "accent": "#fbbf77",
+    "specs": {
+      "camera": 95,
+      "battery": 86,
+      "performance": 84,
+      "display": 93,
+      "build": 90
+    },
+    "displayInfo": {
+      "cameraMP": "50MP main + 48MP 5x + 48MP ultra",
+      "batteryMah": "5,060 mAh",
+      "chipset": "Tensor G4",
+      "display": "6.8\" LTPO OLED",
+      "refreshRate": "1-120Hz",
+      "ram": "16GB",
+      "storage": "128GB-1TB"
+    },
+    "ecosystemFeatures": ["Google Photos AI edits", "Call Screen", "Recorder transcripts", "Gemini Nano on-device", "Pixel Watch integration", "7 years of updates"],
+    "sentimentScore": 88,
+    "pros": [
+      "Best point-and-shoot camera on any phone",
+      "16GB RAM runs Gemini models on-device",
+      "Seven years of updates from launch day"
+    ],
+    "cons": [
+      "Tensor G4 still lags Snapdragon in games",
+      "Large and heavy for one-handed use",
+      "Warms up under sustained load"
+    ]
+  },
+  {
+    "id": "pixel-10",
+    "brand": "Google",
+    "model": "Google Pixel 10",
+    "tier": "flagship",
+    "year": 2025,
+    "price": 999,
+    "launchPrice": 1199,
+    "ecosystem": "Pixel",
+    "ecosystemFamily": "Android",
+    "accent": "#fbbf77",
+    "specs": {
+      "camera": 90,
+      "battery": 85,
+      "performance": 86,
+      "display": 88,
+      "build": 88
+    },
+    "displayInfo": {
+      "cameraMP": "50MP main + 13MP ultra + 11MP 5x",
+      "batteryMah": "4,970 mAh",
+      "chipset": "Tensor G5",
+      "display": "6.3\" OLED",
+      "refreshRate": "60-120Hz",
+      "ram": "12GB",
+      "storage": "128/256GB"
+    },
+    "ecosystemFeatures": ["Google Photos AI edits", "Call Screen", "Gemini Nano on-device", "Pixel Feature Drops", "Qi2 magnets", "7 years of updates"],
+    "sentimentScore": 86,
+    "pros": [
+      "First base Pixel with a real telephoto lens",
+      "Tensor G5 closes much of the efficiency gap",
+      "Qi2 magnets built into the body"
+    ],
+    "cons": [
+      "Still behind Snapdragon flagships in raw speed",
+      "Base storage is still 128GB",
+      "Main sensor shrank to make room for the zoom"
+    ]
+  },
+  {
+    "id": "redmi-note-14-pro-plus",
+    "brand": "Xiaomi",
+    "model": "Xiaomi Redmi Note 14 Pro+ 5G",
+    "tier": "mid-range",
+    "year": 2025,
+    "price": 429,
+    "launchPrice": 549,
+    "ecosystem": "Xiaomi",
+    "ecosystemFamily": "Android",
+    "accent": "#ff9a76",
+    "specs": {
+      "camera": 78,
+      "battery": 88,
+      "performance": 72,
+      "display": 84,
+      "build": 76
+    },
+    "displayInfo": {
+      "cameraMP": "200MP main + 8MP ultra + 2MP macro",
+      "batteryMah": "5,110 mAh",
+      "chipset": "Snapdragon 7s Gen 3",
+      "display": "6.67\" AMOLED",
+      "refreshRate": "120Hz",
+      "ram": "8/12GB",
+      "storage": "256/512GB"
+    },
+    "ecosystemFeatures": ["Mi Cloud", "Xiaomi HyperOS Connect", "Mi Home", "Redmi Buds pairing"],
+    "sentimentScore": 80,
+    "pros": [
+      "120W charging at half the price of a flagship",
+      "Bright 1.5K AMOLED with 120Hz",
+      "IP68 rating is rare at this price"
+    ],
+    "cons": [
+      "HyperOS ships with bloatware and ads",
+      "Only two major Android upgrades",
+      "Ultra-wide and macro cameras are filler"
+    ]
+  },
+  {
+    "id": "xiaomi-15",
+    "brand": "Xiaomi",
+    "model": "Xiaomi 15",
+    "tier": "flagship",
+    "year": 2025,
+    "price": 899,
+    "launchPrice": 1199,
+    "ecosystem": "Xiaomi",
+    "ecosystemFamily": "Android",
+    "accent": "#ff9a76",
+    "specs": {
+      "camera": 90,
+      "battery": 86,
+      "performance": 95,
+      "display": 90,
+      "build": 88
+    },
+    "displayInfo": {
+      "cameraMP": "50MP main + 50MP 5x + 50MP ultra",
+      "batteryMah": "5,240 mAh",
+      "chipset": "Snapdragon 8 Elite",
+      "display": "6.36\" LTPO AMOLED",
+      "refreshRate": "1-120Hz",
+      "ram": "12/16GB",
+      "storage": "256/512GB"
+    },
+    "ecosystemFeatures": ["Mi Cloud", "Xiaomi HyperOS Connect", "Mi Home", "Xiaomi Pad handoff", "Leica camera modes"],
+    "sentimentScore": 84,
+    "pros": [
+      "Compact body with genuine flagship internals",
+      "Leica triple camera holds up in low light",
+      "90W wired and 50W wireless charging"
+    ],
+    "cons": [
+      "HyperOS needs debloating out of the box",
+      "Four years of OS updates, not seven",
+      "Grey-import units miss local warranty"
+    ]
+  },
+  {
+    "id": "oneplus-nord-4",
+    "brand": "OnePlus",
+    "model": "OnePlus Nord 4",
+    "tier": "mid-range",
+    "year": 2024,
+    "price": 479,
+    "launchPrice": 699,
+    "ecosystem": "OnePlus",
+    "ecosystemFamily": "Android",
+    "accent": "#f97a7a",
+    "specs": {
+      "camera": 74,
+      "battery": 86,
+      "performance": 80,
+      "display": 84,
+      "build": 82
+    },
+    "displayInfo": {
+      "cameraMP": "50MP main + 8MP ultra",
+      "batteryMah": "5,500 mAh",
+      "chipset": "Snapdragon 7+ Gen 3",
+      "display": "6.74\" AMOLED",
+      "refreshRate": "120Hz",
+      "ram": "8/12GB",
+      "storage": "128/256GB"
+    },
+    "ecosystemFeatures": ["OxygenOS", "OnePlus Buds", "Cross-device file share", "AI Notes"],
+    "sentimentScore": 81,
+    "pros": [
+      "All-metal unibody feels well above its price",
+      "Snapdragon 7+ Gen 3 handles anything mid-range",
+      "100W charging fills it in about half an hour"
+    ],
+    "cons": [
+      "No telephoto and a weak ultra-wide",
+      "No wireless charging at all",
+      "OxygenOS drifts closer to ColorOS each year"
+    ]
+  },
+  {
+    "id": "vivo-x200-pro",
+    "brand": "vivo",
+    "model": "vivo X200 Pro",
+    "tier": "flagship-plus",
+    "year": 2024,
+    "price": 1199,
+    "launchPrice": 1699,
+    "ecosystem": "vivo",
+    "ecosystemFamily": "Android",
+    "accent": "#a5b4ff",
+    "specs": {
+      "camera": 96,
+      "battery": 92,
+      "performance": 92,
+      "display": 92,
+      "build": 88
+    },
+    "displayInfo": {
+      "cameraMP": "50MP main + 200MP 3.7x + 50MP ultra",
+      "batteryMah": "6,000 mAh",
+      "chipset": "Dimensity 9400",
+      "display": "6.78\" LTPO AMOLED",
+      "refreshRate": "1-120Hz",
+      "ram": "12/16GB",
+      "storage": "256GB-1TB"
+    },
+    "ecosystemFeatures": ["Funtouch OS", "vivo Cloud", "Jovi assistant", "Atomic Workbench", "Zeiss camera modes"],
+    "sentimentScore": 85,
+    "pros": [
+      "200MP periscope is the best phone zoom you can buy",
+      "6,000mAh battery lasts two days on light use",
+      "Zeiss processing handles night scenes cleanly"
+    ],
+    "cons": [
+      "Funtouch OS is cluttered out of the box",
+      "Large and heavy in the hand",
+      "Holds resale value worse than Samsung or Apple"
+    ]
+  },
+  {
+    "id": "honor-magic-7-pro",
+    "brand": "Honor",
+    "model": "Honor Magic 7 Pro",
+    "tier": "flagship-plus",
+    "year": 2025,
+    "price": 1099,
+    "launchPrice": 1499,
+    "ecosystem": "Honor",
+    "ecosystemFamily": "Android",
+    "accent": "#e6a8d4",
+    "specs": {
+      "camera": 92,
+      "battery": 90,
+      "performance": 92,
+      "display": 94,
+      "build": 88
+    },
+    "displayInfo": {
+      "cameraMP": "50MP main + 200MP 3x + 50MP ultra",
+      "batteryMah": "5,850 mAh",
+      "chipset": "Snapdragon 8 Elite",
+      "display": "6.8\" LTPO OLED",
+      "refreshRate": "1-120Hz",
+      "ram": "12GB",
+      "storage": "512GB"
+    },
+    "ecosystemFeatures": ["MagicOS", "Honor Share", "MagicRing cross-device", "Honor Cloud", "AI Motion Sensing"],
+    "sentimentScore": 82,
+    "pros": [
+      "Brightest display in this catalog at 5,000 nits peak",
+      "AI Motion Sensing keeps moving subjects sharp",
+      "Silicon-carbon cell packs more battery into less space"
+    ],
+    "cons": [
+      "MagicOS is a heavy Android skin",
+      "Smaller service network in Singapore",
+      "Five years of updates against Samsung's seven"
+    ]
+  },
+  {
+    "id": "galaxy-z-flip-6",
+    "brand": "Samsung",
+    "model": "Samsung Galaxy Z Flip 6",
+    "tier": "flagship",
+    "year": 2024,
+    "price": 799,
+    "launchPrice": 1548,
+    "ecosystem": "Samsung",
+    "ecosystemFamily": "Android",
+    "accent": "#5eead4",
+    "specs": {
+      "camera": 80,
+      "battery": 74,
+      "performance": 88,
+      "display": 84,
+      "build": 74
+    },
+    "displayInfo": {
+      "cameraMP": "50MP main + 12MP ultra",
+      "batteryMah": "4,000 mAh",
+      "chipset": "Snapdragon 8 Gen 3 for Galaxy",
+      "display": "6.7\" foldable AMOLED + 3.4\" cover",
+      "refreshRate": "1-120Hz",
+      "ram": "12GB",
+      "storage": "256/512GB"
+    },
+    "ecosystemFeatures": ["Samsung DeX", "Samsung Cloud", "Galaxy AI", "SmartThings", "Knox", "Galaxy Buds pairing"],
+    "sentimentScore": 79,
+    "pros": [
+      "Folds to half the pocket size of any slab flagship",
+      "Cover screen handles quick replies unopened",
+      "Same Galaxy AI and DeX as the S series"
+    ],
+    "cons": [
+      "4,000mAh is small for a 2024 flagship",
+      "Crease is visible and the hinge is a wear point",
+      "Depreciates faster than a slab flagship"
+    ]
+  },
+  {
+    "id": "galaxy-a36-5g",
+    "brand": "Samsung",
+    "model": "Samsung Galaxy A36 5G",
+    "tier": "mid-range",
+    "year": 2025,
+    "price": 369,
+    "launchPrice": 449,
+    "ecosystem": "Samsung",
+    "ecosystemFamily": "Android",
+    "accent": "#5eead4",
+    "specs": {
+      "camera": 72,
+      "battery": 86,
+      "performance": 66,
+      "display": 80,
+      "build": 76
+    },
+    "displayInfo": {
+      "cameraMP": "50MP main + 8MP ultra + 5MP macro",
+      "batteryMah": "5,000 mAh",
+      "chipset": "Snapdragon 6 Gen 3",
+      "display": "6.7\" Super AMOLED",
+      "refreshRate": "120Hz",
+      "ram": "6/8GB",
+      "storage": "128/256GB"
+    },
+    "ecosystemFeatures": ["Samsung Cloud", "Galaxy AI (limited)", "SmartThings", "Knox", "Quick Share"],
+    "sentimentScore": 76,
+    "pros": [
+      "Six years of updates on a sub-S$400 phone",
+      "Big 120Hz AMOLED for the money",
+      "Same One UI and Samsung ecosystem as the flagships"
+    ],
+    "cons": [
+      "Snapdragon 6 Gen 3 stutters in heavy games",
+      "Night photos fall apart quickly",
+      "45W charging but no charger in the box"
+    ]
   }
 ]

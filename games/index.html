@@ -641,14 +641,300 @@
         tags: ['Co-op', 'Puzzle', 'Comedy', 'Story-rich'],
         pros: ['Still one of the funniest games ever written', 'The 2-player co-op campaign is entirely separate content', 'Runs on anything and costs almost nothing'],
         cons: ['Short, and puzzles rarely surprise on a replay', 'Co-op needs a committed partner to finish', 'No new Valve follow-up is coming'] },
+
+      // ---- Third batch (catalog 60 -> 100) ----
+      // AppIDs, SGD list prices, review scores, platforms and store availability
+      // were all read off Steam's own store API and our /api/deals proxy on
+      // 2026-08-01 rather than guessed. `price` is the SGD list price; the live
+      // /api/steam feed overrides it at runtime.
+
+      { id: 'clair-obscur-expedition-33', appId: 1903340, title: 'Clair Obscur: Expedition 33', studio: 'Sandfall Interactive', genre: 'Turn-based RPG', year: 2025, price: 59.9, accent: '#a78bfa', maxPlayers: 1,
+        specs: { combat: 82, story: 95, coop: 2, replay: 58 },
+        displayInfo: { hoursToBeat: 30, rating: 95, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Turn-based RPG', 'Story-rich', 'Fantasy'],
+        pros: ['Turn-based combat with real-time dodges and parries', 'Belle Epoque art direction unlike anything else on PC', 'Story and soundtrack land every emotional swing'],
+        cons: ['No co-op or multiplayer at all', 'Parry timing walls some players in the first act', 'Side content thins out badly in the last third'] },
+
+      { id: 'kingdom-come-deliverance-2', appId: 1771300, title: 'Kingdom Come: Deliverance II', studio: 'Warhorse Studios', genre: 'Open-World RPG', year: 2025, price: 78.01, accent: '#b45309', maxPlayers: 1,
+        specs: { combat: 78, story: 90, coop: 2, replay: 70 },
+        displayInfo: { hoursToBeat: 55, rating: 94, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Open World', 'Medieval', 'Simulation'],
+        pros: ['The most convincing medieval world ever built in a game', 'Every quest has several genuinely different solutions', 'Fixes almost every complaint about the first game'],
+        cons: ['Systems-heavy opening hours are slow going', 'Combat stays deliberately awkward against groups', 'Full price and rarely discounted'] },
+
+      { id: 'split-fiction', appId: 2001120, title: 'Split Fiction', studio: 'Hazelight Studios', genre: 'Co-op Adventure', year: 2025, price: 64.9, accent: '#f472b6', maxPlayers: 2,
+        specs: { combat: 55, story: 78, coop: 98, replay: 40 },
+        displayInfo: { hoursToBeat: 14, rating: 97, players: "Exactly 2 (split-screen or online), Friend's Pass for one buyer", earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Adventure', 'Split-screen', 'Story-rich'],
+        pros: ['Only one of you has to buy it — the other plays free', 'Swaps genre every 20 minutes and never repeats an idea', 'Sci-fi and fantasy worlds are both fully realised'],
+        cons: ['Completely unplayable solo', 'Needs a partner who will finish all 14 hours', 'Checkpoints can force replaying long set-pieces'] },
+
+      { id: 'elden-ring-nightreign', appId: 2622380, title: 'Elden Ring Nightreign', studio: 'FromSoftware', genre: 'Co-op Roguelike', year: 2025, price: 49.9, accent: '#facc15', maxPlayers: 3,
+        specs: { combat: 90, story: 40, coop: 82, replay: 88 },
+        displayInfo: { hoursToBeat: 25, rating: 82, players: 'Solo or 3-player co-op expeditions', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Roguelike', 'Soulslike', 'Session-based'],
+        pros: ['Elden Ring combat compressed into 40-minute runs', 'Eight Nightfarers play very differently from each other', 'Cheaper than a full FromSoftware release'],
+        cons: ['No two-player mode — it is solo or a full trio', 'Reuses a lot of Elden Ring assets and bosses', 'Solo runs are markedly harder than balanced'] },
+
+      { id: 'schedule-1', appId: 3164500, title: 'Schedule I', studio: 'TVGS', genre: 'Business Sim', year: 2025, price: 18.5, accent: '#4ade80', maxPlayers: 4,
+        specs: { combat: 25, story: 30, coop: 85, replay: 88 },
+        displayInfo: { hoursToBeat: 30, rating: 98, players: '1-4 online co-op', earlyAccess: true, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Simulation', 'Early Access', 'Management'],
+        pros: ['Empire-building loop is genuinely hard to put down', 'Co-op turns logistics into a comedy of errors', 'Cheap, and one developer keeps shipping updates'],
+        cons: ['Early Access — systems still change between patches', 'Late game becomes spreadsheet management', 'Thin story and very rough visuals'] },
+
+      { id: 'repo', appId: 3241660, title: 'R.E.P.O.', studio: 'semiwork', genre: 'Co-op Horror', year: 2025, price: 9.5, accent: '#38bdf8', maxPlayers: 6,
+        specs: { combat: 30, story: 10, coop: 96, replay: 80 },
+        displayInfo: { hoursToBeat: 20, rating: 96, players: '1-6 online co-op', earlyAccess: true, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Horror', 'Comedy', 'Physics'],
+        pros: ['Physics-based hauling makes every job a disaster', 'Proximity voice chat does most of the comedy for you', 'Under S$10 for a whole group-night game'],
+        cons: ['Early Access with a small content pool', 'Almost pointless alone', 'Physics jank can wipe a run unfairly'] },
+
+      { id: 'civilization-7', appId: 1295660, title: "Sid Meier's Civilization VII", studio: 'Firaxis Games', genre: '4X Strategy', year: 2025, price: 99, accent: '#0ea5e9', maxPlayers: 8,
+        specs: { combat: 55, story: 30, coop: 45, replay: 88 },
+        displayInfo: { hoursToBeat: 25, rating: 48, players: 'Up to 8 online, cross-platform', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Strategy', '4X', 'Turn-based', 'Multiplayer'],
+        pros: ['Three-age structure stops runaway snowballing', 'Best-looking and best-explained Civ for newcomers', 'Cross-platform multiplayer with console players'],
+        cons: ['Mixed reviews — long-time fans dislike the age resets', 'Launched short on UI and diplomacy features', 'The most expensive game in this catalog'] },
+
+      { id: 'indiana-jones-great-circle', appId: 2677660, title: 'Indiana Jones and the Great Circle', studio: 'MachineGames', genre: 'Action Adventure', year: 2024, price: 99.9, accent: '#d97706', maxPlayers: 1,
+        specs: { combat: 62, story: 88, coop: 2, replay: 45 },
+        displayInfo: { hoursToBeat: 18, rating: 90, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Adventure', 'Stealth', 'Story-rich'],
+        pros: ['First-person adventuring nails the films tonally', 'Puzzles and hub areas reward genuine exploration', 'Troy Baker is uncanny as Indy'],
+        cons: ['Full price with no co-op or replay hook', 'Combat is deliberately clumsy and stays that way', 'Ray-tracing requirement locks out older GPUs'] },
+
+      { id: 'stalker-2', appId: 1643320, title: 'S.T.A.L.K.E.R. 2: Heart of Chornobyl', studio: 'GSC Game World', genre: 'FPS', year: 2024, price: 79, accent: '#84cc16', maxPlayers: 1,
+        specs: { combat: 80, story: 72, coop: 2, replay: 68 },
+        displayInfo: { hoursToBeat: 40, rating: 80, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'FPS', 'Survival', 'Open World'],
+        pros: ['The Zone is oppressive, hostile and utterly convincing', 'Gunplay and survival pressure both hit hard', 'Enormous open world with no loading seams'],
+        cons: ['Still patching bugs long after launch', 'Punishing economy and weapon durability', 'Heavy on VRAM even after optimisation passes'] },
+
+      { id: 'metaphor-refantazio', appId: 2679460, title: 'Metaphor: ReFantazio', studio: 'ATLUS', genre: 'Turn-based RPG', year: 2024, price: 69.9, accent: '#e11d48', maxPlayers: 1,
+        specs: { combat: 80, story: 92, coop: 2, replay: 55 },
+        displayInfo: { hoursToBeat: 75, rating: 90, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Turn-based RPG', 'JRPG', 'Story-rich'],
+        pros: ["Persona's calendar systems moved into high fantasy", 'Archetype class system is deep and flexible', '75 hours of content for one purchase'],
+        cons: ['Enormous time commitment before it opens up', 'Dungeon design is weaker than the social half', 'No co-op, no post-game multiplayer'] },
+
+      { id: 'nine-sols', appId: 1809540, title: 'Nine Sols', studio: 'Red Candle Games', genre: 'Metroidvania', year: 2024, price: 29.99, accent: '#ef4444', maxPlayers: 1,
+        specs: { combat: 90, story: 82, coop: 2, replay: 55 },
+        displayInfo: { hoursToBeat: 22, rating: 94, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Singleplayer', 'Metroidvania', 'Deflection Combat', 'Hand-drawn'],
+        pros: ['Sekiro-style parrying in a 2D metroidvania', 'Taopunk art direction is stunning throughout', 'Boss fights are the best in the genre'],
+        cons: ['Deflect-or-die combat is unforgiving', 'Limited accessibility options for the hardest fights', 'Backtracking between areas gets tedious'] },
+
+      { id: 'ghost-of-tsushima', appId: 2215430, title: "Ghost of Tsushima Director's Cut", studio: 'Sucker Punch Productions', genre: 'Open-World Action', year: 2024, price: 79.9, accent: '#dc2626', maxPlayers: 4,
+        specs: { combat: 88, story: 84, coop: 55, replay: 65 },
+        displayInfo: { hoursToBeat: 30, rating: 94, players: 'Single-player + Legends online co-op', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Open World', 'Samurai', 'Co-op', 'Action'],
+        pros: ['One of the best-looking open worlds on PC', 'Legends co-op mode is a full second game', 'Excellent PC port with uncapped frame rates'],
+        cons: ['Open-world checklist structure is very familiar', 'Requires a PSN account link', 'Full price, rarely discounted deeply'] },
+
+      { id: 'god-of-war-ragnarok', appId: 2322010, title: 'God of War Ragnarok', studio: 'Santa Monica Studio', genre: 'Action Adventure', year: 2024, price: 79.9, accent: '#60a5fa', maxPlayers: 1,
+        specs: { combat: 90, story: 90, coop: 2, replay: 50 },
+        displayInfo: { hoursToBeat: 26, rating: 89, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Action', 'Story-rich', 'Mythology'],
+        pros: ['Combat and weapon variety improve on the 2018 game', 'Kratos and Atreus carry a genuinely strong script', 'Runs well across a wide range of hardware'],
+        cons: ['Sequel — start with the 2018 game first', 'Long stretches of slow walk-and-talk pacing', 'No co-op or replayable modes'] },
+
+      { id: 'core-keeper', appId: 1621690, title: 'Core Keeper', studio: 'Pugstorm', genre: 'Sandbox Survival', year: 2024, price: 18.5, accent: '#f59e0b', maxPlayers: 8,
+        specs: { combat: 60, story: 20, coop: 88, replay: 82 },
+        displayInfo: { hoursToBeat: 40, rating: 93, players: 'Up to 8 online co-op', earlyAccess: false, platform: 'Steam · Windows/Linux' },
+        tags: ['Co-op', 'Survival', 'Mining', 'Sandbox'],
+        pros: ['Terraria-style mining and building underground', 'Scales well from solo to a full group of 8', 'Cheap for the amount of content'],
+        cons: ['Top-down pixel art will not appeal to everyone', 'Mid-game grind before the good gear arrives', 'Thin story and world-building'] },
+
+      { id: 'supermarket-simulator', appId: 2670630, title: 'Supermarket Simulator', studio: 'Nokta Games', genre: 'Business Sim', year: 2025, price: 18.5, accent: '#22c55e', maxPlayers: 4,
+        specs: { combat: 5, story: 10, coop: 70, replay: 70 },
+        displayInfo: { hoursToBeat: 25, rating: 92, players: 'Online co-op', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Simulation', 'Management', 'Co-op', 'Relaxing'],
+        pros: ['Restock-price-scan loop is oddly hypnotic', 'Store expansion gives steady, visible progress', 'Runs on nearly any laptop'],
+        cons: ['Repetitive once the store is fully upgraded', 'No combat, story or real challenge', 'Shoplifter and staff AI is basic'] },
+
+      { id: 'tekken-8', appId: 1778820, title: 'Tekken 8', studio: 'Bandai Namco Studios', genre: 'Fighting', year: 2024, price: 49.9, accent: '#f97316', maxPlayers: 2,
+        specs: { combat: 95, story: 40, coop: 30, replay: 85 },
+        displayInfo: { hoursToBeat: 12, rating: 56, players: 'Online + local versus', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Fighting', 'Versus', 'Online PvP', 'Local Multiplayer'],
+        pros: ['The most aggressive, best-looking Tekken yet', 'Rollback netcode makes online matches playable from SG', 'Deep single-player practice and arcade modes'],
+        cons: ['Mixed reviews — heavy microtransactions after launch', 'Steep execution barrier for new players', 'Battle pass content behind a full-price game'] },
+
+      { id: 'spider-man-2', appId: 2651280, title: "Marvel's Spider-Man 2", studio: 'Insomniac Games', genre: 'Open-World Action', year: 2025, price: 79.9, accent: '#ef4444', maxPlayers: 1,
+        specs: { combat: 86, story: 82, coop: 2, replay: 50 },
+        displayInfo: { hoursToBeat: 20, rating: 83, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Open World', 'Superhero', 'Action'],
+        pros: ['Web-swinging and wing-gliding across New York is unmatched', 'Two playable Spider-Men with distinct movesets', 'Symbiote combat set-pieces are spectacular'],
+        cons: ['Rough PC port at launch — patched but still heavy', 'Requires a PSN account link', 'Short for the asking price with no co-op'] },
+
+      { id: 'last-of-us-part-1', appId: 1888930, title: 'The Last of Us Part I', studio: 'Naughty Dog', genre: 'Survival Horror', year: 2023, price: 79.9, accent: '#65a30d', maxPlayers: 1,
+        specs: { combat: 74, story: 96, coop: 2, replay: 45 },
+        displayInfo: { hoursToBeat: 15, rating: 84, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Story-rich', 'Survival', 'Post-apocalyptic'],
+        pros: ['Still one of the best-written stories in the medium', 'Remake visuals and animation are class-leading', 'Extensive accessibility options'],
+        cons: ['Notorious launch port issues — long shader compiles', 'Short and near-zero replay value', 'Expensive for a decade-old game'] },
+
+      { id: 'street-fighter-6', appId: 1364780, title: 'Street Fighter 6', studio: 'Capcom', genre: 'Fighting', year: 2023, price: 57, accent: '#fbbf24', maxPlayers: 2,
+        specs: { combat: 94, story: 45, coop: 35, replay: 88 },
+        displayInfo: { hoursToBeat: 12, rating: 83, players: 'Online + local versus', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Fighting', 'Versus', 'Online PvP', 'Local Multiplayer'],
+        pros: ['Modern controls make it the friendliest fighter to start', 'World Tour is a full single-player RPG mode', 'Best netcode in the genre right now'],
+        cons: ['DLC characters add up well past the base price', 'Ranked can be brutal without lab time', 'World Tour visuals are much rougher than versus'] },
+
+      { id: 'against-the-storm', appId: 1336490, title: 'Against the Storm', studio: 'Eremite Games', genre: 'City Builder', year: 2023, price: 29.99, accent: '#2dd4bf', maxPlayers: 1,
+        specs: { combat: 15, story: 30, coop: 2, replay: 94 },
+        displayInfo: { hoursToBeat: 40, rating: 94, players: 'Single-player', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'City Builder', 'Roguelite', 'Strategy'],
+        pros: ['Roguelite runs fix the city-builder late-game slump', 'A settlement takes an hour, not a weekend', 'Constant meta-progression between runs'],
+        cons: ['No co-op or multiplayer', 'Timed storms make it stressful, not relaxing', 'Recipe and resource UI takes hours to read fluently'] },
+
+      { id: 'rogue-trader', appId: 2186680, title: 'Warhammer 40,000: Rogue Trader', studio: 'Owlcat Games', genre: 'CRPG', year: 2023, price: 59, accent: '#a3a3a3', maxPlayers: 6,
+        specs: { combat: 78, story: 88, coop: 55, replay: 72 },
+        displayInfo: { hoursToBeat: 60, rating: 88, players: 'Up to 6 online co-op', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['CRPG', 'Turn-based', 'Co-op', 'Warhammer 40K'],
+        pros: ['The first proper CRPG set in Warhammer 40K', 'Choices genuinely reshape the campaign', 'Full campaign co-op for up to 6'],
+        cons: ['Buggy at launch and still patch-dependent', 'Dense 40K jargon assumes some lore knowledge', '60 hours is a serious commitment'] },
+
+      { id: 'ark-survival-ascended', appId: 2399830, title: 'ARK: Survival Ascended', studio: 'Studio Wildcard', genre: 'Survival Crafting', year: 2023, price: 60, accent: '#0891b2', maxPlayers: 70,
+        specs: { combat: 70, story: 25, coop: 88, replay: 85 },
+        displayInfo: { hoursToBeat: 100, rating: 60, players: 'Up to 70 on dedicated servers', earlyAccess: true, platform: 'Steam · Windows' },
+        tags: ['Survival', 'Dinosaurs', 'Co-op', 'Multiplayer'],
+        pros: ['Taming and breeding dinosaurs still has no real rival', 'Unreal Engine 5 rebuild looks generations newer', 'Cross-platform official servers stay busy'],
+        cons: ['Mixed reviews — paid remake of a game people owned', 'Brutal hardware requirements even on low settings', 'Hundreds of hours of grind by design'] },
+
+      { id: 'darktide', appId: 1361210, title: 'Warhammer 40,000: Darktide', studio: 'Fatshark', genre: 'Co-op Shooter', year: 2022, price: 49.9, accent: '#dc2626', maxPlayers: 4,
+        specs: { combat: 88, story: 45, coop: 92, replay: 80 },
+        displayInfo: { hoursToBeat: 30, rating: 72, players: '4-player co-op, cross-platform', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'FPS', 'Melee', 'Warhammer 40K'],
+        pros: ['Melee and gunplay mix better than any other horde shooter', 'Hive city atmosphere and sound design are superb', 'Years of free content since a rocky launch'],
+        cons: ['Mostly Positive only — launch damage still shows in reviews', 'Crafting and progression were reworked repeatedly', 'Needs a group; random squads fall apart on high difficulty'] },
+
+      { id: 'sifu', appId: 2138710, title: 'Sifu', studio: 'Sloclap', genre: 'Beat-em-up', year: 2023, price: 35.99, accent: '#f43f5e', maxPlayers: 1,
+        specs: { combat: 94, story: 55, coop: 2, replay: 78 },
+        displayInfo: { hoursToBeat: 10, rating: 92, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Martial Arts', 'Beat-em-up', 'Roguelite'],
+        pros: ['Kung fu combat with real weight and readable timing', 'Ageing mechanic turns death into a running cost', 'Short enough to actually finish and master'],
+        cons: ['Only 10 hours if you stop at one clear', 'Difficulty spikes hard at the third boss', 'No co-op or versus mode'] },
+
+      { id: 'stray', appId: 1332010, title: 'Stray', studio: 'BlueTwelve Studio', genre: 'Adventure', year: 2022, price: 28, accent: '#fb923c', maxPlayers: 1,
+        specs: { combat: 20, story: 78, coop: 2, replay: 35 },
+        displayInfo: { hoursToBeat: 6, rating: 97, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Singleplayer', 'Adventure', 'Atmospheric', 'Short'],
+        pros: ['Playing an actual cat is executed perfectly', 'Neon cyber-city is dense and beautiful', 'Six hours with no filler at all'],
+        cons: ['Very short for the price', 'Puzzles are simple throughout', 'Almost no replay value'] },
+
+      { id: 'grounded', appId: 962130, title: 'Grounded', studio: 'Obsidian Entertainment', genre: 'Co-op Survival', year: 2022, price: 56.9, accent: '#84cc16', maxPlayers: 4,
+        specs: { combat: 62, story: 55, coop: 90, replay: 78 },
+        displayInfo: { hoursToBeat: 35, rating: 90, players: 'Up to 4 online co-op', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Survival', 'Crafting', 'Base Building'],
+        pros: ['Shrunk-to-ant-size backyard is a brilliant setting', 'Actually has a story and an ending, unlike most survival games', 'Arachnophobia slider for the spiders'],
+        cons: ['Full price for a survival game that goes on sale rarely', 'Base building fights the uneven terrain', 'Solo play is a big difficulty jump'] },
+
+      { id: 'monster-hunter-rise', appId: 1446780, title: 'Monster Hunter Rise', studio: 'Capcom', genre: 'Co-op Action RPG', year: 2022, price: 49.9, accent: '#f59e0b', maxPlayers: 4,
+        specs: { combat: 90, story: 40, coop: 88, replay: 88 },
+        displayInfo: { hoursToBeat: 35, rating: 83, players: '1-4 co-op hunts', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Co-op', 'Action RPG', 'Hunting', 'Grind'],
+        pros: ['Wirebug movement makes it the fastest game in the series', 'Discounts hard and often — the cheapest way in', 'Hunts are short enough for a weeknight'],
+        cons: ['Smaller and simpler maps than World or Wilds', 'Endgame is pure gear grinding', 'Sunbreak expansion is a separate purchase'] },
+
+      { id: 'inscryption', appId: 1092790, title: 'Inscryption', studio: 'Daniel Mullins Games', genre: 'Roguelike Deckbuilder', year: 2021, price: 22.5, accent: '#a16207', maxPlayers: 1,
+        specs: { combat: 50, story: 88, coop: 2, replay: 60 },
+        displayInfo: { hoursToBeat: 14, rating: 97, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Singleplayer', 'Deckbuilder', 'Horror', 'Puzzle'],
+        pros: ['Goes somewhere no other card game has gone', 'Escape-room layer around the deckbuilding', 'Genuinely unsettling without cheap jump scares'],
+        cons: ['The surprise only works once — low replay value', 'Later acts divide players sharply', 'Card balance is loose by design'] },
+
+      { id: 'dyson-sphere-program', appId: 1366540, title: 'Dyson Sphere Program', studio: 'Youthcat Studio', genre: 'Factory Building', year: 2021, price: 18.5, accent: '#facc15', maxPlayers: 1,
+        specs: { combat: 30, story: 15, coop: 2, replay: 90 },
+        displayInfo: { hoursToBeat: 70, rating: 97, players: 'Single-player', earlyAccess: true, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Factory Building', 'Automation', 'Space'],
+        pros: ['Factorio in space, across whole star systems', 'Interstellar logistics scale beyond any single planet', 'One of the best $/hour ratios in this catalog'],
+        cons: ['Early Access — combat was bolted on late', 'No co-op or multiplayer', 'Late-game factories will tax any CPU'] },
+
+      { id: 'forza-horizon-5', appId: 1551360, title: 'Forza Horizon 5', studio: 'Playground Games', genre: 'Racing', year: 2021, price: 79.9, accent: '#c026d3', maxPlayers: 12,
+        specs: { combat: 5, story: 25, coop: 70, replay: 88 },
+        displayInfo: { hoursToBeat: 25, rating: 89, players: 'Online shared world + co-op, cross-platform', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Racing', 'Open World', 'Multiplayer', 'Cars'],
+        pros: ['Best-feeling arcade driving on PC, pad or wheel', 'Mexico map is enormous and beautiful', 'Hundreds of cars included, no grind wall'],
+        cons: ['Requires an Xbox account link', 'Progression showers you with rewards until they mean nothing', 'Large install and full price outside sales'] },
+
+      { id: 'crusader-kings-3', appId: 1158310, title: 'Crusader Kings III', studio: 'Paradox Development Studio', genre: 'Grand Strategy', year: 2020, price: 56, accent: '#b91c1c', maxPlayers: 32,
+        specs: { combat: 55, story: 85, coop: 50, replay: 96 },
+        displayInfo: { hoursToBeat: 60, rating: 90, players: 'Up to 32 in multiplayer', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Grand Strategy', 'Roleplay', 'Medieval', 'Multiplayer'],
+        pros: ['A story generator disguised as a strategy game', 'Far friendlier than any previous Paradox title', 'Every dynasty run goes somewhere different'],
+        cons: ['DLC costs several times the base game', 'Wars and army management are the weakest part', 'Runs long — a campaign is dozens of hours'] },
+
+      { id: 'ori-will-of-the-wisps', appId: 1057090, title: 'Ori and the Will of the Wisps', studio: 'Moon Studios', genre: 'Metroidvania', year: 2020, price: 40.9, accent: '#5eead4', maxPlayers: 1,
+        specs: { combat: 70, story: 82, coop: 2, replay: 45 },
+        displayInfo: { hoursToBeat: 12, rating: 97, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows' },
+        tags: ['Singleplayer', 'Metroidvania', 'Platformer', 'Atmospheric'],
+        pros: ['The most beautiful 2D platformer on PC', 'Movement feels superb once abilities stack up', 'Score is worth the price on its own'],
+        cons: ['Escape sequences are stressful and unforgiving', 'Twelve hours with limited replay value', 'Requires an Xbox account link'] },
+
+      { id: 'control', appId: 870780, title: 'Control Ultimate Edition', studio: 'Remedy Entertainment', genre: 'Action Adventure', year: 2020, price: 37.99, accent: '#f87171', maxPlayers: 1,
+        specs: { combat: 80, story: 88, coop: 2, replay: 45 },
+        displayInfo: { hoursToBeat: 12, rating: 86, players: 'Single-player only', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Singleplayer', 'Action', 'Supernatural', 'Story-rich'],
+        pros: ['Telekinetic combat and destructible offices never get old', "The Oldest House is one of gaming's great settings", 'Ultimate Edition includes both expansions'],
+        cons: ['Map and fast travel are genuinely confusing', 'Difficulty spikes with no options to lower it', 'Story leaves plenty deliberately unexplained'] },
+
+      { id: 'oxygen-not-included', appId: 457140, title: 'Oxygen Not Included', studio: 'Klei Entertainment', genre: 'Colony Sim', year: 2019, price: 22, accent: '#22d3ee', maxPlayers: 1,
+        specs: { combat: 10, story: 15, coop: 2, replay: 94 },
+        displayInfo: { hoursToBeat: 70, rating: 97, players: 'Single-player', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Singleplayer', 'Colony Sim', 'Simulation', 'Survival'],
+        pros: ['Thermodynamics simulation nothing else matches', 'Every failure teaches you exactly what you got wrong', 'Cheap, and hundreds of hours deep'],
+        cons: ['Brutally unforgiving learning curve', 'No co-op', 'Late-game colonies slow down badly'] },
+
+      { id: 'divinity-original-sin-2', appId: 435150, title: 'Divinity: Original Sin 2', studio: 'Larian Studios', genre: 'CRPG', year: 2017, price: 49, accent: '#fbbf24', maxPlayers: 4,
+        specs: { combat: 88, story: 88, coop: 85, replay: 82 },
+        displayInfo: { hoursToBeat: 60, rating: 96, players: 'Up to 4 co-op, split-screen supported', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['CRPG', 'Turn-based', 'Co-op', 'Fantasy'],
+        pros: ["The blueprint that led to Baldur's Gate 3", 'Elemental combat lets you break every encounter', 'Four-player co-op with genuinely conflicting goals'],
+        cons: ['Act 2 difficulty spike stops many first runs', 'Inventory and crafting UI is dated', 'Sixty hours before credits roll'] },
+
+      { id: 'cuphead', appId: 268910, title: 'Cuphead', studio: 'Studio MDHR', genre: 'Run and Gun', year: 2017, price: 20, accent: '#ef4444', maxPlayers: 2,
+        specs: { combat: 88, story: 25, coop: 65, replay: 60 },
+        displayInfo: { hoursToBeat: 12, rating: 96, players: 'Local 2-player co-op', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Boss Rush', 'Local Co-op', 'Hand-drawn', 'Hard'],
+        pros: ['Hand-inked 1930s animation, frame by frame', 'Boss patterns are hard but always fair', 'Local co-op doubles the chaos'],
+        cons: ['Co-op is couch only — no online', 'Genuinely difficult with no easy mode for bosses', 'Twelve hours if you are good at it'] },
+
+      { id: 'xcom-2', appId: 268500, title: 'XCOM 2', studio: 'Firaxis Games', genre: 'Turn-based Tactics', year: 2016, price: 26, accent: '#38bdf8', maxPlayers: 2,
+        specs: { combat: 85, story: 55, coop: 25, replay: 88 },
+        displayInfo: { hoursToBeat: 40, rating: 85, players: 'Single-player + 1v1 multiplayer', earlyAccess: false, platform: 'Steam · Windows/Mac/Linux' },
+        tags: ['Turn-based', 'Tactics', 'Strategy', 'Sci-fi'],
+        pros: ['Squad losses hurt because the soldiers are yours', "Guerrilla framing beats the original's defensive war", 'Enormous mod scene, including full conversions'],
+        cons: ['Save-scumming is hard to resist', 'Performance and load times are dated', 'War of the Chosen expansion is a separate buy'] },
+
+      { id: 'human-fall-flat', appId: 477160, title: 'Human Fall Flat', studio: 'No Brakes Games', genre: 'Co-op Puzzle', year: 2016, price: 18.5, accent: '#818cf8', maxPlayers: 8,
+        specs: { combat: 5, story: 10, coop: 94, replay: 70 },
+        displayInfo: { hoursToBeat: 8, rating: 95, players: 'Up to 8 online co-op', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Co-op', 'Puzzle', 'Physics', 'Party'],
+        pros: ['Floppy physics make every solution funny', 'Free level updates for years after launch', 'Discounts to a few dollars regularly'],
+        cons: ['Deliberately awkward controls frustrate some players', 'Puzzles are simple once you stop laughing', 'Solo play misses the entire point'] },
+
+      { id: 'no-mans-sky', appId: 275850, title: "No Man's Sky", studio: 'Hello Games', genre: 'Survival Crafting', year: 2016, price: 49, accent: '#f97316', maxPlayers: 32,
+        specs: { combat: 50, story: 55, coop: 72, replay: 90 },
+        displayInfo: { hoursToBeat: 30, rating: 85, players: 'Up to 32 online, cross-platform', earlyAccess: false, platform: 'Steam · Windows/Mac' },
+        tags: ['Survival', 'Space', 'Exploration', 'Co-op'],
+        pros: ['Nine years of free updates rebuilt it completely', 'Seamless planet-to-space flight, no loading screens', 'Base building, freighters, VR and co-op all included'],
+        cons: ['Procedural planets get samey after a while', 'Inventory management is still fiddly', 'The infamous launch reputation still lingers'] },
+
+      { id: 'beamng-drive', appId: 284160, title: 'BeamNG.drive', studio: 'BeamNG', genre: 'Driving Sim', year: 2015, price: 21.99, accent: '#94a3b8', maxPlayers: 1,
+        specs: { combat: 5, story: 5, coop: 15, replay: 96 },
+        displayInfo: { hoursToBeat: 50, rating: 97, players: 'Single-player (mod multiplayer exists)', earlyAccess: true, platform: 'Steam · Windows' },
+        tags: ['Driving', 'Simulation', 'Sandbox', 'Physics'],
+        pros: ['Soft-body crash physics nothing else comes close to', 'Enormous free mod library of cars and maps', 'Twelve years of updates and still Early Access-priced'],
+        cons: ['Still officially Early Access after a decade', 'No official multiplayer', 'Demanding on CPU with many vehicles'] },
     ];
 
     /* ---------------- Genre buckets ----------------
        `genre` on each game stays specific ("Roguelike Deckbuilder", "Metroidvania")
        because that's the useful label to READ on a card. But filtering by it was
-       useless: 60 games spread over 30-odd genres left most of them holding a
+       useless: 100 games spread over 50-odd genres left most of them holding a
        single game, so picking one emptied the grid. The filter therefore works on
-       these ~8 buckets while the card still shows the specific genre.
+       these ~9 buckets while the card still shows the specific genre.
 
        Every genre string in GAMES must appear here — anything unmapped falls into
        'Other', which is only offered as a filter option if something lands in it. */
@@ -672,21 +958,33 @@
 
       'City Builder': 'Builders & Sims', 'City Survival': 'Builders & Sims',
       'Factory Building': 'Builders & Sims', 'Colony Sim': 'Builders & Sims',
-      'Farming Sim': 'Builders & Sims',
+      'Farming Sim': 'Builders & Sims', 'Business Sim': 'Builders & Sims',
 
       '4X Strategy': 'Strategy', 'Grand Strategy': 'Strategy', 'RTS': 'Strategy',
+      'Turn-based Tactics': 'Strategy',
 
       'Adventure': 'Adventure', 'Co-op Adventure': 'Adventure',
       'Open-World Action': 'Adventure', 'Metroidvania': 'Adventure',
-      'Precision Platformer': 'Adventure', 'Mystery Adventure': 'Adventure',
-      'Puzzle': 'Adventure',
+      'Mystery Adventure': 'Adventure', 'Puzzle': 'Adventure',
+      'Co-op Puzzle': 'Adventure', 'Action Adventure': 'Adventure',
+
+      // Fighting, racing and arcade-action genres arrived with the 60 -> 100
+      // batch. They share one bucket instead of getting one each: 'Racing' on
+      // its own would hold two games, which is exactly the near-empty-filter
+      // problem these buckets exist to avoid. 'Precision Platformer' moved
+      // here from Adventure for the same reason — Adventure was the largest
+      // bucket by a wide margin.
+      'Fighting': 'Action & Arcade', 'Beat-em-up': 'Action & Arcade',
+      'Racing': 'Action & Arcade', 'Driving Sim': 'Action & Arcade',
+      'Run and Gun': 'Action & Arcade', 'Precision Platformer': 'Action & Arcade',
 
       'Co-op Horror': 'Horror', 'Survival Horror': 'Horror',
     };
 
     // Display order for the filter dropdown; 'Other' is appended only if used.
     const BUCKET_ORDER = ['RPG', 'Roguelike', 'Shooter', 'Survival',
-                          'Builders & Sims', 'Strategy', 'Adventure', 'Horror'];
+                          'Builders & Sims', 'Strategy', 'Adventure',
+                          'Action & Arcade', 'Horror'];
 
     const genreBucket = (game) => GENRE_BUCKETS[game.genre] || 'Other';
 
@@ -738,6 +1036,32 @@
       'outer-wilds': ['Epic'],
       'subnautica': ['Epic'],
       'project-zomboid': ['GOG'],
+      // Third batch — same method: read off a live /api/deals response on
+      // 2026-08-01, not guessed. Absent ids are Steam-only per ITAD.
+      'clair-obscur-expedition-33': ['Epic', 'GOG'],
+      'kingdom-come-deliverance-2': ['Epic', 'GOG'],
+      'split-fiction': ['Epic'],
+      'civilization-7': ['Epic'],
+      'indiana-jones-great-circle': ['GOG'],
+      'stalker-2': ['Epic', 'GOG'],
+      'ghost-of-tsushima': ['Epic'],
+      'god-of-war-ragnarok': ['Epic'],
+      'core-keeper': ['Epic', 'GOG'],
+      'spider-man-2': ['Epic'],
+      'last-of-us-part-1': ['Epic'],
+      'against-the-storm': ['Epic', 'GOG'],
+      'rogue-trader': ['Epic', 'GOG'],
+      'ark-survival-ascended': ['Epic'],
+      'sifu': ['Epic'],
+      'stray': ['Epic'],
+      'inscryption': ['Epic', 'GOG'],
+      'control': ['Epic', 'GOG'],
+      'oxygen-not-included': ['Epic'],
+      'xcom-2': ['Epic', 'GOG'],
+      'divinity-original-sin-2': ['GOG'],
+      'cuphead': ['GOG'],
+      'no-mans-sky': ['GOG'],
+      'beamng-drive': ['Epic'],
     };
 
     // Store list for a game: live deals data (with prices/links) when we have

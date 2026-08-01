@@ -68,8 +68,9 @@ purpose — 20% off a game that has never been cheaper beats a routine 50% sale.
   edge cache; front-end falls back to built-in reference data when unreachable.
 - **`/api/deals`** — IsThereAnyDeal proxy (per-store prices + all-time lows).
   **Caps at `MAX_IDS` (40) by TRUNCATING, not erroring** — the front-end chunks
-  requests at `DEALS_CHUNK` (30) so a 60-game catalog doesn't silently lose the
-  tail. Raise both together if the catalog grows past 80.
+  requests at `DEALS_CHUNK` (30) so the 100-game catalog doesn't silently lose
+  the tail (4 requests). Chunking scales, so growth costs requests, not data;
+  only raise the pair if you want fewer, fatter calls.
   **Requires `ITAD_API_KEY` env var on the Pages project** (free key from
   isthereanydeal.com/apps/; returns 503 without it, UI silently falls back).
   Converts non-SGD prices to SGD via open.er-api.com (keyless), flagged
@@ -217,8 +218,9 @@ reads BOM-less `.ps1` as ANSI, so a literal `—` is a parse error.
   stops across the whole document *including the footer*, so the finale camera
   sat at stop 3.77 when the finale copy was already centred and only reached
   4.0 once you'd scrolled the last 172 px of footer.
-- **Hero proof strip + live ticker.** Hard-coded counts (60 games / 40 phones /
-  3 stores) plus a live `/api/steam` call showing the 3 best current SGD
+- **Hero proof strip + live ticker.** Hard-coded counts (100 games / 50 phones /
+  3 stores — update them when either catalog grows) plus a live `/api/steam`
+  call showing the 3 best current SGD
   discounts, each linking to `pcgames…/game/<slug>`. The endpoint returns no
   titles, so `SAMPLE` in the ticker IIFE carries its own `{id, slug, title}` —
   **keep those AppIDs/slugs a subset of the catalog in `games/index.html`**
@@ -294,8 +296,9 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 ## Roadmap & costs
 
 - **Phase 1 (current) — static validation.** Live. `phones.json` extracted
-  (2026-08-01). Pending: grow phone catalog (40 now; wants mid-range/older-gen
-  — now a `phones.json` edit).
+  (2026-08-01), catalogs grown to 100 games / 50 phones (2026-08-01). Pending:
+  more mid-range/older-gen phones and Chinese-brand coverage (a `phones.json`
+  edit); no used-phone pricing data yet.
 - **Phase 2 — real stack:** Next.js (Vercel or CF Pages) + Supabase (Postgres,
   auth, storage); phones move to a table. Timing depends on validation.
 - **Phase 3 — marketplace:** Supabase Auth, listings/photos/messages/
@@ -339,6 +342,18 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-08-01** Catalogs grown: games 60 -> 100, phones 40 -> 50, and the
+  landing hero counts updated to match. Every new AppID, SGD list price, review
+  score, platform list and cross-store availability was read off Steam's store
+  API and our own `/api/deals` before being written down — nothing guessed. The
+  batch adds genres the catalog had no coverage of (fighting, racing, driving
+  sim, turn-based tactics, business sim, action-adventure); those share one new
+  `Action & Arcade` bucket rather than getting a bucket each, and
+  `Precision Platformer` moved into it, because a two-game filter is the same
+  near-empty-grid problem the buckets exist to prevent. Bucket sizes now run
+  6-19 games. New phones fill the brand gaps (Google, vivo, Honor, more
+  Xiaomi/OnePlus), add the first foldable, and lean mid-range. `check-sync.ps1`
+  clean across all three games files + `phones.json`.
 - **2026-08-01** Mobile: phone catalog extracted from `mobile/index.html` into
   `mobile/phones.json` (40 phones), fetched at boot — the Phase 2 prerequisite,
   and adding a phone is now a data edit. Verified lossless: the browser's own

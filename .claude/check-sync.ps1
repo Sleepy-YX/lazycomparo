@@ -2,7 +2,7 @@
   check-sync.ps1 -- catalog consistency check for the games and mobile sites.
 
   WHY THIS EXISTS
-  The same 60 games are written down in three places, by hand:
+  The same 100 games are written down in three places, by hand:
 
     games/index.html               the real catalog the app renders
     games/functions/_middleware.js a trimmed copy used for SEO pre-render
