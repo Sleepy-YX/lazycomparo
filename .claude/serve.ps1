@@ -34,6 +34,12 @@ try {
             if (-not $fullPath.StartsWith($Root, [System.StringComparison]::OrdinalIgnoreCase)) {
                 $res.StatusCode = 403; $res.Close(); continue
             }
+            # Directory -> its index.html, matching how Cloudflare Pages serves
+            # /gog and /deals/all-time-low. Without this every subdirectory page
+            # 404s locally even though it works in production.
+            if (Test-Path -LiteralPath $fullPath -PathType Container) {
+                $fullPath = Join-Path $fullPath "index.html"
+            }
             if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
                 $res.StatusCode = 404
                 $msg = [System.Text.Encoding]::UTF8.GetBytes("404 Not Found: $urlPath")

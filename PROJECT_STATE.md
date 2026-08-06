@@ -86,7 +86,24 @@ purpose — 20% off a game that has never been cheaper beats a routine 50% sale.
   unique title/canonical/og via HTMLRewriter; `games/_redirects`
   (`/game/* /index.html 200`) serves the shell; `games/sitemap.xml` lists all
   game URLs. **Maintenance: the `GAMES` list in `_middleware.js` is a trimmed
-  copy of the one in `games/index.html` — keep them in sync.**
+  copy of the one in `games/index.html` — keep them in sync.** Same applies to
+  `EXTRA_STORES` (store availability), mirrored for the no-live-data fallback.
+- **The pre-render carries live prices.** `_middleware.js` calls our own
+  `/api/deals` during render, so `/game/<slug>` ships a real cross-store price
+  table, an all-time-low verdict, and an `AggregateOffer` built from the *same*
+  numbers as the visible table (they must never disagree). Bounded by
+  `DEALS_TIMEOUT_MS`; `fetchDeals()` never throws, so a missing `ITAD_API_KEY`
+  or an ITAD outage degrades to the old no-price markup. Prices are filtered to
+  one currency (`comparableStores`) — if the upstream FX step fails, off-currency
+  listings are dropped from the table, verdict and JSON-LD together.
+- **Hub pages** `/gog` and `/deals/all-time-low` — generated from the same live
+  feed, re-sorted every 30 min, cross-linked from every game page (a second
+  internal link into each). They lead each game page's first sentence with a
+  direct "is it on GOG / is GOG cheaper" answer, which is the query shape Search
+  Console shows actually ranking. **These are no-React shells** (`games/gog/`,
+  `games/deals/all-time-low/`, styling in `games/hub.css`) — the app has no
+  route for them, so booting it would replace the content and make Google's
+  rendered pass disagree with the pre-render.
 
 ## Phone catalog (mobile site)
 
@@ -281,7 +298,13 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
    with PowerShell + CDNs only. `serve.ps1` dies on reboot — fine, Cloudflare
    hosts everything real.
 3. **`serve.ps1` runs no Functions, middleware, or SPA fallback** — `/api/*`,
-   `/game/<slug>`, and SEO injection are live-site-only verification.
+   `/game/<slug>`, and SEO injection are live-site-only verification. It *does*
+   resolve `<dir>/index.html` (as of 2026-08-06), so `/gog` and
+   `/deals/all-time-low` load their shells locally — unstyled by the middleware.
+   To exercise middleware render logic without Node: fetch
+   `/functions/_middleware.js` in the preview browser, strip the `export`, run it
+   through `new Function(src + '; return { … }')`, and call the render helpers
+   with a mock `/api/deals` payload.
 4. **Embedded preview pane boots `document.hidden`** — screenshots time out,
    rAF/CSS transitions/smooth-scroll freeze, canvas sits at 300×150 until first
    visible frame (self-heals). Verify via DOM/computed styles/geometry math
@@ -342,6 +365,17 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-08-06** Games SEO, prompted by Search Console: 6 clicks / 395
+  impressions over 3 months at avg position 24.4, and the pre-render carried no
+  price at all — a page titled "Cheapest price for X" answered that query with a
+  static USD MSRP. Now the middleware fetches `/api/deals` at render time and
+  emits a real cross-store table, an all-time-low verdict, and an
+  `AggregateOffer` (node multi-typed `VideoGame` + `Product`) built from the same
+  numbers as the visible table. Top queries were GOG-shaped (`dave the diver
+  gog`, `deep rock galactic gog`), so every game page now leads with a direct
+  GOG answer, and two generated hubs — `/gog`, `/deals/all-time-low` — target
+  that lane and give each game page a second internal link. `serve.ps1` learned
+  directory-index resolution so the new subdirectory pages load locally.
 - **2026-08-01** Catalogs grown: games 60 -> 100, phones 40 -> 50, and the
   landing hero counts updated to match. Every new AppID, SGD list price, review
   score, platform list and cross-store availability was read off Steam's store

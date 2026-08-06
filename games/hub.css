@@ -1,0 +1,38 @@
+/* Shared styling for the pre-rendered hub pages (/gog, /deals/all-time-low).
+   These pages deliberately do NOT boot the React app — see the note in each
+   shell — so they carry their own small stylesheet instead of Tailwind CDN.
+   Brand values mirror the `ink` / `ember` / `accent` ramps in index.html. */
+
+:root {
+  --ink-950:#0a0a0b; --ink-900:#111113; --ink-800:#1d1d20; --ink-700:#28282c;
+  --text:#e8e8ea; --muted:#9a9aa2; --ember:#d9482b; --accent:#22d3ee; --win:#34d399;
+}
+* { box-sizing: border-box; }
+body {
+  margin:0; background:var(--ink-950); color:var(--text); line-height:1.6;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+#root { max-width:64rem; margin:0 auto; padding:2rem 1.25rem 4rem; }
+h1 { font-family:Fraunces,Georgia,serif; font-size:clamp(1.7rem,4vw,2.6rem); line-height:1.15; margin:.5rem 0 1rem; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+nav { font-size:.85rem; color:var(--muted); }
+nav a { color:var(--muted); }
+.intro { color:var(--muted); max-width:46rem; margin-bottom:2rem; }
+.note { color:var(--muted); }
+
+/* Wide price tables scroll inside their own box — the page body never does. */
+.tablewrap { overflow-x:auto; border:1px solid var(--ink-700); border-radius:.75rem; }
+table { width:100%; border-collapse:collapse; font-size:.95rem; }
+caption { text-align:left; padding:.75rem 1rem; color:var(--muted); font-size:.85rem; }
+th, td { padding:.7rem 1rem; text-align:left; border-bottom:1px solid var(--ink-800); white-space:nowrap; }
+thead th { background:var(--ink-900); font-size:.75rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+tbody th { font-weight:600; white-space:normal; min-width:14rem; }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom:0; }
+tbody tr:hover { background:var(--ink-900); }
+
+.cut { color:var(--ember); font-size:.8rem; }
+.win { color:var(--win); }
+.lose { color:var(--muted); }
+ul.plain { list-style:none; padding:0; display:grid; gap:.4rem; grid-template-columns:repeat(auto-fill,minmax(16rem,1fr)); }
+.links { margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--ink-800); color:var(--muted); }
