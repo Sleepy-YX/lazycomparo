@@ -100,10 +100,13 @@ purpose — 20% off a game that has never been cheaper beats a routine 50% sale.
   feed, re-sorted every 30 min, cross-linked from every game page (a second
   internal link into each). They lead each game page's first sentence with a
   direct "is it on GOG / is GOG cheaper" answer, which is the query shape Search
-  Console shows actually ranking. **These are no-React shells** (`games/gog/`,
-  `games/deals/all-time-low/`, styling in `games/hub.css`) — the app has no
+  Console shows actually ranking. **These are no-React shells** (`games/gog.html`,
+  `games/deals/all-time-low.html`, styling in `games/hub.css`) — the app has no
   route for them, so booting it would replace the content and make Google's
-  rendered pass disagree with the pre-render.
+  rendered pass disagree with the pre-render. **Name them `<name>.html`, not
+  `<name>/index.html`** — Pages 308-redirects `/gog` to `/gog/` for a directory
+  index, which would make the sitemap entries and the canonical the middleware
+  emits both point at a redirect.
 
 ## Phone catalog (mobile site)
 
