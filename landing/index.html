@@ -17,7 +17,13 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://lazycomparo.com/og-image.png" />
   <meta name="theme-color" content="#f6f1e7" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%23a78bfa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2' fill='url(%23g)'/%3E%3C/svg%3E" />
+  <!-- One mark across all three sites (see favicon.svg). Google's search-result
+       favicon slot wants a raster at a multiple of 48px, and iOS ignores SVG
+       entirely, so the PNGs are not optional decoration. -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -39,7 +45,9 @@
         "logo": "https://lazycomparo.com/og-image.png",
         "slogan": "We do the boring comparison work.",
         "foundingLocation": { "@type": "Place", "address": { "@type": "PostalAddress", "addressCountry": "SG" } },
-        "sameAs": ["https://github.com/Sleepy-YX/lazycomparo"]
+        "sameAs": ["https://github.com/Sleepy-YX/lazycomparo"],
+        "publishingPrinciples": "https://lazycomparo.com/how-we-rank",
+        "correctionsPolicy": "https://lazycomparo.com/about#corrections-and-contact"
       },
       {
         "@type": "WebSite",
@@ -196,7 +204,9 @@
       box-shadow: 0 1px 0 rgba(28,26,23,.09), 0 10px 30px -26px rgba(28,26,23,.6);
     }
     .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
-    .brand svg { width: 26px; height: 26px; }
+    /* the mark is a solid tile, not the old mostly-empty bolt glyph — at the
+       bolt's 26px it out-weighed the 19px wordmark next to it */
+    .brand svg { width: 23px; height: 23px; }
     .brand b { font-family: var(--serif); font-size: 19px; font-weight: 560; letter-spacing: .01em; }
     nav.top { margin-left: auto; display: flex; gap: 4px; background: rgba(246,241,231,.72); backdrop-filter: blur(8px); border: 1px solid rgba(28,26,23,.1); border-radius: 4px; padding: 4px; }
     nav.top a {
@@ -550,10 +560,10 @@
       header { padding: 12px 4vw; gap: 8px; }
       .brand { gap: 7px; }
       .brand b { font-size: 17px; }
-      .brand svg { width: 22px; height: 22px; }
+      .brand svg { width: 20px; height: 20px; }
       nav.top a { padding: 6px 8px; font-size: 9.5px; letter-spacing: .08em; }
     }
-    /* smallest phones (320-360px): drop the wordmark, keep the bolt — two
+    /* smallest phones (320-360px): drop the wordmark, keep the mark — two
        nav links plus "LazyComparo" cannot both fit honestly */
     @media (max-width: 360px) {
       .brand b { display: none; }
@@ -602,11 +612,13 @@
 
   <header>
     <a class="brand" href="/">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/>
-        </linearGradient></defs>
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="url(#lg)"/>
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <rect width="64" height="64" rx="15" fill="#d9482b"/>
+        <g fill="#f6f1e7">
+          <rect x="14" y="17" width="36" height="7.5" rx="3.75"/>
+          <rect x="14" y="28.25" width="26" height="7.5" rx="3.75" opacity=".62"/>
+          <rect x="14" y="39.5" width="16" height="7.5" rx="3.75" opacity=".38"/>
+        </g>
       </svg>
       <b>LazyComparo</b>
     </a>
@@ -722,11 +734,13 @@
     <div class="cols">
       <div>
         <div class="brandline">
-          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" style="vertical-align:-2px">
-            <defs><linearGradient id="lgf" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/>
-            </linearGradient></defs>
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="url(#lgf)"/>
+          <svg viewBox="0 0 64 64" width="18" height="18" aria-hidden="true" style="vertical-align:-3px">
+            <rect width="64" height="64" rx="15" fill="#d9482b"/>
+            <g fill="#f6f1e7">
+              <rect x="14" y="17" width="36" height="7.5" rx="3.75"/>
+              <rect x="14" y="28.25" width="26" height="7.5" rx="3.75" opacity=".62"/>
+              <rect x="14" y="39.5" width="16" height="7.5" rx="3.75" opacity=".38"/>
+            </g>
           </svg>
           LazyComparo
         </div>
@@ -735,13 +749,21 @@
       <nav aria-label="Footer">
         <a href="https://pcgames.lazycomparo.com/">PC game comparator</a><br/>
         <a href="https://mobile.lazycomparo.com/">Phone switching advisor</a><br/>
+        <a href="/about">About</a><br/>
+        <a href="/how-we-rank">How we rank</a><br/>
+        <a href="/privacy">Privacy &amp; terms</a><br/>
         <a href="https://github.com/Sleepy-YX/lazycomparo">GitHub</a>
       </nav>
       <div style="max-width:340px;">
-        Game prices live from the Steam SG store, Epic &amp; GOG via IsThereAnyDeal. Editorial specs and verdict math are ours. © 2026 LazyComparo.
+        Game prices live from the Steam SG store, Epic &amp; GOG via IsThereAnyDeal. Editorial specs and verdict math are ours — <a href="/how-we-rank">every weight is published</a>.
+        <br/><strong style="font-weight:600">No ads, no affiliate links, no paid placement.</strong>
+        <!-- the year was hard-coded to 2026 and would have quietly gone stale -->
+        <br/>© <span id="yr">2026</span> LazyComparo.
       </div>
     </div>
   </footer>
+
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
 
   <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
   <script>

@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LazyComparo — Smart Phone Comparison &amp; Switching Advisor</title>
   <meta name="description" content="Compare phone prices, specs, and resale value across Samsung, Apple, and Oppo — built for Singapore buyers deciding what to buy or when to switch." />
+  <!-- iOS ignores an SVG apple-touch-icon and falls back to a screenshot of the
+       page, so the 180px PNG is required, not decorative. Icons are generated
+       by .claude/make-icons.ps1 and are identical on all three sites. -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
   <meta name="theme-color" content="#0a0a0b" />
   <link rel="canonical" href="https://mobile.lazycomparo.com/" />
   <meta property="og:type" content="website" />
@@ -14,7 +19,10 @@
   <meta property="og:description" content="Compare phone prices, specs, and resale value across Samsung, Apple, and Oppo — built for Singapore buyers deciding what to buy or when to switch." />
   <meta property="og:url" content="https://mobile.lazycomparo.com/" />
   <meta name="twitter:card" content="summary" />
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Pinned. This stays synchronous on purpose: the Play CDN is a JIT that
+       styles the document as it parses, and the config block below would throw
+       if `tailwind` were undefined. -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -63,9 +71,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,480;9..144,560&display=swap" rel="stylesheet" />
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Exact versions, not floating ranges. Unpinned, @babel/standalone had
+       already rolled this site onto Babel 8 without a single commit here —
+       a live site should not be able to change under you like that. -->
+  <script defer crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <!-- @babel/standalone is deliberately NOT loaded here. It is 2.4 MB — bigger
+       than everything else on the page combined — and as a blocking <head>
+       script it made the browser download and parse a compiler before it was
+       allowed to paint anything. The bootstrap at the end of <body> fetches it
+       on demand, and only when its compile cache misses. -->
   <style>
     html, body { background: #0a0a0b; color: #e7e7ea; }
     body { font-family: 'Inter', system-ui, sans-serif; }
@@ -118,7 +133,20 @@
     const Smartphone = (p) => <Icon {...p}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></Icon>;
     const Star = (p) => <Icon {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Icon>;
     const ChevronDown = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>;
-    const Zap = (p) => <Icon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+    /* The brand mark — same geometry as /favicon.svg and the landing page's
+       inline header logo. Deliberately NOT an <Icon>: it carries its own brand
+       fills instead of currentColor strokes, and it must not drift from the
+       favicon, so change all three together. */
+    const BrandMark = ({ className = 'w-8 h-8' }) => (
+      <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+        <rect width="64" height="64" rx="15" fill="#d9482b" />
+        <g fill="#f6f1e7">
+          <rect x="14" y="17" width="36" height="7.5" rx="3.75" />
+          <rect x="14" y="28.25" width="26" height="7.5" rx="3.75" opacity=".62" />
+          <rect x="14" y="39.5" width="16" height="7.5" rx="3.75" opacity=".38" />
+        </g>
+      </svg>
+    );
 
     /* ---------------- Phone catalog ---------------- */
     // The catalog lives in phones.json and is fetched by the bootstrap at the
@@ -896,9 +924,7 @@
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center gap-4">
               <a href="https://lazycomparo.com/" title="LazyComparo home"
                  className="flex items-center gap-2 hover:opacity-80 transition">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-teal-400 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-ink-950" />
-                </div>
+                <BrandMark className="w-8 h-8" />
                 <div>
                   <div className="font-serif text-zinc-100 font-medium leading-tight">LazyComparo</div>
                   <div className="text-[10px] uppercase tracking-widest text-zinc-500 leading-tight">Phone advisor</div>
@@ -937,10 +963,19 @@
 
           <footer className="relative border-t border-ink-800 mt-16">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-zinc-500 flex flex-wrap items-center justify-between gap-2">
-              <div>LazyComparo · we do the boring comparison work · mock data for demo — prices in S$ (Singapore market), illustrative.</div>
-              <div className="flex items-center gap-3">
-                <span>Algorithm: weighted priority × ecosystem penalty</span>
+              {/* "mock data for demo" was both inaccurate and self-defeating on a
+                  live site — the catalogue is hand-compiled editorial data, which
+                  is a real thing worth saying plainly. */}
+              <div className="max-w-3xl">
+                LazyComparo · we do the boring comparison work · specs and S$ street prices are editorial estimates compiled for the Singapore market, not live retail quotes — check the retailer before you buy.
+                <div className="mt-1.5 text-zinc-400">No ads, no affiliate links, no paid placement.</div>
               </div>
+              {/* Trust pages live on the apex domain, so these are absolute. */}
+              <nav className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="About LazyComparo">
+                <a className="hover:text-zinc-300 underline" href="https://lazycomparo.com/how-we-rank">How we rank</a>
+                <a className="hover:text-zinc-300 underline" href="https://lazycomparo.com/about">About</a>
+                <a className="hover:text-zinc-300 underline" href="https://lazycomparo.com/privacy">Privacy &amp; terms</a>
+              </nav>
             </div>
           </footer>
         </div>
@@ -952,17 +987,58 @@
   </script>
 
   <script>
-    // Load the catalog, then transform and run the app.
-    //
-    // The Babel transform is manual so we can pin runtime: 'classic' (the
-    // automatic runtime emits `import` statements that fail silently in a
-    // non-module script).
-    //
-    // phones.json is fetched rather than inlined, which costs one round trip
-    // before first paint and means the page MUST be served over http -- opening
-    // index.html from the filesystem trips CORS. Use .claude\serve.ps1 locally.
+    /* ---------------- Boot ----------------
+       Load the catalog, compile the app, run it.
+
+       The compiler is NOT loaded up front. @babel/standalone is 2.4 MB — larger
+       than everything else on this page put together — and it used to sit in
+       <head> as a blocking script, so the browser fetched and parsed a whole
+       compiler before it was allowed to paint anything. It is now requested
+       after first paint, and only when the cache below misses: the transform
+       output is kept in localStorage under a hash of the app source, so a
+       returning visitor never downloads Babel at all. A second hash, of the
+       compiled output, catches corrupted storage.
+
+       Every failure path — cache miss, private mode, quota, corrupt entry,
+       unpkg down — falls back to fetch-and-compile, i.e. the old behaviour.
+
+       phones.json is fetched rather than inlined, which costs one round trip
+       before first paint and means the page MUST be served over http -- opening
+       index.html from the filesystem trips CORS. Use .claude\serve.ps1 locally.
+       The catalog fetch and the compile are kicked off together, not in
+       sequence: neither needs the other, and on a cold cache the 2.4 MB
+       download dominates a small JSON file completely. */
     (function () {
+      var CACHE_KEY = 'lc-mobile-compiled';
+      var BABEL_URL = 'https://unpkg.com/@babel/standalone@8.0.4/babel.min.js';
       var root = document.getElementById('root');
+      var src = document.getElementById('app-source').textContent;
+
+      // FNV-1a, 32-bit. Not cryptographic and doesn't need to be — it only has
+      // to notice that the source changed.
+      function hash(s) {
+        var h = 0x811c9dc5;
+        for (var i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i);
+          h = (h * 0x01000193) >>> 0;
+        }
+        return h.toString(16);
+      }
+      var srcHash = hash(src);
+
+      function readCache() {
+        try {
+          var o = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+          if (o && o.s === srcHash && typeof o.c === 'string' && hash(o.c) === o.h) return o.c;
+        } catch (e) { /* private mode / corrupt entry — just compile again */ }
+        return null;
+      }
+
+      function writeCache(code) {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ s: srcHash, h: hash(code), c: code }));
+        } catch (e) { /* over quota: site still works, next visit is just slower */ }
+      }
 
       function fail(headline, detail) {
         console.error('App bootstrap failed:', detail);
@@ -975,14 +1051,29 @@
           '</pre></div>';
       }
 
-      function runApp() {
-        var out = Babel.transform(document.getElementById('app-source').textContent, {
-          presets: [['react', { runtime: 'classic' }]]
+      // Resolves to the compiled JS, from cache when possible.
+      function compiled() {
+        var hit = readCache();
+        if (hit) return Promise.resolve(hit);
+
+        return new Promise(function (resolve, reject) {
+          var s = document.createElement('script');
+          s.src = BABEL_URL;
+          s.onerror = function () { reject(new Error('Could not load the compiler from ' + BABEL_URL)); };
+          s.onload = function () {
+            try {
+              // runtime: 'classic' is pinned because the automatic runtime emits
+              // `import` statements, which fail silently in a non-module script.
+              var code = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] }).code;
+              writeCache(code);
+              resolve(code);
+            } catch (e) { reject(e); }
+          };
+          document.head.appendChild(s);
         });
-        (0, eval)(out.code);
       }
 
-      fetch('phones.json')
+      var catalog = fetch('phones.json')
         .then(function (res) {
           if (!res.ok) throw new Error('phones.json -> HTTP ' + res.status);
           return res.json();
@@ -991,15 +1082,39 @@
           if (!Array.isArray(phones) || phones.length === 0) {
             throw new Error('phones.json did not contain a non-empty array');
           }
-          window.__LC_PHONES = phones;
-          try { runApp(); }
+          return phones;
+        })
+        .catch(function (e) {
+          throw new Error('CATALOG:' + e + '\n\nphones.json must be served alongside ' +
+            'index.html over http. If you opened this file directly from disk, run ' +
+            '.claude\\serve.ps1 and use http://localhost:5173 instead.');
+        });
+
+      // React/ReactDOM are deferred, so wait for them before evaluating the app.
+      var ready = new Promise(function (resolve) {
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', resolve);
+        } else {
+          resolve();
+        }
+      });
+
+      Promise.all([catalog, compiled(), ready])
+        .then(function (r) {
+          window.__LC_PHONES = r[0];
+          // A throw from here is a real app bug, not a bad cache — the hashes
+          // already proved the code matches this file — so it is reported, not
+          // retried, or the app could mount twice.
+          try { (0, eval)(r[1]); }
           catch (e) { fail('The app failed to start.', e); }
         })
         .catch(function (e) {
-          fail("Couldn't load the phone catalog.",
-               e + '\n\nphones.json must be served alongside index.html over ' +
-               'http. If you opened this file directly from disk, run ' +
-               '.claude\\serve.ps1 and use http://localhost:5173 instead.');
+          var msg = String(e && e.message || e);
+          if (msg.indexOf('CATALOG:') === 0) {
+            fail("Couldn't load the phone catalog.", msg.slice(8));
+          } else {
+            fail('The app failed to start.', e);
+          }
         });
     })();
   </script>

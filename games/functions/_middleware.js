@@ -296,7 +296,13 @@ function homeHtml() {
       <h2>Games we compare</h2>
       ${cards}
     </main>
-    <footer><p>Loading the interactive comparison&hellip; if it doesn't appear, enable JavaScript.</p></footer>`;
+    <footer>
+      <p>Loading the interactive comparison&hellip; if it doesn't appear, enable JavaScript.</p>
+      <p>No ads, no affiliate links, no paid placement.
+      <a href="https://lazycomparo.com/how-we-rank">How we rank</a> &middot;
+      <a href="https://lazycomparo.com/about">About LazyComparo</a> &middot;
+      <a href="https://lazycomparo.com/privacy">Privacy &amp; terms</a></p>
+    </footer>`;
 }
 
 function homeJsonLd() {
@@ -467,6 +473,12 @@ function gameHtml(g, entry) {
       <p><a href="${SITE}/gog">Every game we track that's on GOG</a> &middot;
          <a href="${SITE}/deals/all-time-low">Games at their all-time low right now</a> &middot;
          <a href="${SITE}/">Browse all ${GAMES.length} PC games</a></p>
+
+      <h2>How this comparison is made</h2>
+      <p>Prices come straight from the stores' own feeds in SGD and are cached for
+      about 30 minutes; hours-to-beat and the pros/cons are our editorial estimates.
+      No ads, no affiliate links and no paid placement &mdash; a store link earns us nothing.
+      <a href="https://lazycomparo.com/how-we-rank">Every weight and threshold we use is published</a>.</p>
     </main>`;
 }
 
@@ -665,7 +677,8 @@ function hubHtml(kind, deals) {
       <p class="intro">${esc(meta.intro)}</p>
       ${body}
       <p class="links">${otherHub} &middot;
-        <a href="${SITE}/">Browse all ${GAMES.length} PC games &rarr;</a></p>
+        <a href="${SITE}/">Browse all ${GAMES.length} PC games &rarr;</a> &middot;
+        <a href="https://lazycomparo.com/how-we-rank">How we rank</a></p>
     </main>`;
 }
 

@@ -11,7 +11,17 @@
   <meta property="og:description" content="Compare PC games on price, rating, and hours-to-beat — see which store (Steam, Epic or GOG) is cheapest, plus this week's free Epic games." />
   <meta property="og:url" content="https://pcgames.lazycomparo.com/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- This site shipped with no favicon at all: browser tabs and Google's
+       search results showed a blank page glyph next to every result. -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#0a0a0b" />
+  <!-- Pinned. This stays synchronous on purpose: the Play CDN is a JIT that
+       styles the document as it parses, the config block below would throw if
+       `tailwind` were undefined, and it is what styles the boot splash. -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -63,9 +73,16 @@
   <!-- Steam's CDN serves every card's header art; warm the connection early. -->
   <link rel="preconnect" href="https://shared.cloudflare.steamstatic.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,480;9..144,560&display=swap" rel="stylesheet" />
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Exact versions, not floating ranges. Unpinned, @babel/standalone had
+       already rolled this site onto Babel 8 without a single commit here —
+       a live site should not be able to change under you like that. -->
+  <script defer crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <!-- @babel/standalone is deliberately NOT loaded here. It is 2.4 MB — bigger
+       than everything else on the page combined — and as a blocking <head>
+       script it made the browser download and parse a compiler before it was
+       allowed to paint anything. The bootstrap at the end of <body> fetches it
+       on demand, and only when its compile cache misses. -->
   <style>
     html, body { background: #0a0a0b; color: #e7e7ea; }
     body { font-family: 'Inter', system-ui, sans-serif; }
@@ -204,6 +221,21 @@
     const Star = (p) => <Icon {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Icon>;
     const ChevronDown = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>;
     const Zap = (p) => <Icon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+
+    /* The brand mark — same geometry as /favicon.svg and the landing page's
+       inline header logo. Deliberately NOT an <Icon>: it carries its own brand
+       fills instead of currentColor strokes, and it must not drift from the
+       favicon, so change all three together. */
+    const BrandMark = ({ className = 'w-8 h-8' }) => (
+      <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+        <rect width="64" height="64" rx="15" fill="#d9482b" />
+        <g fill="#f6f1e7">
+          <rect x="14" y="17" width="36" height="7.5" rx="3.75" />
+          <rect x="14" y="28.25" width="26" height="7.5" rx="3.75" opacity=".62" />
+          <rect x="14" y="39.5" width="16" height="7.5" rx="3.75" opacity=".38" />
+        </g>
+      </svg>
+    );
     const Gift = (p) => <Icon {...p}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></Icon>;
     const ExternalLink = (p) => <Icon {...p}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></Icon>;
     const Store = (p) => <Icon {...p}><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 21v-6h6v6"/><path d="M3 9h18"/></Icon>;
@@ -2746,9 +2778,7 @@
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center gap-4">
               <a href="https://lazycomparo.com/" title="LazyComparo home"
                  className="flex items-center gap-2 hover:opacity-80 transition">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-violet-400 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-ink-950" />
-                </div>
+                <BrandMark className="w-8 h-8" />
                 <div>
                   <div className="font-serif text-zinc-100 font-medium leading-tight">LazyComparo</div>
                   <div className="text-[10px] uppercase tracking-widest text-zinc-500 leading-tight">PC game advisor</div>
@@ -2805,10 +2835,16 @@
 
           <footer className="relative border-t border-ink-800 mt-16">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-zinc-500 flex flex-wrap items-center justify-between gap-2">
-              <div>LazyComparo · we do the boring comparison work · Steam prices &amp; ratings live from the Singapore store (cached ~30 min) · Epic/GOG prices &amp; historical lows via <a className="hover:text-zinc-300 underline" href="https://isthereanydeal.com" target="_blank" rel="noopener noreferrer">IsThereAnyDeal</a> · free-game feed from Epic Games &amp; GamerPower · specs, pros/cons and hours-to-beat are editorial estimates.</div>
-              <div className="flex items-center gap-3">
-                <span>Algorithm: weighted priority score · $/hour value ranking</span>
+              <div className="max-w-3xl">
+                LazyComparo · we do the boring comparison work · Steam prices &amp; ratings live from the Singapore store (cached ~30 min) · Epic/GOG prices &amp; historical lows via <a className="hover:text-zinc-300 underline" href="https://isthereanydeal.com" target="_blank" rel="noopener noreferrer">IsThereAnyDeal</a> · free-game feed from Epic Games &amp; GamerPower · specs, pros/cons and hours-to-beat are editorial estimates.
+                <div className="mt-1.5 text-zinc-400">No ads, no affiliate links, no paid placement — a store link earns us nothing.</div>
               </div>
+              {/* Trust pages live on the apex domain, so these are absolute. */}
+              <nav className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="About LazyComparo">
+                <a className="hover:text-zinc-300 underline" href="https://lazycomparo.com/how-we-rank">How we rank</a>
+                <a className="hover:text-zinc-300 underline" href="https://lazycomparo.com/about">About</a>
+                <a className="hover:text-zinc-300 underline" href="https://lazycomparo.com/privacy">Privacy &amp; terms</a>
+              </nav>
             </div>
           </footer>
 
@@ -3077,21 +3113,104 @@
   </script>
 
   <script>
-    // Manual Babel transform so we can pin runtime: 'classic' (the automatic
-    // runtime emits `import` statements that fail silently in a non-module script).
+    /* ---------------- Boot ----------------
+       The app is JSX in a <script type="text/plain"> block, so something has to
+       compile it. Two things this deliberately does NOT do:
+
+       1. It does not load the compiler up front. @babel/standalone is 2.4 MB —
+          larger than everything else on this page put together — and it used to
+          sit in <head> as a blocking script, so the browser fetched and parsed a
+          whole compiler before it was allowed to paint the boot splash or the
+          pre-rendered SEO copy. It is now requested after first paint, and only
+          when the cache below misses.
+
+       2. It does not recompile on every visit. The transform output is cached in
+          localStorage, so a returning visitor never downloads Babel at all and
+          evals the stored JS directly. Two hashes are kept: one of the app
+          source (invalidates the cache whenever this file is edited — no manual
+          cache-busting to remember) and one of the compiled output (catches
+          corrupted storage).
+
+       Every failure path — cache miss, private mode, quota, corrupt entry,
+       unpkg down — falls back to fetch-and-compile, which is exactly the old
+       behaviour. The cache can make this faster; it cannot make it wrong. */
     (function () {
+      var CACHE_KEY = 'lc-games-compiled';
+      var BABEL_URL = 'https://unpkg.com/@babel/standalone@8.0.4/babel.min.js';
       var src = document.getElementById('app-source').textContent;
-      try {
-        var out = Babel.transform(src, {
-          presets: [['react', { runtime: 'classic' }]]
-        });
-        (0, eval)(out.code);
-      } catch (e) {
+
+      // FNV-1a, 32-bit. Not cryptographic and doesn't need to be — it only has
+      // to notice that the source changed.
+      function hash(s) {
+        var h = 0x811c9dc5;
+        for (var i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i);
+          h = (h * 0x01000193) >>> 0;
+        }
+        return h.toString(16);
+      }
+      var srcHash = hash(src);
+
+      function readCache() {
+        try {
+          var o = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+          if (o && o.s === srcHash && typeof o.c === 'string' && hash(o.c) === o.h) return o.c;
+        } catch (e) { /* private mode / corrupt entry — just compile again */ }
+        return null;
+      }
+
+      function writeCache(code) {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ s: srcHash, h: hash(code), c: code }));
+        } catch (e) { /* over quota: site still works, next visit is just slower */ }
+      }
+
+      function fail(e) {
         console.error('App bootstrap failed:', e);
         if (window.__reveal) window.__reveal();
         document.getElementById('root').innerHTML =
           '<pre style="color:#f87171;padding:16px;white-space:pre-wrap;">' +
           String(e && e.stack || e) + '</pre>';
+      }
+
+      // A throw out of here is a real app bug, not a stale cache — the hashes
+      // already proved this code was compiled from this exact source — so it
+      // must never trigger a compile retry, or the app would mount twice.
+      function run(code) { (0, eval)(code); }
+
+      function compileAndRun() {
+        var s = document.createElement('script');
+        s.src = BABEL_URL;
+        s.onerror = function () { fail(new Error('Could not load the compiler from ' + BABEL_URL)); };
+        s.onload = function () {
+          var code;
+          try {
+            // runtime: 'classic' is pinned because the automatic runtime emits
+            // `import` statements, which fail silently in a non-module script.
+            code = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] }).code;
+          } catch (e) { return fail(e); }
+          writeCache(code);
+          try { run(code); } catch (e) { fail(e); }
+        };
+        document.head.appendChild(s);
+      }
+
+      function boot() {
+        var cached = readCache();
+        if (cached) {
+          try { run(cached); } catch (e) { fail(e); }
+          return;
+        }
+        compileAndRun();
+      }
+
+      // React and ReactDOM are deferred now, so they have executed by
+      // DOMContentLoaded but NOT at parse time, which is when this inline
+      // script runs. Booting immediately would find React undefined.
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+      } else {
+        boot();
       }
     })();
   </script>

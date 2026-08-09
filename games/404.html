@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page not found — LazyComparo PC Games</title>
+  <meta name="robots" content="noindex,follow" />
+  <meta name="theme-color" content="#0a0a0b" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+  <!-- Self-contained on purpose: the shared page.css lives on the apex domain,
+       and a 404 that depends on a cross-origin stylesheet is a 404 that renders
+       unstyled exactly when something is already going wrong. -->
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+      background: #0a0a0b; color: #e7e7ea;
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size: 16px; line-height: 1.6;
+    }
+    main { flex: 1; max-width: 640px; margin: 0 auto; padding: clamp(56px, 12vh, 120px) 24px 60px; }
+    .mark { width: 34px; height: 34px; display: block; margin-bottom: 26px; }
+    .eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #d9482b; margin-bottom: 12px; }
+    h1 { font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: clamp(28px, 5.5vw, 40px); line-height: 1.12; margin: 0 0 16px; }
+    p { color: #a1a1aa; margin: 0 0 22px; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { border-top: 1px solid #28282c; }
+    li a {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+      padding: 14px 2px; color: #e7e7ea; text-decoration: none;
+    }
+    li a:hover { color: #d9482b; }
+    li a span { color: #71717a; font-size: 13px; text-align: right; }
+    li a:hover span { color: #a1a1aa; }
+    :focus-visible { outline: 2px solid #d9482b; outline-offset: 3px; border-radius: 4px; }
+    footer { padding: 22px 24px; border-top: 1px solid #1d1d20; color: #52525b; font-size: 13px; text-align: center; }
+    footer a { color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <main>
+    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+      <rect width="64" height="64" rx="15" fill="#d9482b"/>
+      <g fill="#f6f1e7">
+        <rect x="14" y="17" width="36" height="7.5" rx="3.75"/>
+        <rect x="14" y="28.25" width="26" height="7.5" rx="3.75" opacity=".62"/>
+        <rect x="14" y="39.5" width="16" height="7.5" rx="3.75" opacity=".38"/>
+      </g>
+    </svg>
+    <div class="eyebrow">404</div>
+    <h1>That page isn't in the catalogue.</h1>
+    <p>The link is broken, the game was renamed, or the page never existed. Here's where to go instead:</p>
+    <ul>
+      <li><a href="/">Browse every game we track<span>100 games, live SGD prices</span></a></li>
+      <li><a href="/deals/all-time-low">Games at their all-time low<span>Refreshed every 30 min</span></a></li>
+      <li><a href="/gog">What's on GOG, and where it's cheapest<span>DRM-free</span></a></li>
+      <li><a href="https://mobile.lazycomparo.com/">Compare phones instead<span>Should you upgrade?</span></a></li>
+    </ul>
+  </main>
+  <footer>
+    <a href="https://lazycomparo.com/">LazyComparo</a> — we do the boring comparison work ·
+    <a href="https://lazycomparo.com/how-we-rank">How we rank</a>
+  </footer>
+</body>
+</html>

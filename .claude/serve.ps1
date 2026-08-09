@@ -18,7 +18,8 @@ $mime = @{
     ".css"="text/css; charset=utf-8"; ".json"="application/json; charset=utf-8";
     ".png"="image/png"; ".jpg"="image/jpeg"; ".jpeg"="image/jpeg"; ".gif"="image/gif";
     ".svg"="image/svg+xml"; ".ico"="image/x-icon"; ".woff"="font/woff"; ".woff2"="font/woff2";
-    ".txt"="text/plain; charset=utf-8"; ".map"="application/json"
+    ".txt"="text/plain; charset=utf-8"; ".map"="application/json";
+    ".webmanifest"="application/manifest+json"; ".xml"="application/xml; charset=utf-8"
 }
 
 try {
@@ -34,16 +35,31 @@ try {
             if (-not $fullPath.StartsWith($Root, [System.StringComparison]::OrdinalIgnoreCase)) {
                 $res.StatusCode = 403; $res.Close(); continue
             }
-            # Directory -> its index.html, matching how Cloudflare Pages serves
-            # /gog and /deals/all-time-low. Without this every subdirectory page
-            # 404s locally even though it works in production.
-            if (Test-Path -LiteralPath $fullPath -PathType Container) {
-                $fullPath = Join-Path $fullPath "index.html"
+            # Resolve the way Cloudflare Pages does, or pages that work in
+            # production 404 locally: exact file first, then <path>.html (this
+            # is what serves /about and /how-we-rank without a trailing slash),
+            # then a directory's index.html (/gog, /deals/all-time-low).
+            if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+                $asHtml = $fullPath + ".html"
+                if (Test-Path -LiteralPath $asHtml -PathType Leaf) {
+                    $fullPath = $asHtml
+                } elseif (Test-Path -LiteralPath $fullPath -PathType Container) {
+                    $fullPath = Join-Path $fullPath "index.html"
+                }
             }
             if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+                # Pages serves the project's own 404.html with a 404 status.
+                $notFound = Join-Path $Root "404.html"
                 $res.StatusCode = 404
-                $msg = [System.Text.Encoding]::UTF8.GetBytes("404 Not Found: $urlPath")
-                $res.OutputStream.Write($msg, 0, $msg.Length)
+                if (Test-Path -LiteralPath $notFound -PathType Leaf) {
+                    $res.ContentType = "text/html; charset=utf-8"
+                    $bytes = [System.IO.File]::ReadAllBytes($notFound)
+                } else {
+                    $bytes = [System.Text.Encoding]::UTF8.GetBytes("404 Not Found: $urlPath")
+                }
+                $res.ContentLength64 = $bytes.Length
+                $res.OutputStream.Write($bytes, 0, $bytes.Length)
+                Write-Host "$($req.HttpMethod) $urlPath -> 404"
                 $res.Close(); continue
             }
             $ext = [System.IO.Path]::GetExtension($fullPath).ToLower()
