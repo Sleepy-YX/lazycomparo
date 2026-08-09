@@ -121,8 +121,13 @@
           <td>Live per request</td>
         </tr>
         <tr>
-          <td>Cover art</td>
+          <td>Game cover art</td>
           <td>Steam's CDN, keyed off the game's AppID</td>
+          <td>Static</td>
+        </tr>
+        <tr>
+          <td>Phone artwork</td>
+          <td><strong>Drawn by us</strong> from the catalogue's own fields — they are illustrations, not photographs, and not manufacturer press images</td>
           <td>Static</td>
         </tr>
         <tr>
@@ -131,9 +136,9 @@
           <td>Reviewed when the catalogue changes</td>
         </tr>
         <tr>
-          <td>Phone specs, spec scores and street prices</td>
+          <td>Phone specs, spec scores, launch RRP and street prices</td>
           <td><strong>Editorial</strong> — compiled by hand for the SG market</td>
-          <td>Reviewed when the catalogue changes</td>
+          <td>Reviewed when the catalogue changes; last reviewed August 2026</td>
         </tr>
       </tbody>
     </table>
@@ -158,9 +163,37 @@
     </div>
     <p>An all-time low outranks the raw percentage <strong>on purpose</strong>. 20% off a game that has never been cheaper is a better moment to buy than a routine 50% sale that comes round every quarter — and a percentage-only badge can't tell you the difference.</p>
 
+    <h3>Deal heat on phones</h3>
+    <p>Phones use the same four levels and the same colours, but they are not measured the same way, and the difference is worth stating plainly: <strong>phone prices are not live</strong>. No free public API publishes Singapore street prices the way Steam and IsThereAnyDeal publish game prices, so the figures come from our own tracked catalogue and the site says so next to the grid rather than dressing them up as a feed. The percentage is measured against the phone's launch RRP, not against yesterday's price.</p>
+    <div class="wrap-x">
+    <table>
+      <thead><tr><th>Heat</th><th>When</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Hot</strong></td><td>Cheaper than its own brand's depreciation curve predicts at this age by 10% or more, <em>or</em> down 45% or more from launch RRP</td></tr>
+        <tr><td><strong>Warm</strong></td><td>Down 25–44% from launch RRP</td></tr>
+        <tr><td><strong>Mild</strong></td><td>Down 1–24% from launch RRP</td></tr>
+        <tr><td><strong>None</strong></td><td>At or above launch RRP</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The brand-curve rule is the phone equivalent of the all-time-low rule above, and it exists for the same reason. A four-year-old phone has fallen a long way, but that is arithmetic, not a bargain — everything that old has fallen. What is actually worth flagging is a phone that has fallen <em>further than its own brand normally falls by that age</em>, which we can measure because the depreciation figures on the Resale tab are computed from the same catalogue. Those phones carry a "below <em>brand</em>'s curve" badge saying exactly that.</p>
+    <p>One consequence worth being honest about: because the curve is a per-brand average drawn from our own catalogue, it moves when the catalogue grows. A phone can gain or lose the badge without its price changing at all. It is a comparison against its peers here, not a claim about the whole market.</p>
+
     <h2>Dollars per hour</h2>
     <p>The value score is deliberately boring: <code>price ÷ hours to beat</code>. A S$70 game you'll play for 60 hours costs less per hour than a S$30 game you'll finish in four. Lower is better, and the bar next to it is scaled so the cheapest-per-hour game in your comparison is the only one in colour.</p>
     <p>The honest caveat: hours-to-beat is an editorial estimate of a typical main-story playthrough. It is not your playtime, and for endless games it is close to meaningless.</p>
+    <p>The Best Value tab groups the catalogue into three bands, which are the same three colours the <code>$ / hour</code> column uses:</p>
+    <div class="wrap-x">
+    <table>
+      <thead><tr><th>Band</th><th>Cost per hour</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Exceptional value</strong></td><td>Under S$0.50/hr</td></tr>
+        <tr><td><strong>Solid value</strong></td><td>S$0.50 – S$1.50/hr</td></tr>
+        <tr><td><strong>Short, or priced as a premium</strong></td><td>Over S$1.50/hr</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The bands are a reading aid, not a verdict. A game in the third band is not bad value — a tightly made eight-hour game can be worth more than eighty hours of something you're only half enjoying, and the price you pay per hour has nothing to say about that.</p>
 
     <h2>The game verdict</h2>
     <p>When you compare games, the banner at the top picks a winner from <em>exactly</em> the same rows the table below renders — so the headline and the per-row award icons can never disagree. Each row a game wins adds its weight to that game's tally:</p>
@@ -218,7 +251,7 @@
     <h2>When this changes</h2>
     <p>Weights and thresholds get adjusted as the tools improve, and this page is updated in the same change with the date below. The figures here are transcribed from the constants the site actually runs on, and the code is <a href="https://github.com/Sleepy-YX/lazycomparo">public</a> — so if this page and the site ever disagree, the code is right and this is a bug worth <a href="https://github.com/Sleepy-YX/lazycomparo/issues">reporting</a>.</p>
 
-    <p class="updated">Last reviewed 9 August 2026 · Weights and thresholds current as of this date.</p>
+    <p class="updated">Last reviewed 10 August 2026 · Weights and thresholds current as of this date.</p>
   </main>
 
   <footer class="site-foot">

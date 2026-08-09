@@ -125,12 +125,13 @@
     const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
     const RefreshCw = (p) => <Icon {...p}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></Icon>;
     const TrendingUp = (p) => <Icon {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></Icon>;
+    const TrendingDown = (p) => <Icon {...p}><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></Icon>;
+    const Tag = (p) => <Icon {...p}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></Icon>;
     const DollarSign = (p) => <Icon {...p}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></Icon>;
     const Award = (p) => <Icon {...p}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></Icon>;
     const Info = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></Icon>;
     const Layers = (p) => <Icon {...p}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></Icon>;
     const ArrowRight = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Icon>;
-    const Smartphone = (p) => <Icon {...p}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></Icon>;
     const Star = (p) => <Icon {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Icon>;
     const ChevronDown = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>;
     /* The brand mark — same geometry as /favicon.svg and the landing page's
@@ -254,6 +255,80 @@
         .sort((a, b) => a.avgRate - b.avgRate);
     }
 
+    /* ---------------- Price tracking & deal heat ----------------
+       The games site gets its prices from a live feed (Steam + IsThereAnyDeal)
+       because those APIs exist and are free. THERE IS NO EQUIVALENT FOR PHONES:
+       no keyless public API publishes Singapore street prices, so nothing here
+       is fetched at runtime and nothing here claims to be. These are the
+       catalog's own tracked prices, and the UI says so rather than dressing
+       static numbers up as live ones — the same reason mobile's footer stopped
+       calling its catalogue "mock data for demo".
+
+       When a real feed arrives (Phase 2), it lands in phoneDeal() and nothing
+       above it has to change.
+
+       Heat is the SAME four-step scale as the games app, the landing ticker
+       and /how-we-rank — a badge has to mean the same thing on every site.
+       Thresholds live here and in landing/how-we-rank.html; move both or the
+       page stops being the authority it claims to be. */
+    const CATALOG_REVIEWED = 'August 2026';
+
+    // How far the street price has fallen from launch, in whole percent.
+    function priceDrop(p) {
+      if (!p.launchPrice || p.launchPrice <= 0) return 0;
+      return Math.max(0, Math.round((1 - p.price / p.launchPrice) * 100));
+    }
+
+    /* The phone analogue of the games site's all-time-low check. A phone that
+       is simply old has fallen a long way and that is not a deal — it is
+       arithmetic. What IS a deal is falling further than its own brand
+       normally falls by this age, which the catalog can answer because
+       brandDepreciationStats() already measures exactly that curve.
+       Same doctrine as games, where an all-time low outranks the raw
+       percentage: the notable thing is the price beating expectation. */
+    const UNDER_CURVE_MARGIN = 10;   // percent below predicted, before it counts
+    let _brandRates = null;
+    function brandRate(brandName) {
+      if (!_brandRates) {
+        _brandRates = {};
+        brandDepreciationStats().forEach(b => { _brandRates[b.brand] = b.avgRate; });
+      }
+      return _brandRates[brandName];
+    }
+    function expectedPrice(p) {
+      const rate = brandRate(p.brand);
+      if (rate == null || p.year >= CURRENT_YEAR) return null;
+      return p.launchPrice * Math.pow(1 - rate / 100, ageYears(p));
+    }
+    function underCurve(p) {
+      const exp = expectedPrice(p);
+      if (!exp) return false;
+      return p.price <= exp * (1 - UNDER_CURVE_MARGIN / 100);
+    }
+
+    function dealHeat(p) {
+      if (underCurve(p)) return 'hot';
+      const d = priceDrop(p);
+      if (d >= 45) return 'hot';
+      if (d >= 25) return 'warm';
+      if (d > 0) return 'mild';
+      return 'none';
+    }
+
+    /* Class strings are spelled out in full on purpose — Tailwind's JIT scans
+       source text, so a name built by concatenation is a name it never emits.
+       Same table, same colours, same meanings as games/index.html. */
+    const HEAT = {
+      hot: {
+        badge: 'bg-ember/25 text-orange-200 ring-ember/60',
+        ring: 'ring-ember/50',
+        glow: 'shadow-[0_0_16px_-3px_rgba(217,72,43,.85)]',
+      },
+      warm: { badge: 'bg-amber-500/20 text-amber-200 ring-amber-500/40', ring: 'ring-amber-500/30', glow: '' },
+      mild: { badge: 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/30', ring: 'ring-emerald-500/25', glow: '' },
+      none: { badge: 'bg-ink-700 text-zinc-300 ring-ink-600', ring: 'ring-ink-700', glow: '' },
+    };
+
     /* ---------------- Small UI primitives ---------------- */
     const cx = (...xs) => xs.filter(Boolean).join(' ');
 
@@ -280,6 +355,9 @@
         meh:     'bg-amber-500/15 text-amber-300 ring-amber-500/30',
         bad:     'bg-rose-500/15 text-rose-300 ring-rose-500/30',
         accent:  'bg-accent/15 text-accent-soft ring-accent/40',
+        // deal-heat tones, same names and colours as the games app's Pill
+        hot:     'bg-ember/25 text-orange-200 ring-ember/60',
+        warm:    'bg-amber-500/20 text-amber-200 ring-amber-500/40',
       };
       return <span className={cx('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ring-1', tones[tone])}>{children}</span>;
     };
@@ -301,34 +379,347 @@
       </div>
     );
 
-    /* ---------------- Phone card (used in Browse + Compare picker) ---------------- */
-    const PhoneCard = ({ phone, selected, onClick, disabled, showPrice = true }) => (
-      <Card className={cx('p-4 relative animate-fade-in', selected && 'ring-2 ring-accent', disabled && 'opacity-40 pointer-events-none')}
-            onClick={onClick}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-14 rounded-lg flex items-center justify-center shrink-0"
-               style={{ background: `${phone.accent}22`, border: `1px solid ${phone.accent}66` }}>
-            <Smartphone className="w-5 h-5" style={{ color: phone.accent }} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs text-zinc-400">{phone.brand}</div>
-            <div className="text-zinc-100 font-semibold truncate">{phone.model}</div>
-            <div className="flex items-center gap-2 mt-1">
-              <Pill>{phone.tier}</Pill>
-              {showPrice && <span className="text-xs text-zinc-400">S${phone.price}</span>}
-            </div>
-          </div>
+    /* ---------------- Device artwork ----------------
+       The games site gets card art free from Valve's CDN, keyed off an AppID
+       it already stores. Phones have no such thing: press renders are
+       copyrighted, and hotlinking a manufacturer's marketing image is neither
+       free nor ours to do. So the art is drawn, from data the catalog already
+       has.
+
+       Drawn from the BACK, which is the counter-intuitive but correct call:
+       every modern phone is the same black rectangle from the front, and the
+       camera island is the only part of the silhouette that identifies a
+       device across a grid of fifty. A Pixel's bar, an Ultra's four bare
+       lenses, an iPhone Pro's square triangle and a Find X's disc are all
+       recognisable at thumbnail size in a way "6.7 inch black slab" is not.
+
+       No <filter> anywhere in here. Browse renders fifty of these at once and
+       an feGaussianBlur per card is the one thing that would make that scroll
+       badly; every soft edge is a gradient stop instead. */
+    function cameraStyle(p) {
+      const m = p.model.toLowerCase();
+      switch (p.brand) {
+        case 'Apple':
+          if (/\bse\b/.test(m)) return 'appleSingle';
+          return /pro|max/.test(m) ? 'appleTriple' : 'appleDuo';
+        case 'Samsung':
+          if (/z flip|z fold/.test(m)) return 'flip';
+          if (/ultra/.test(m)) return 'stack4';
+          if (/galaxy a/.test(m)) return 'stack3';
+          return 'stack3';
+        case 'Google':   return 'bar';
+        case 'Nothing':  return 'nothing';
+        case 'OnePlus':  return /nord/.test(m) ? 'squircle' : 'disc';
+        case 'Oppo':     return /find/.test(m) ? 'disc' : 'squircle';
+        case 'Xiaomi':   return /ultra/.test(m) ? 'disc' : 'squircle';
+        case 'vivo':     return 'disc';
+        case 'Honor':    return 'disc';
+        default:         return 'squircle';
+      }
+    }
+
+    // Device body is drawn in a local 0,0 -> 72,150 space, so every camera
+    // island below can be positioned in the same coordinates.
+    const CameraIsland = ({ style, glass, lens, rim }) => {
+      const eye = (cxp, cyp, r) => (
+        <g key={`${cxp}-${cyp}`}>
+          <circle cx={cxp} cy={cyp} r={r} fill={rim} />
+          <circle cx={cxp} cy={cyp} r={r * 0.72} fill={lens} />
+          <circle cx={cxp - r * 0.22} cy={cyp - r * 0.24} r={r * 0.24} fill="#ffffff" opacity="0.5" />
+        </g>
+      );
+      switch (style) {
+        case 'appleTriple':
+          return (<g>
+            <rect x="7" y="8" width="30" height="30" rx="9" fill={glass} />
+            {eye(15.5, 16.5, 5)}{eye(28.5, 16.5, 5)}{eye(15.5, 29.5, 5)}
+            <circle cx="29" cy="30" r="2.2" fill="#f4d58d" />
+          </g>);
+        case 'appleDuo':
+          return (<g>
+            <rect x="7" y="8" width="25" height="25" rx="8" fill={glass} />
+            {eye(15, 15.5, 5)}{eye(24, 25, 5)}
+          </g>);
+        case 'appleSingle':
+          return (<g>
+            <rect x="7" y="8" width="17" height="17" rx="6" fill={glass} />
+            {eye(15.5, 16.5, 5)}
+          </g>);
+        case 'stack3':   // Galaxy S / A: bare lenses straight out of the shell
+          return (<g>{eye(13, 13, 4.6)}{eye(13, 24, 4.6)}{eye(13, 35, 4.2)}</g>);
+        case 'stack4':   // Ultra: four, the top pair fattest
+          return (<g>{eye(13, 12, 5.2)}{eye(13, 24, 5.2)}{eye(13, 35, 4)}{eye(13, 44, 4)}
+            <rect x="21" y="9" width="5" height="9" rx="2.5" fill="#f4d58d" opacity=".85" /></g>);
+        case 'bar':      // Pixel: the visor, running the full width of the back
+          // Drawn from -6 because this group is inset by 6 from the body edge,
+          // and the visor is the one island that is genuinely flush with it.
+          return (<g>
+            <rect x="-6" y="12" width="72" height="17" rx="8.5" fill={glass} />
+            {eye(16, 20.5, 5.4)}{eye(30, 20.5, 5.4)}
+            <rect x="41" y="17" width="9" height="7" rx="3.5" fill={lens} opacity=".8" />
+          </g>);
+        case 'disc':     // OnePlus / Oppo Find / vivo / Honor: the big circle
+          return (<g>
+            <circle cx="36" cy="26" r="21" fill={glass} />
+            <circle cx="36" cy="26" r="21" fill="none" stroke={rim} strokeWidth="1.4" />
+            {eye(28, 19, 6.4)}{eye(44, 19, 6.4)}{eye(28, 34, 6.4)}
+            <circle cx="44" cy="34" r="3" fill="#f4d58d" />
+          </g>);
+        case 'squircle':
+          return (<g>
+            <rect x="7" y="9" width="34" height="34" rx="11" fill={glass} />
+            {eye(17, 19, 6.2)}{eye(31.5, 19, 5)}{eye(17, 33, 5)}
+            <circle cx="32" cy="33" r="2.4" fill="#f4d58d" />
+          </g>);
+        case 'nothing':  // the transparent back is the whole product
+          return (<g>
+            <rect x="6" y="8" width="60" height="52" rx="10" fill={glass} opacity=".55" />
+            <circle cx="46" cy="34" r="15" fill="none" stroke={rim} strokeWidth="1.2" opacity=".8" />
+            <rect x="14" y="18" width="18" height="10" rx="3" fill={rim} opacity=".5" />
+            {eye(17, 44, 6)}{eye(33, 44, 6)}
+          </g>);
+        case 'flip':     // clamshell: cover screen beside a two-lens column
+          return (<g>
+            <rect x="6" y="8" width="60" height="30" rx="8" fill={glass} />
+            {eye(15, 17, 5.4)}{eye(15, 29, 5.4)}
+            <rect x="27" y="12" width="33" height="22" rx="4" fill="#0d0d10" />
+            <rect x="31" y="18" width="16" height="3" rx="1.5" fill={lens} opacity=".9" />
+            <rect x="31" y="24" width="11" height="3" rx="1.5" fill={rim} opacity=".7" />
+          </g>);
+        default:
+          return null;
+      }
+    };
+
+    /* Shared by the full card art and the compact chip. `id` is a prefix, not
+       the phone id, because a Compare view can show the same phone as both a
+       chip and a card at once and duplicate gradient ids would cross-wire
+       them — SVG ids are document-global, not per-<svg>. */
+    const DeviceDefs = ({ id, a }) => (
+      <defs>
+              <linearGradient id={`bg-${id}`} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor={a} stopOpacity="0.30" />
+                <stop offset="55%" stopColor={a} stopOpacity="0.07" />
+                <stop offset="100%" stopColor="#0a0a0b" stopOpacity="0.9" />
+              </linearGradient>
+              {/* stands in for the soft key light a product shot would have,
+                  without costing a blur filter */}
+              <radialGradient id={`halo-${id}`} cx="50%" cy="45%" r="55%">
+                <stop offset="0%" stopColor={a} stopOpacity="0.42" />
+                <stop offset="100%" stopColor={a} stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id={`body-${id}`} x1="0" y1="0" x2="1" y2="0.35">
+                <stop offset="0%" stopColor="#3a3a42" />
+                <stop offset="26%" stopColor="#1a1a1f" />
+                <stop offset="74%" stopColor="#141418" />
+                <stop offset="100%" stopColor="#2e2e36" />
+              </linearGradient>
+              {/* the anodised rail: bright chamfer, dark web, bright chamfer */}
+              <linearGradient id={`rail-${id}`} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={a} stopOpacity="0.95" />
+                <stop offset="45%" stopColor={a} stopOpacity="0.35" />
+                <stop offset="100%" stopColor={a} stopOpacity="0.85" />
+              </linearGradient>
+              <linearGradient id={`glass-${id}`} x1="0" y1="0" x2="0.6" y2="1">
+                <stop offset="0%" stopColor="#2b2b33" />
+                <stop offset="100%" stopColor="#0f0f13" />
+              </linearGradient>
+              {/* One shade lighter than the back panel it sits on, so the
+                  camera island keeps a silhouette instead of disappearing
+                  into black-on-black. */}
+              <linearGradient id={`island-${id}`} x1="0" y1="0" x2="0.5" y2="1">
+                <stop offset="0%" stopColor="#3c3c46" />
+                <stop offset="100%" stopColor="#191920" />
+              </linearGradient>
+              {/* Screen: the phone is off, but a dark panel still catches the
+                  room. This is where the card gets most of its colour. */}
+              <linearGradient id={`screen-${id}`} x1="0" y1="0" x2="0.4" y2="1">
+                <stop offset="0%" stopColor={a} stopOpacity="0.30" />
+                <stop offset="42%" stopColor="#101014" />
+                <stop offset="100%" stopColor="#08080a" />
+              </linearGradient>
+              <linearGradient id={`floor-${id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={a} stopOpacity="0.18" />
+                <stop offset="100%" stopColor={a} stopOpacity="0" />
+              </linearGradient>
+      </defs>
+    );
+
+    /* The hero half of the artwork, in its own 0,0 -> 72,150 space so the
+       caller decides where it sits and how big it is. */
+    const DeviceBack = ({ id, a, style, folds }) => (
+      <g>
+        <ellipse cx="40" cy="153" rx="46" ry="8" fill="#000000" opacity="0.55" />
+        <rect x="0" y="0" width="72" height="150" rx="14" fill={`url(#body-${id})`} />
+        <rect x="0" y="0" width="72" height="150" rx="14" fill="none"
+              stroke={`url(#rail-${id})`} strokeWidth="2" />
+        {/* glass back panel, inset from the rail like a real one */}
+        <rect x="3" y="3" width="66" height="144" rx="11" fill={`url(#glass-${id})`} />
+        {folds && (
+          <g>
+            <rect x="3" y="72" width="66" height="2" fill="#000000" opacity="0.55" />
+            <rect x="3" y="74" width="66" height="1" fill={a} opacity="0.25" />
+          </g>
+        )}
+        <g transform="translate(6 6)">
+          <CameraIsland style={style} glass={`url(#island-${id})`} lens="#0b0b0f" rim="#5a5a68" />
+        </g>
+        {/* specular sweep across the back — one low-opacity polygon does what
+            a blur filter would, at fifty cards a screen */}
+        <polygon points="8,150 34,3 52,3 26,150" fill="#ffffff" opacity="0.05" />
+      </g>
+    );
+
+    /* Compact chip for the Compare and Advisor rows — back view only, the
+       same slot the games app fills with Steam's 231x87 capsule. */
+    const PhoneThumb = ({ phone, className = '' }) => {
+      const id = `t${phone.id}`;
+      const style = cameraStyle(phone);
+      return (
+        <div className={cx('relative rounded-lg overflow-hidden shrink-0', className)}
+             style={{ background: `${phone.accent}18`, border: `1px solid ${phone.accent}55` }}>
+          <svg viewBox="-8 -6 88 168" className="w-full h-full" role="img"
+               aria-label={`${phone.brand} ${phone.model}`} preserveAspectRatio="xMidYMid meet">
+            <DeviceDefs id={id} a={phone.accent} />
+            <DeviceBack id={id} a={phone.accent} style={style} folds={style === 'flip'} />
+          </svg>
+        </div>
+      );
+    };
+
+    const PhoneArt = ({ phone, selected, className = '' }) => {
+      const a = phone.accent;
+      const id = phone.id;
+      const style = cameraStyle(phone);
+      const folds = style === 'flip';
+      return (
+        <div className={cx('relative aspect-[460/215] overflow-hidden bg-ink-900', className)}>
+          <svg viewBox="0 0 460 215" className="w-full h-full" role="img"
+               aria-label={`${phone.brand} ${phone.model}`} preserveAspectRatio="xMidYMid slice">
+            <DeviceDefs id={id} a={a} />
+
+            <rect width="460" height="215" fill={`url(#bg-${id})`} />
+            <ellipse cx="310" cy="96" rx="165" ry="110" fill={`url(#halo-${id})`} />
+
+            {/* Brand set large and nearly invisible, with the devices standing
+                in front of it — the editorial layering that stops a wide dark
+                tile reading as empty. Sized so the longest brand in the
+                catalog still clears the left edge. */}
+            <text x="20" y="150" fontSize="44" fontWeight="800" letterSpacing="-1.5"
+                  fill={a} fillOpacity="0.13" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+              {phone.brand.toUpperCase()}
+            </text>
+
+            {/* FRONT view, behind and left. Every phone is the same black
+                rectangle from the front, which is exactly why it belongs
+                BEHIND: it carries the screen (and so the colour), while the
+                back carries the identity. */}
+            <g transform="translate(232 42) rotate(6 32 66)" opacity="0.96">
+              <ellipse cx="34" cy="136" rx="38" ry="6" fill="#000000" opacity="0.45" />
+              <rect x="0" y="0" width="64" height="133" rx="13" fill={`url(#body-${id})`} />
+              <rect x="0" y="0" width="64" height="133" rx="13" fill="none"
+                    stroke={`url(#rail-${id})`} strokeWidth="1.8" />
+              <rect x="3" y="3" width="58" height="127" rx="10.5" fill={`url(#screen-${id})`} />
+              {phone.brand === 'Apple'
+                ? <rect x="23" y="8" width="18" height="6" rx="3" fill="#08080a" />
+                : <circle cx="32" cy="11" r="3" fill="#08080a" />}
+              {/* the advisor's own shape, at a size where it reads as UI and
+                  not as an attempt at legible text */}
+              <rect x="10" y="24" width="30" height="5" rx="2.5" fill="#ffffff" opacity=".28" />
+              <rect x="10" y="38" width="44" height="18" rx="5" fill="#34d399" opacity=".30" />
+              {[64, 76, 88, 100].map(y => (
+                <g key={y}>
+                  <rect x="10" y={y} width="44" height="5" rx="2.5" fill="#ffffff" opacity=".10" />
+                  <rect x="10" y={y} width={14 + (y % 7) * 4} height="5" rx="2.5" fill={a} opacity=".55" />
+                </g>
+              ))}
+              <rect x="10" y="114" width="44" height="9" rx="4.5" fill="#d9482b" opacity=".85" />
+            </g>
+
+            {/* BACK view, in front and right — the hero, and the only part of
+                the silhouette that says which phone this is. */}
+            <g transform="translate(330 30) rotate(-7 36 75)">
+              <DeviceBack id={id} a={a} style={style} folds={folds} />
+            </g>
+
+            <rect y="176" width="460" height="39" fill={`url(#floor-${id})`} />
+          </svg>
+
+          {/* Feather the art into the card body so the brand line never sits
+              against a hard horizontal edge. */}
+          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-ink-850 to-transparent pointer-events-none" />
           {selected && (
-            <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center shrink-0">
+            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-black/50">
               <Check className="w-3.5 h-3.5 text-ink-950" />
             </div>
           )}
         </div>
-        <div className="mt-3">
-          <StatBar label="Sentiment" value={phone.sentimentScore} sub={`${phone.sentimentScore}%`} color={phone.accent} />
+      );
+    };
+
+    /* ---------------- Price tag ----------------
+       Reads as one unit: what you pay now, what it cost new, and how far it
+       has fallen, with the drop badge carrying the deal-heat colour. Matching
+       the games app's PriceTag, because a visitor crossing between the two
+       sites should not have to relearn what a coloured percentage means. */
+    const PriceTag = ({ phone, size = 'sm' }) => {
+      const drop = priceDrop(phone);
+      const heat = dealHeat(phone);
+      return (
+        <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+          <span className={cx('font-semibold tabular-nums text-zinc-100', size === 'lg' ? 'text-lg' : 'text-sm')}>
+            S${phone.price}
+          </span>
+          {drop > 0 && (
+            <>
+              <span className="text-[11px] text-zinc-500 line-through tabular-nums">S${phone.launchPrice}</span>
+              <span className={cx('text-[10px] px-1.5 py-0.5 rounded-full ring-1 font-semibold tabular-nums', HEAT[heat].badge)}>
+                −{drop}%
+              </span>
+            </>
+          )}
+        </span>
+      );
+    };
+
+    /* ---------------- Phone card (used in Browse + Compare picker) ---------------- */
+    const PhoneCard = ({ phone, selected, onClick, disabled, showPrice = true }) => {
+      const heat = dealHeat(phone);
+      const beatsCurve = underCurve(phone);
+      const modelLabel = phone.model.replace(new RegExp(`^${phone.brand}\\s+`, 'i'), '');
+      return (
+      // Deal heat also warms the card edge — scanning fifty cards, the good
+      // prices should be findable without reading a single number.
+      <Card className={cx('relative animate-fade-in overflow-hidden',
+                          disabled && 'opacity-40 pointer-events-none',
+                          selected ? 'ring-2 ring-accent'
+                                   : heat === 'hot' ? cx('ring-1', HEAT.hot.ring, HEAT.hot.glow)
+                                   : heat === 'warm' ? cx('ring-1', HEAT.warm.ring) : null)}
+            onClick={onClick}>
+        <PhoneArt phone={phone} selected={selected} />
+        <div className="p-4 pt-3">
+          <div className="min-w-0">
+            <div className="text-xs text-zinc-400 truncate">{phone.brand} · {phone.year}</div>
+            <div className="text-zinc-100 font-semibold truncate" title={phone.model}>{modelLabel}</div>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <Pill>{phone.tier}</Pill>
+              {showPrice && <PriceTag phone={phone} />}
+            </div>
+          </div>
+          <div className="mt-3">
+            <StatBar label="Sentiment" value={phone.sentimentScore} sub={`${phone.sentimentScore}%`} color={phone.accent} />
+          </div>
+          <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+            <Pill>{phone.displayInfo.chipset}</Pill>
+            <Pill>{phone.displayInfo.refreshRate}</Pill>
+            {beatsCurve && (
+              <Pill tone="hot"><TrendingDown className="w-3 h-3" /> below {phone.brand}'s curve</Pill>
+            )}
+          </div>
         </div>
       </Card>
-    );
+      );
+    };
 
     /* ---------------- Browse view ---------------- */
     const BrowseView = ({ shortlist, onToggle }) => {
@@ -336,22 +727,31 @@
       const [brand, setBrand] = useState('All');
       const [tier, setTier] = useState('All');
       const [sort, setSort] = useState('sentiment');
+      const [dealsOnly, setDealsOnly] = useState(false);
 
       const brands = ['All', ...Array.from(new Set(PHONES.map(p => p.brand)))];
       const tiers = ['All', ...Array.from(new Set(PHONES.map(p => p.tier)))];
+      // How many are actually beating their brand's curve right now. If that
+      // is zero the toggle would empty the grid, so it disables itself.
+      const dealCount = useMemo(() => PHONES.filter(p => dealHeat(p) === 'hot').length, []);
+      const filtered = brand !== 'All' || tier !== 'All' || query.trim() !== '' || dealsOnly;
 
       const list = useMemo(() => {
         let out = PHONES.filter(p =>
           (brand === 'All' || p.brand === brand) &&
           (tier === 'All' || p.tier === tier) &&
+          (!dealsOnly || dealHeat(p) === 'hot') &&
           (query.trim() === '' || (p.brand + ' ' + p.model).toLowerCase().includes(query.toLowerCase()))
         );
         if (sort === 'sentiment') out = out.sort((a,b)=>b.sentimentScore-a.sentimentScore);
         if (sort === 'price-asc') out = out.sort((a,b)=>a.price-b.price);
         if (sort === 'price-desc') out = out.sort((a,b)=>b.price-a.price);
         if (sort === 'year') out = out.sort((a,b)=>b.year-a.year);
+        if (sort === 'drop') out = out.sort((a,b)=>priceDrop(b)-priceDrop(a));
         return out;
-      }, [query, brand, tier, sort]);
+      }, [query, brand, tier, sort, dealsOnly]);
+
+      const clear = () => { setQuery(''); setBrand('All'); setTier('All'); setDealsOnly(false); };
 
       return (
         <div className="animate-fade-in">
@@ -359,7 +759,7 @@
             title="Browse phones"
             subtitle={`${PHONES.length} devices across ${brands.length-1} brands, budget to flagship-plus, from 2021 to 2026. Tap a card to add it to your comparison shortlist.`} />
 
-          <Card className="p-3 mb-6">
+          <Card className="p-3 mb-3">
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-2">
               <div className="relative">
                 <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -369,11 +769,40 @@
               <Selector value={brand} onChange={setBrand} options={brands} label="Brand" />
               <Selector value={tier} onChange={setTier} options={tiers} label="Tier" />
               <Selector value={sort} onChange={setSort}
-                options={['sentiment','price-asc','price-desc','year']}
-                labels={{sentiment:'Top sentiment', 'price-asc':'Price ↑','price-desc':'Price ↓', year:'Newest'}}
+                options={['sentiment','price-asc','price-desc','drop','year']}
+                labels={{sentiment:'Top sentiment', 'price-asc':'Price ↑','price-desc':'Price ↓', drop:'Biggest price drop', year:'Newest'}}
                 label="Sort" />
             </div>
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
+              <button type="button" onClick={() => dealCount && setDealsOnly(v => !v)} disabled={!dealCount}
+                aria-pressed={dealsOnly}
+                className={cx('inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full ring-1 transition',
+                              !dealCount ? 'bg-ink-800 text-zinc-600 ring-ink-700 cursor-not-allowed'
+                                         : dealsOnly ? 'bg-ember/25 text-orange-200 ring-ember/60'
+                                                     : 'bg-ink-800 text-zinc-300 ring-ink-600 hover:ring-ember/50')}>
+                <Tag className="w-3 h-3" /> Best value now ({dealCount})
+              </button>
+              <span className="text-xs text-zinc-500">{list.length} of {PHONES.length} shown</span>
+              {filtered && (
+                <button type="button" onClick={clear}
+                        className="text-xs text-zinc-400 hover:text-accent-soft transition inline-flex items-center gap-1">
+                  <X className="w-3 h-3" /> Clear filters
+                </button>
+              )}
+            </div>
           </Card>
+
+          {/* Provenance, stated where the prices are, not buried in a footer.
+              These are tracked catalog prices, not a live feed — see the note
+              on dealHeat() for why there isn't one. */}
+          <div className="mb-6 flex items-start gap-2 text-xs text-zinc-500">
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>
+              Prices are typical Singapore street prices tracked in our catalog, last reviewed {CATALOG_REVIEWED} —
+              not a live retailer feed. The drop percentage is against launch RRP.{' '}
+              <a href="https://lazycomparo.com/how-we-rank" className="underline decoration-dotted hover:text-accent-soft">How we rank</a>.
+            </span>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {list.map(p => (
@@ -447,14 +876,11 @@
                   <X className="w-4 h-4" />
                 </button>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-14 rounded-lg flex items-center justify-center shrink-0"
-                       style={{ background: `${p.accent}22`, border: `1px solid ${p.accent}66` }}>
-                    <Smartphone className="w-5 h-5" style={{ color: p.accent }} />
-                  </div>
-                  <div>
-                    <div className="text-xs text-zinc-400">{p.brand}</div>
-                    <div className="text-zinc-100 font-semibold">{p.model}</div>
-                    <div className="text-xs text-zinc-400">S${p.price} · {p.year}</div>
+                  <PhoneThumb phone={p} className="w-10 h-14" />
+                  <div className="min-w-0">
+                    <div className="text-xs text-zinc-400">{p.brand} · {p.year}</div>
+                    <div className="text-zinc-100 font-semibold truncate">{p.model}</div>
+                    <div className="mt-0.5"><PriceTag phone={p} /></div>
                   </div>
                 </div>
                 <div className="mt-3 space-y-1.5">
@@ -734,10 +1160,7 @@
                 {results.candidates.map(({ phone, score, eco, topPri }, idx) => (
                   <Card key={phone.id} className={cx('p-5 animate-slide-up', idx === 0 && 'ring-2 ring-accent/50')}>
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-16 rounded-lg flex items-center justify-center shrink-0"
-                           style={{ background: `${phone.accent}22`, border: `1px solid ${phone.accent}66` }}>
-                        <Smartphone className="w-6 h-6" style={{ color: phone.accent }} />
-                      </div>
+                      <PhoneThumb phone={phone} className="w-12 h-16" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 flex-wrap">
                           <div>
@@ -745,7 +1168,10 @@
                               <div className="text-lg font-semibold text-zinc-100">{phone.brand} {phone.model}</div>
                               {idx === 0 && <Pill tone="accent"><Award className="w-3 h-3" /> Top pick</Pill>}
                             </div>
-                            <div className="text-xs text-zinc-400 mt-0.5">S${phone.price} · {phone.tier} · {phone.ecosystem}</div>
+                            <div className="mt-1 flex items-center gap-2 flex-wrap">
+                              <PriceTag phone={phone} />
+                              <span className="text-xs text-zinc-400">{phone.tier} · {phone.ecosystem}</span>
+                            </div>
                           </div>
                           <div className="text-right">
                             <div className="text-xs text-zinc-400">Match score</div>

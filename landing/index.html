@@ -1137,14 +1137,116 @@
     rim.position.set(-26, 14, -22);
     scene.add(rim);
 
+    /* ---------- surface detail maps ----------
+       After the chamfers went in, the loudest remaining "this is CG" tell was
+       that every panel is a mathematically perfect, perfectly uniform colour.
+       Real hardware has micro-structure: a brushed rail catches the light in
+       streaks, injection-moulded plastic has a fine matte grain, paper has
+       fibre. None of it is visible as *detail* at these camera distances —
+       what it does is break the specular highlight up so a surface stops
+       reading as a flat swatch.
+
+       These are greyscale canvases used as roughnessMap + bumpMap. Deliberately
+       centred near white (roughnessMap MULTIPLIES the material's roughness, so
+       a dark texture would make everything mirror-glossy) and deliberately
+       small: they are only ever seen as a modulation, never resolved.
+       Three textures shared across the whole scene, so three uploads total. */
+    function detailTex(kind) {
+      var S = 128;
+      var cv = document.createElement('canvas'); cv.width = cv.height = S;
+      var c = cv.getContext('2d');
+      var img = c.createImageData(S, S), px = img.data;
+      for (var y = 0; y < S; y++) {
+        for (var x = 0; x < S; x++) {
+          var v;
+          if (kind === 'brushed') {
+            // anisotropic: strong variation across the grain, almost none
+            // along it — that directionality is what reads as "machined"
+            v = 0.80 + vnz(x / 2.0, y / 26) * 0.20 + (nz(x, y) - 0.5) * 0.05;
+          } else if (kind === 'plastic') {
+            // isotropic fine grain, the texture of a moulded shell
+            v = 0.86 + (nz(x * 1.7, y * 1.3) - 0.5) * 0.13 + (vnz(x / 7, y / 7) - 0.5) * 0.09;
+          } else { // paper
+            // broad blotching (stock unevenness) plus tight fibre
+            v = 0.88 + (vnz(x / 19, y / 19) - 0.5) * 0.14
+                     + (vnz(x / 2.5, y / 3.5) - 0.5) * 0.07;
+          }
+          var g = Math.max(0, Math.min(255, Math.round(v * 255)));
+          var i = (y * S + x) * 4;
+          px[i] = px[i + 1] = px[i + 2] = g; px[i + 3] = 255;
+        }
+      }
+      c.putImageData(img, 0, 0);
+      var t = new THREE.CanvasTexture(cv);
+      // NO colorSpace assignment on purpose — roughness and bump are data
+      // channels, not colour, and r158 defaults a texture to linear.
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      var rep = kind === 'paper' ? 22 : kind === 'brushed' ? 5 : 7;
+      t.repeat.set(rep, rep);
+      t.anisotropy = MAX_ANISO;
+      return t;
+    }
+    var SURF = {
+      brushed: detailTex('brushed'),
+      plastic: detailTex('plastic'),
+      paper: detailTex('paper')
+    };
+
+    /* ---------- ground stock ----------
+       The ground is by a wide margin the largest thing on screen and it was a
+       single flat value across all 240 units of it, which is why the middle
+       distance read as empty page rather than as ground. A roughnessMap does
+       nothing here — the surface is already 0.98 rough and non-metal, so there
+       is no specular for it to vary. What it needs is TONE: real paper stock
+       is unevenly dyed at a scale you notice without being able to name.
+
+       This is a colour map, so it MULTIPLIES the material colour, which means
+       it survives the theme switch untouched: recolouring `ground` on the
+       material still lands, just modulated. Kept between 0.90 and 1.0 — any
+       darker and the light theme's cream starts to look dirty rather than
+       stocky. */
+    var GROUND_MAP = (function () {
+      var S = 256;
+      var cv = document.createElement('canvas'); cv.width = cv.height = S;
+      var c = cv.getContext('2d');
+      var img = c.createImageData(S, S), px = img.data;
+      for (var y = 0; y < S; y++) {
+        for (var x = 0; x < S; x++) {
+          // three octaves: broad dye unevenness, mid mottle, fine fibre
+          var v = 0.955
+                + (vnz(x / 46, y / 46) - 0.5) * 0.075
+                + (vnz(x / 15, y / 15) - 0.5) * 0.035
+                + (vnz(x / 3.5, y / 3.5) - 0.5) * 0.022;
+          var g = Math.max(0, Math.min(255, Math.round(v * 255)));
+          var i = (y * S + x) * 4;
+          px[i] = px[i + 1] = px[i + 2] = g; px[i + 3] = 255;
+        }
+      }
+      c.putImageData(img, 0, 0);
+      var t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;   // it IS colour, unlike SURF
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      // ~40 world units per tile: big enough that the repeat never announces
+      // itself inside a single camera stop
+      t.repeat.set(6, 6);
+      t.anisotropy = MAX_ANISO;
+      return t;
+    })();
+
     /* ---------- material helper ----------
        `flat` defaults to true: the paper world (ground plinths, keycap dice,
        planes, masts) is folded-paper low-poly on purpose. The hardware props
        pass flat:false and lean on roughness/metalness instead — that split is
        what separates "paper village" from "grey boxes". */
+    /* `surf` names a shared detail texture (see SURF below) which is applied as
+       BOTH roughnessMap and bumpMap. That pairing is the point: a real surface
+       varies in gloss and in height together, and it is the *variation* — not
+       the average value — that separates a manufactured panel from a solid
+       colour. `bump` scales the height contribution; keep it tiny, these are
+       micro-details, not relief. */
     function mat(color, opts) {
       var o = opts || {};
-      return new THREE.MeshStandardMaterial({
+      var d = {
         color: color,
         flatShading: o.flat != null ? o.flat : true,
         roughness: o.rough != null ? o.rough : 0.95,
@@ -1155,7 +1257,13 @@
         // 8-bit banding is very visible across a large, smooth, near-white
         // gradient — the ground plane is exactly that case. Costs nothing.
         dithering: !!o.dither
-      });
+      };
+      if (o.surf && SURF[o.surf]) {
+        d.roughnessMap = SURF[o.surf];
+        d.bumpMap = SURF[o.surf];
+        d.bumpScale = o.bump != null ? o.bump : 0.012;
+      }
+      return new THREE.MeshStandardMaterial(d);
     }
     /* Same as mat(), but the colour is a WORLD key instead of a literal, and
        the material is remembered so a theme switch can recolour it in place.
@@ -1261,55 +1369,283 @@
        product's actual UI into a canvas is what makes the props look like
        machines doing something. Kept schematic — at these camera distances
        real copy would be sub-pixel mush. */
+    /* ---------- emissive glow (a bloom that isn't one) ----------
+       Every RGB part in this scene is emissive, and an emissive material in a
+       forward renderer stops at its own silhouette: the LED is bright, the air
+       next to it is not, so the light never leaves the object and the whole
+       thing reads as a coloured plastic chip rather than as something switched
+       on. Real bloom needs EffectComposer/UnrealBloomPass, which live in
+       examples/jsm — the pinned r158 UMD build has neither.
+
+       So: additive, size-attenuated Points sharing one radial-falloff sprite.
+       Points are camera-facing for free and cost one draw call per size
+       bucket, which is why they are bucketed rather than sized per emitter —
+       three buckets, three draw calls, for every glow in the village.
+
+       fog is OFF deliberately. three.js fog mixes toward the fog colour, and
+       under additive blending mixing toward paper-white would ADD white to
+       everything behind a distant LED. The props all sit well inside fog-near
+       anyway. */
+    var GLOW_BUCKETS = { sm: 0.85, md: 2.1, lg: 3.2 };
+    var glowQueue = [];
+    // Records the emitter itself, not a position: most of these are built
+    // inside groups that are only positioned afterwards, so world space is not
+    // known until the whole village exists.
+    function glowAt(obj, bucket, colorHex) {
+      glowQueue.push({ o: obj, b: bucket, c: colorHex });
+      return obj;
+    }
+    var glowLayers = {};
+    function buildGlow() {
+      var cv = document.createElement('canvas'); cv.width = cv.height = 64;
+      var c = cv.getContext('2d');
+      var g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+      // squared-off falloff: a linear ramp reads as a flat disc with a hard rim
+      g.addColorStop(0.00, 'rgba(255,255,255,1)');
+      g.addColorStop(0.18, 'rgba(255,255,255,.62)');
+      g.addColorStop(0.45, 'rgba(255,255,255,.17)');
+      g.addColorStop(1.00, 'rgba(255,255,255,0)');
+      c.fillStyle = g; c.fillRect(0, 0, 64, 64);
+      var tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+
+      scene.updateMatrixWorld(true);
+      var wp = new THREE.Vector3(), col = new THREE.Color();
+      Object.keys(GLOW_BUCKETS).forEach(function (b) {
+        var items = glowQueue.filter(function (q) { return q.b === b; });
+        if (!items.length) return;
+        var pos = new Float32Array(items.length * 3);
+        var rgb = new Float32Array(items.length * 3);
+        items.forEach(function (q, i) {
+          q.o.getWorldPosition(wp);
+          pos[i * 3] = wp.x; pos[i * 3 + 1] = wp.y; pos[i * 3 + 2] = wp.z;
+          col.setHex(q.c);
+          rgb[i * 3] = col.r; rgb[i * 3 + 1] = col.g; rgb[i * 3 + 2] = col.b;
+        });
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(rgb, 3));
+        var pts = new THREE.Points(geo, new THREE.PointsMaterial({
+          size: GLOW_BUCKETS[b], sizeAttenuation: true, map: tex,
+          /* The small bucket is the rack LEDs, and they are the one place a
+             halo can cost more than it gives: stack enough additive white on
+             a 0.13-unit chip and it saturates to a white dot, losing the cyan
+             / violet / amber that is the only thing distinguishing one rack
+             from the next. Kept low enough that the LED still reads as
+             coloured with a bloom, not as a blown highlight. */
+          transparent: true, opacity: b === 'sm' ? 0.3 : 0.62,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+          vertexColors: true, fog: false
+        }));
+        pts.renderOrder = 3;
+        pts.frustumCulled = false;   // a point's centre leaves the frustum
+                                     // long before its sprite does
+        scene.add(pts);
+        glowLayers[b] = pts;
+      });
+    }
+
+    /* Rounded rect that works on the one browser without ctx.roundRect. */
+    function rr(c, x, y, w, h, r) {
+      c.beginPath();
+      if (c.roundRect) { c.roundRect(x, y, w, h, r); return; }
+      r = Math.min(r, w / 2, h / 2);
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+
+    /* The apps' own palette, so a screen in the village is recognisably the
+       thing the CTA below it links to. Deal heat is the same scale the games
+       app, the ticker and /how-we-rank all use. */
+    var UI = {
+      bg: '#0a0a0b', card: '#141418', line: '#28282c', well: '#101014',
+      text: '#3f3f46', dim: '#2a2a30',
+      cyan: '#22d3ee', violet: '#a78bfa', ember: '#d9482b',
+      hot: '#d9482b', warm: '#f59e0b', mild: '#34d399'
+    };
+
+    /* Draws a fake key-art thumbnail: a two-stop diagonal gradient in the
+       card's own hue, a lighter sweep across it, and a darkened lower third
+       where a real store banner carries its title plate. Six of these in a
+       grid is what makes the plaza monitor read as *our* browse page rather
+       than as an anonymous dashboard. */
+    function artTile(c, x, y, w, h, hue, seed) {
+      var g = c.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, hue[0]); g.addColorStop(1, hue[1]);
+      c.fillStyle = g; rr(c, x, y, w, h, 5); c.fill();
+      c.save(); rr(c, x, y, w, h, 5); c.clip();
+      // diagonal sheen
+      c.globalAlpha = 0.16; c.fillStyle = '#ffffff';
+      c.beginPath();
+      var sx = x + w * (0.1 + nz(seed, 2) * 0.5);
+      c.moveTo(sx, y + h); c.lineTo(sx + w * 0.26, y);
+      c.lineTo(sx + w * 0.46, y); c.lineTo(sx + w * 0.2, y + h);
+      c.fill();
+      // silhouetted "subject" sitting on the horizon, as game art tends to
+      c.globalAlpha = 0.32; c.fillStyle = '#000000';
+      c.beginPath();
+      c.moveTo(x, y + h);
+      c.lineTo(x + w * (0.18 + nz(seed, 5) * 0.2), y + h * 0.42);
+      c.lineTo(x + w * 0.52, y + h * 0.78);
+      c.lineTo(x + w * (0.72 + nz(seed, 8) * 0.15), y + h * 0.3);
+      c.lineTo(x + w, y + h);
+      c.fill();
+      c.globalAlpha = 1;
+      // title plate gradient along the bottom edge
+      var t = c.createLinearGradient(0, y + h * 0.45, 0, y + h);
+      t.addColorStop(0, 'rgba(0,0,0,0)'); t.addColorStop(1, 'rgba(0,0,0,.62)');
+      c.fillStyle = t; c.fillRect(x, y + h * 0.45, w, h * 0.55);
+      c.restore();
+    }
+
+    /* ---------- screen content ----------
+       Deliberately text-free: at the closest camera stop the plaza monitor is
+       ~210 screen px wide for 768 px of texture, so any real copy would land
+       sub-pixel — and it would drag a webfont dependency into a texture that
+       is painted before fonts load. Everything here is drawn at UI proportions
+       instead, which is what carries the recognition. */
     function screenTex(kind) {
       var cv = document.createElement('canvas');
-      var W = kind === 'phone' ? 220 : 512, H = kind === 'phone' ? 460 : 288;
+      var W = kind === 'phone' ? 300 : 768, H = kind === 'phone' ? 660 : 440;
       cv.width = W; cv.height = H;
       var c = cv.getContext('2d');
-      c.fillStyle = '#0d1424'; c.fillRect(0, 0, W, H);
+      c.fillStyle = UI.bg; c.fillRect(0, 0, W, H);
 
       if (kind === 'phone') {
-        c.fillStyle = '#182238'; c.fillRect(0, 0, W, 54);
-        c.fillStyle = '#22d3ee'; c.fillRect(18, 22, 74, 9);
-        // verdict card
-        c.fillStyle = '#14361f'; c.fillRect(16, 74, W - 32, 92);
-        c.fillStyle = '#4ade80'; c.fillRect(30, 96, 108, 13);
-        c.fillStyle = '#2c5138'; c.fillRect(30, 122, 150, 8);
-        c.fillStyle = '#2c5138'; c.fillRect(30, 138, 116, 8);
-        // spec bars
+        // --- switching advisor: verdict, then the spec scoreline ---
+        c.fillStyle = UI.card; c.fillRect(0, 0, W, 66);
+        c.fillStyle = UI.line; c.fillRect(0, 65, W, 1);
+        // brand stamp: the comparison mark's three descending bars
+        [[20, 22, 30], [20, 32, 22], [20, 42, 14]].forEach(function (b, i) {
+          c.fillStyle = i ? 'rgba(217,72,43,.45)' : UI.ember;
+          rr(c, b[0], b[1], b[2], 6, 3); c.fill();
+        });
+        c.fillStyle = UI.text; rr(c, 62, 28, 78, 10, 5); c.fill();
+
+        // verdict card — emerald "worth upgrading", the app's happy path
+        c.fillStyle = 'rgba(52,211,153,.10)'; rr(c, 18, 86, W - 36, 116, 14); c.fill();
+        c.strokeStyle = 'rgba(52,211,153,.34)'; c.lineWidth = 2;
+        rr(c, 18, 86, W - 36, 116, 14); c.stroke();
+        c.fillStyle = UI.mild; rr(c, 36, 108, 132, 16, 8); c.fill();
+        c.fillStyle = 'rgba(52,211,153,.28)';
+        rr(c, 36, 140, 196, 9, 4); c.fill();
+        rr(c, 36, 158, 148, 9, 4); c.fill();
+        // the score delta, the number the whole page exists to produce
+        c.fillStyle = UI.mild; rr(c, W - 92, 104, 56, 34, 10); c.fill();
+
+        // five spec rows, one per priority the advisor weighs
+        var sv = [0.86, 0.62, 0.93, 0.71, 0.55];
         for (var i = 0; i < 5; i++) {
-          var y = 194 + i * 44;
-          c.fillStyle = '#243350'; c.fillRect(16, y, W - 32, 30);
-          c.fillStyle = '#33415e'; c.fillRect(28, y + 11, 46, 8);
-          var w = 40 + (nz(i, 3) * 78) | 0;
-          c.fillStyle = i % 2 ? '#a78bfa' : '#22d3ee';
-          c.fillRect(88, y + 10, w, 10);
+          var y = 228 + i * 62;
+          c.fillStyle = UI.card; rr(c, 18, y, W - 36, 50, 12); c.fill();
+          c.fillStyle = UI.dim; rr(c, 34, y + 13, 52, 9, 4); c.fill();
+          c.fillStyle = UI.well; rr(c, 34, y + 30, W - 104, 8, 4); c.fill();
+          c.fillStyle = i % 2 ? UI.violet : UI.cyan;
+          rr(c, 34, y + 30, (W - 104) * sv[i], 8, 4); c.fill();
+          c.fillStyle = UI.text; rr(c, W - 58, y + 28, 24, 11, 5); c.fill();
         }
-        c.fillStyle = '#d9482b'; c.fillRect(16, H - 52, W - 32, 34);
+        // primary CTA
+        c.fillStyle = UI.ember; rr(c, 18, H - 66, W - 36, 44, 14); c.fill();
+        c.fillStyle = 'rgba(0,0,0,.35)'; rr(c, W / 2 - 44, H - 50, 88, 12, 6); c.fill();
       } else {
-        // comparison table: header bar, then rows of title / bar / price chip
-        c.fillStyle = '#131d33'; c.fillRect(0, 0, W, 46);
-        c.fillStyle = '#22d3ee'; c.fillRect(22, 18, 96, 10);
-        c.fillStyle = '#33415e'; c.fillRect(W - 150, 18, 60, 10);
-        c.fillStyle = '#a78bfa'; c.fillRect(W - 80, 15, 58, 16);
-        for (var r = 0; r < 6; r++) {
-          var ry = 60 + r * 37;
-          c.fillStyle = r % 2 ? '#101a2e' : '#152238';
-          c.fillRect(14, ry, W - 28, 31);
-          c.fillStyle = '#3d4c6b'; c.fillRect(26, ry + 11, 92, 9);   // title
-          var bw = 60 + (nz(r, 7) * 150) | 0;                        // value bar
-          c.fillStyle = r === 1 ? '#4ade80' : (r % 2 ? '#a78bfa' : '#22d3ee');
-          c.fillRect(136, ry + 10, bw, 11);
-          c.fillStyle = r === 1 ? '#d9482b' : '#2a3550';
-          c.fillRect(W - 78, ry + 8, 56, 15);                        // price chip
+        // --- games browse grid: filter bar over a 3x2 card wall ---
+        c.fillStyle = UI.card; c.fillRect(0, 0, W, 58);
+        c.fillStyle = UI.line; c.fillRect(0, 57, W, 1);
+        [[24, 16, 34], [24, 27, 25], [24, 38, 16]].forEach(function (b, i) {
+          c.fillStyle = i ? 'rgba(217,72,43,.45)' : UI.ember;
+          rr(c, b[0], b[1], b[2], 7, 3); c.fill();
+        });
+        c.fillStyle = UI.text; rr(c, 70, 22, 92, 12, 6); c.fill();
+        c.fillStyle = UI.well; rr(c, 300, 16, 190, 26, 13); c.fill();   // search
+        c.fillStyle = UI.dim; rr(c, 316, 25, 74, 8, 4); c.fill();
+        [520, 600, 680].forEach(function (fx) {                          // selects
+          c.fillStyle = UI.well; rr(c, fx, 16, 68, 26, 8); c.fill();
+          c.fillStyle = UI.dim; rr(c, fx + 12, 25, 34, 8, 4); c.fill();
+        });
+
+        // A hue pair per card so the six art tiles don't read as one swatch
+        // repeated — this is the grid's whole job on screen.
+        var HUE = [
+          ['#2c3e6b', '#101828'], ['#7a2f1c', '#2a1310'], ['#1f4d3d', '#0d1f19'],
+          ['#3f2c63', '#150f24'], ['#6b4a1c', '#241809'], ['#1b4256', '#0a1a22']
+        ];
+        // card 1 is the deal-heat hot pick — ember ring + a glow bed under it
+        var HEAT_ROW = [UI.hot, null, UI.mild, null, UI.warm, null];
+        for (var k = 0; k < 6; k++) {
+          var cx = 26 + (k % 3) * 244, cy = 82 + Math.floor(k / 3) * 172;
+          var cw = 216, ch = 150;
+          if (k === 0) {  // the glow a hot card carries in the real app
+            c.save();
+            c.shadowColor = 'rgba(217,72,43,.85)'; c.shadowBlur = 26;
+            c.fillStyle = UI.card; rr(c, cx, cy, cw, ch, 14); c.fill();
+            c.restore();
+          }
+          c.fillStyle = UI.card; rr(c, cx, cy, cw, ch, 14); c.fill();
+          c.strokeStyle = k === 0 ? 'rgba(217,72,43,.6)' : UI.line;
+          c.lineWidth = k === 0 ? 2.5 : 1.5;
+          rr(c, cx, cy, cw, ch, 14); c.stroke();
+          artTile(c, cx + 9, cy + 9, cw - 18, 74, HUE[k], k);
+          c.fillStyle = UI.dim; rr(c, cx + 12, cy + 92, 62, 8, 4); c.fill();   // studio
+          c.fillStyle = UI.text; rr(c, cx + 12, cy + 106, 120, 11, 5); c.fill(); // title
+          // rating bar in the card's own accent, as the app draws it
+          c.fillStyle = UI.well; rr(c, cx + 12, cy + 128, cw - 84, 8, 4); c.fill();
+          c.fillStyle = k % 2 ? UI.cyan : UI.violet;
+          rr(c, cx + 12, cy + 128, (cw - 84) * (0.55 + nz(k, 11) * 0.42), 8, 4); c.fill();
+          // price chip, coloured by deal heat
+          var heat = HEAT_ROW[k];
+          c.fillStyle = heat || UI.well;
+          rr(c, cx + cw - 62, cy + 122, 50, 20, 8); c.fill();
+          if (!heat) { c.fillStyle = UI.dim; rr(c, cx + cw - 54, cy + 129, 34, 7, 3); c.fill(); }
         }
       }
+
+      /* Two things every real display has and no flat rectangle does: a pixel
+         grid, and corners that fall off. Both are near-invisible individually
+         and together they are most of why these now read as emissive panels
+         rather than as coloured stickers. */
+      /* Pitch 4, not 3. At 3 the phone texture (660 px tall, drawn ~200 px
+         high) beat against the sample grid and the advisor's spec rows picked
+         up a visible moiré ripple. Four with a lighter alpha lands inside what
+         the mip chain can average away. */
+      c.globalAlpha = 0.045; c.fillStyle = '#000000';
+      for (var gy = 0; gy < H; gy += 4) c.fillRect(0, gy, W, 1);
+      c.globalAlpha = 1;
+      var vg = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.max(W, H) * 0.72);
+      vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.38)');
+      c.fillStyle = vg; c.fillRect(0, 0, W, H);
+
       var t = new THREE.CanvasTexture(cv);
       t.colorSpace = THREE.SRGBColorSpace;
       // every screen in the scene is seen off-axis; a fixed 4 left the
       // comparison rows smeared on the big plaza monitor
       t.anisotropy = MAX_ANISO;
       return t;
+    }
+
+    /* ---------- display glass ----------
+       A screen is not a glowing rectangle, it is a glowing rectangle seen
+       through a sheet of glass. Without this the panels read as printed
+       stickers: they have no reflection of their own, so they never react to
+       where the camera is. One near-transparent, near-mirror pane in front of
+       each display, picking up the environment map, fixes that for the cost of
+       one extra mesh per screen. It must not write depth or cast/receive
+       shadows — it is the topmost surface of the device. */
+    var GLASS_MAT = new THREE.MeshStandardMaterial({
+      color: 0xffffff, roughness: 0.06, metalness: 0.02,
+      transparent: true, opacity: 0.09, envMapIntensity: 2.4,
+      depthWrite: false
+    });
+    function glassOver(w, h, group, x, y, z) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), GLASS_MAT);
+      m.position.set(x, y, z);
+      m.castShadow = false; m.receiveShadow = false;
+      m.renderOrder = 2;
+      group.add(m);
+      return m;
     }
     function screenMat(kind, glow) {
       var t = screenTex(kind);
@@ -1341,7 +1677,9 @@
     })();
     // smooth-shaded: flat shading turned every one of these triangles into a
     // visible facet, which was most of the "raw" look
-    var gmesh = new THREE.Mesh(ground, paperMat('ground', { flat: false, rough: 0.98, env: 0.35, dither: true }));
+    var groundMat = paperMat('ground', { flat: false, rough: 0.98, env: 0.35, dither: true, surf: 'paper', bump: 0.05 });
+    groundMat.map = GROUND_MAP;
+    var gmesh = new THREE.Mesh(ground, groundMat);
     gmesh.receiveShadow = true;
     scene.add(gmesh);
 
@@ -1350,15 +1688,15 @@
     // Shared across every rack so the geometry/material cost stays flat no
     // matter how many sleds get stacked.
     // two sled finishes so a stack doesn't read as one repeated grey bar
-    var SLED_BODY = mat(0x77839c, { flat: false, rough: 0.36, metal: 0.78, env: 1.0 });
-    var SLED_ALT = mat(0x5d6880, { flat: false, rough: 0.42, metal: 0.7, env: 0.95 });
-    var SLED_FACE = mat(0x141b2c, { flat: false, rough: 0.6, metal: 0.25 });
-    var RACK_RAIL = mat(0xb9c2d4, { flat: false, rough: 0.3, metal: 0.85, env: 1.1 });
-    var RACK_WELL = mat(0x0b1120, { flat: false, rough: 0.85, metal: 0.1, env: 0.2 });
+    var SLED_BODY = mat(0x77839c, { flat: false, rough: 0.36, metal: 0.78, env: 1.0, surf: 'brushed' });
+    var SLED_ALT = mat(0x5d6880, { flat: false, rough: 0.42, metal: 0.7, env: 0.95, surf: 'brushed' });
+    var SLED_FACE = mat(0x141b2c, { flat: false, rough: 0.6, metal: 0.25, surf: 'plastic' });
+    var RACK_RAIL = mat(0xb9c2d4, { flat: false, rough: 0.3, metal: 0.85, env: 1.1, surf: 'brushed' });
+    var RACK_WELL = mat(0x0b1120, { flat: false, rough: 0.85, metal: 0.1, env: 0.2, surf: 'plastic' });
 
     function rack(x, z, w, h, d, col, lit) {
       var g = new THREE.Group();
-      var chassis = mat(col, { flat: false, rough: 0.42, metal: 0.6, env: 0.95 });
+      var chassis = mat(col, { flat: false, rough: 0.42, metal: 0.6, env: 0.95, surf: 'plastic' });
       var lamps = mat(lit, { emissive: lit, ei: 2.2, rough: 0.4, flat: false });
 
       put(rbox(w, h, d, 0.16), chassis, 0, h / 2, 0, 0, g);
@@ -1390,6 +1728,7 @@
         if (seed > 0.42) {                               // lit slots
           var led = put(rbox(0.13, 0.13, 0.03, 0.05), lamps, -sw * 0.44, y, d / 2 + 0.16, 0, g);
           led.castShadow = false; led.receiveShadow = false;
+          glowAt(led, 'sm', lit);
         }
       }
       // top cap + feet so it doesn't float
@@ -1405,11 +1744,13 @@
     rack(14, -9,     4,   9.5,  3.5, 0x35507e, 0xffb75e);
 
     /* ---------- reusable device parts ---------- */
-    var SHELL = mat(0x222c46, { flat: false, rough: 0.38, metal: 0.5, env: 0.95 });
-    var BEZEL = mat(0x0b1020, { flat: false, rough: 0.5, metal: 0.25 });
-    var FRAME = mat(0x1b2438, { flat: false, rough: 0.5, metal: 0.4 });
+    var SHELL = mat(0x222c46, { flat: false, rough: 0.38, metal: 0.5, env: 0.95, surf: 'plastic' });
+    var BEZEL = mat(0x0b1020, { flat: false, rough: 0.5, metal: 0.25, surf: 'plastic' });
+    var FRAME = mat(0x1b2438, { flat: false, rough: 0.5, metal: 0.4, surf: 'plastic' });
     // shared by the comms mast and the plaza bollards further down
-    var POST_MAT = mat(0x39414f, { flat: false, rough: 0.35, metal: 0.7, env: 1.0 });
+    var POST_MAT = mat(0x39414f, { flat: false, rough: 0.35, metal: 0.7, env: 1.0, surf: 'brushed' });
+    // rubber cable jacket — see the cable runs below the plaza
+    var CABLE_MAT = mat(0x14161d, { flat: false, rough: 0.72, metal: 0.06, env: 0.4, surf: 'plastic' });
 
     // A fan is the detail that most says "this is a real machine": shroud,
     // hub, angled blades and an RGB ring, instead of the flat glowing disc
@@ -1432,6 +1773,7 @@
       var ring = put(new THREE.TorusGeometry(r * 0.92, r * 0.05, 6, 26),
         mat(glow, { emissive: glow, ei: 2.6, rough: 0.4, flat: false }), 0, 0, 0.03, 0, g);
       ring.castShadow = false;
+      glowAt(ring, 'md', glow);
       return g;
     }
 
@@ -1445,6 +1787,10 @@
       sc.position.set(0, 0, 0.21);
       sc.castShadow = false; sc.receiveShadow = false;
       g.add(sc);
+      // glass sits proud of the panel and spans the full bezel opening, so the
+      // reflection runs over the black surround too — a display's cover glass
+      // does not stop where its pixels do
+      glassOver(w - 0.18, h - 0.18, g, 0, 0, 0.225);
       return g;
     }
 
@@ -1458,7 +1804,7 @@
 
     // tower: chassis, tempered-glass side, intake fans, RGB strip
     var tower = new THREE.Group();
-    put(rbox(2.2, 5, 3.6, 0.14), mat(0x2b3b60, { flat: false, rough: 0.36, metal: 0.55, env: 1.0 }),
+    put(rbox(2.2, 5, 3.6, 0.14), mat(0x2b3b60, { flat: false, rough: 0.36, metal: 0.55, env: 1.0, surf: 'plastic' }),
       0, 2.5, 0, 0, tower);
     // smoked side panel — low roughness + transparency is what reads as glass
     var glass = put(rbox(0.06, 4.3, 3.1, 0.03), new THREE.MeshStandardMaterial({
@@ -1475,6 +1821,13 @@
     var strip = put(rbox(0.14, 4.2, 0.06, 0.04),
       mat(0xa78bfa, { emissive: 0xa78bfa, ei: 2.2, rough: 0.4, flat: false }), -0.96, 2.5, 1.82, 0, tower);
     strip.castShadow = false;
+    // a strip is a line of light, not a point — three taps along it, or the
+    // glow bunches at the middle and the ends stay dead
+    [-1.5, 0, 1.5].forEach(function (sy) {
+      var n = new THREE.Object3D();
+      n.position.set(-0.96, 2.5 + sy, 1.82); tower.add(n);
+      glowAt(n, 'md', 0xa78bfa);
+    });
     [[-0.85, 1.5], [0.85, 1.5], [-0.85, -1.5], [0.85, -1.5]].forEach(function (f) {
       put(rbox(0.22, 0.16, 0.22, 0.05), FRAME, f[0], 0.08, f[1], 0, tower).castShadow = false;
     });
@@ -1489,9 +1842,10 @@
 
     // chunky gamepad centrepiece on a paper plinth
     var pad = new THREE.Group();
-    put(new THREE.CylinderGeometry(4.2, 4.7, 0.5, 32), paperMat('plinth', { rough: 0.92 }), 0, 0.25, 0, 0, pad);
-    var padShell = mat(0xc0452a, { flat: false, rough: 0.42, metal: 0.12, env: 0.85 });
-    var padGrip = mat(0xa8341c, { flat: false, rough: 0.62, metal: 0.05 });
+    put(new THREE.CylinderGeometry(4.2, 4.7, 0.5, 32), paperMat('plinth', { rough: 0.92, surf: 'paper', bump: 0.03 }), 0, 0.25, 0, 0, pad);
+    var padShell = mat(0xc0452a, { flat: false, rough: 0.42, metal: 0.12, env: 0.85, surf: 'plastic' });
+    // grips are the soft-touch part of a real pad — coarser grain, more bump
+    var padGrip = mat(0xa8341c, { flat: false, rough: 0.62, metal: 0.05, surf: 'plastic', bump: 0.022 });
     put(rbox(3.6, 0.9, 1.75, 0.38), padShell, 0, 1.0, 0, 0, pad);
     put(rbox(1.25, 0.95, 2.4, 0.44), padGrip, -1.5, 0.95, 0.5, 0.35, pad);
     put(rbox(1.25, 0.95, 2.4, 0.44), padGrip, 1.5, 0.95, 0.5, -0.35, pad);
@@ -1511,6 +1865,7 @@
         var btn = put(new THREE.CylinderGeometry(0.19, 0.19, 0.16, 20),
           mat(b[2], { emissive: b[2], ei: 0.75, rough: 0.35, flat: false, env: 0.9 }), b[0], 1.5, b[1], 0, pad);
         btn.castShadow = false;
+        glowAt(btn, 'sm', b[2]);
       });
     put(rbox(0.8, 0.16, 0.28, 0.06), mat(0x232f4e, { flat: false, rough: 0.5 }), -0.95, 1.5, -0.62, 0, pad);
     put(rbox(0.28, 0.16, 0.8, 0.06), mat(0x232f4e, { flat: false, rough: 0.5 }), -0.95, 1.5, -0.62, 0, pad);
@@ -1520,18 +1875,20 @@
 
     // mechanical keyboard: chamfered case, floating sculpted caps, lit WASD
     var kb = new THREE.Group();
-    put(rbox(4.8, 0.5, 2.2, 0.1), mat(0x2c3e6b, { flat: false, rough: 0.4, metal: 0.35, env: 0.9 }),
+    put(rbox(4.8, 0.5, 2.2, 0.1), mat(0x2c3e6b, { flat: false, rough: 0.4, metal: 0.35, env: 0.9, surf: 'brushed' }),
       0, 0.25, 0, 0, kb);
-    put(rbox(4.4, 0.1, 1.9, 0.05), mat(0x151d33, { flat: false, rough: 0.7 }), 0, 0.48, 0, 0, kb)
+    put(rbox(4.4, 0.1, 1.9, 0.05), mat(0x151d33, { flat: false, rough: 0.7, surf: 'plastic' }), 0, 0.48, 0, 0, kb)
       .castShadow = false;
     var capGeo = rbox(0.5, 0.3, 0.5, 0.09);
-    var capPlain = paperMat('plinth', { flat: false, rough: 0.72 });
+    // keycaps are moulded ABS, not paper stock, even though they take the
+    // paper colour — the grain is what stops a 21-cap grid reading as one slab
+    var capPlain = paperMat('plinth', { flat: false, rough: 0.72, surf: 'plastic', bump: 0.008 });
     var capLit = mat(0x22d3ee, { emissive: 0x22d3ee, ei: 1.3, rough: 0.4, flat: false });
     for (var kr = 0; kr < 3; kr++) for (var kc = 0; kc < 7; kc++) {
       var glow = (kr === 0 && kc === 2) || (kr === 1 && (kc === 1 || kc === 2 || kc === 3));
       var cap = put(capGeo, glow ? capLit : capPlain,
         -1.86 + kc * 0.62, 0.62, -0.62 + kr * 0.62, 0, kb);
-      if (glow) cap.castShadow = false;
+      if (glow) { cap.castShadow = false; glowAt(cap, 'sm', 0x22d3ee); }
     }
     contact(0, 0, 6.4, 3.6, 0.6, kb);
     kb.position.set(6.5, 0, 4.5);
@@ -1540,9 +1897,9 @@
 
     // giant GPU card leaning on a rack — backplate, shroud, twin fans, bracket
     var gpu = new THREE.Group();
-    put(rbox(4.6, 1.75, 0.42, 0.09), mat(0x1c2540, { flat: false, rough: 0.35, metal: 0.6, env: 1.0 }),
+    put(rbox(4.6, 1.75, 0.42, 0.09), mat(0x1c2540, { flat: false, rough: 0.35, metal: 0.6, env: 1.0, surf: 'brushed' }),
       0, 0, 0, 0, gpu);
-    put(rbox(4.3, 1.5, 0.14, 0.06), mat(0x2a3556, { flat: false, rough: 0.45, metal: 0.4 }),
+    put(rbox(4.3, 1.5, 0.14, 0.06), mat(0x2a3556, { flat: false, rough: 0.45, metal: 0.4, surf: 'plastic' }),
       0, 0, 0.26, 0, gpu).castShadow = false;
     [-1.1, 1.1].forEach(function (fx) {
       var f = fanUnit(0.52, 0x8b93ad, 0xa78bfa);
@@ -1561,8 +1918,8 @@
     [[-6, 3, 0xc0452a], [-8.5, 6.5, 0x2c3e6b], [4, 7.5, 0xd8b56a], [-3.5, 9, 0x3c5d49], [9, 9.5, 0x35507e]]
       .forEach(function (kd, i) {
         var g = new THREE.Group();
-        put(capBody, mat(kd[2], { flat: false, rough: 0.5, metal: 0.1, env: 0.85 }), 0, 0, 0, 0, g);
-        put(capTop, paperMat('capTop', { flat: false, rough: 0.6 }), 0, 0.34, 0, 0, g).castShadow = false;
+        put(capBody, mat(kd[2], { flat: false, rough: 0.5, metal: 0.1, env: 0.85, surf: 'plastic' }), 0, 0, 0, 0, g);
+        put(capTop, paperMat('capTop', { flat: false, rough: 0.6, surf: 'plastic', bump: 0.008 }), 0, 0.34, 0, 0, g).castShadow = false;
         g.position.set(kd[0], 0.36, kd[1]);
         g.rotation.y = nz(i, 4) * 1.5;
         g.rotation.z = (nz(i, 9) - 0.5) * 0.16;
@@ -1589,17 +1946,53 @@
       put(rbox(0.3, 0.34, 0.3, 0.08), POST_MAT, 0, 7.32, 0, 0, g);
       var lens = put(new THREE.SphereGeometry(0.2, 14, 10), beaconMat, 0, 7.6, 0, 0, g);
       lens.castShadow = false;
+      // the only member of the 'lg' bucket, which is what lets loop() pulse
+      // that whole layer's point size without touching any other glow
+      glowAt(lens, 'lg', 0xd9482b);
       g.position.set(-12.5, 0, -5.5);
       scene.add(g);
       contact(-12.5, -5.5, 2.4, 2.4, 0.6);
     })();
 
+    /* ---------- cable runs ----------
+       The village was full of machines and completely free of wiring, and
+       nothing says "these props were modelled, not photographed" louder than
+       hardware that isn't plugged into anything. A cable also does something
+       no static prop can: it is the only line in the scene that sags, so it
+       reads as obeying gravity and quietly tells the eye the rest does too.
+
+       Catmull-Rom through a hand-placed sag point rather than a real catenary
+       — at this scale the difference is invisible and the control point is
+       easier to art-direct around the props it has to miss. */
+    function cable(a, b, sag, thick) {
+      var pa = new THREE.Vector3().fromArray(a), pb = new THREE.Vector3().fromArray(b);
+      var mid = pa.clone().lerp(pb, 0.5);
+      mid.y -= sag == null ? 1.1 : sag;
+      var curve = new THREE.CatmullRomCurve3([pa, pa.clone().lerp(mid, 0.5), mid,
+                                              mid.clone().lerp(pb, 0.5), pb]);
+      var m = new THREE.Mesh(new THREE.TubeGeometry(curve, 22, thick || 0.075, 6, false), CABLE_MAT);
+      m.castShadow = true; m.receiveShadow = false;
+      scene.add(m);
+      return m;
+    }
+    // rack row -> rack row, the way a real aisle is patched across
+    cable([-13, 10.4, -8.4], [-6.5, 14.4, -12.4], 1.5);
+    cable([-6.5, 14.4, -12.4], [0.5, 11.9, -13.9], 1.2);
+    cable([0.5, 11.9, -13.9], [8, 15.4, -11.4], 1.4);
+    cable([8, 15.4, -11.4], [14, 8.9, -7.4], 1.9);
+    // the tower's own loom, dropping off the back of its top vent
+    cable([4.7, 4.9, -5.5], [8.6, 8.2, -10.6], 1.7, 0.06);
+    cable([5.7, 4.9, -5.6], [-5.2, 9.6, -12.1], 2.6, 0.055);
+    // GPU power leads — the one cable read close-up, so it is a pair
+    cable([11.4, 3.1, -6.3], [12.6, 6.2, -8.4], 0.7, 0.05);
+    cable([11.8, 3.0, -6.0], [12.9, 6.2, -8.2], 0.75, 0.05);
+
     // gold circuit traces with solder vias (replace stone paths)
     // Narrower and plated rather than painted — at the old 0.5 width with a
     // matte gold they read as plumbing laid on the ground instead of traces
     // etched into it.
-    var TRACE_MAT = mat(0xc9a961, { flat: false, rough: 0.32, metal: 0.85, env: 1.1 });
-    var VIA_MAT = mat(0xd8b56a, { flat: false, emissive: 0x6b5220, ei: 0.3, rough: 0.28, metal: 0.9, env: 1.1 });
+    var TRACE_MAT = mat(0xc9a961, { flat: false, rough: 0.32, metal: 0.85, env: 1.1, surf: 'brushed' });
+    var VIA_MAT = mat(0xd8b56a, { flat: false, emissive: 0x6b5220, ei: 0.3, rough: 0.28, metal: 0.9, env: 1.1, surf: 'brushed' });
     function via(x, z, big) {
       var v = put(new THREE.CylinderGeometry(big ? 0.34 : 0.21, big ? 0.38 : 0.24, 0.09, 20),
         VIA_MAT, x, 0.05, z);
@@ -1632,6 +2025,7 @@
         var lens = put(rbox(0.26, 0.34, 0.06, 0.05),
           mat(l[2], { emissive: l[2], ei: 2.4, rough: 0.35, flat: false }), 0, 1.78, 0.2, 0, g);
         lens.castShadow = false;
+        glowAt(lens, 'md', l[2]);
         g.position.set(l[0], 0, l[1]);
         scene.add(g);
         contact(l[0], l[1], 1.5, 1.5, 0.55);
@@ -1639,7 +2033,7 @@
 
     /* ---------- games corner (+x): paper arcade ---------- */
     var games = new THREE.Group();
-    put(new THREE.CylinderGeometry(6.4, 7, 0.55, 40), paperMat('plinth', { rough: 0.92 }), 0, 0.27, 0, 0, games);
+    put(new THREE.CylinderGeometry(6.4, 7, 0.55, 40), paperMat('plinth', { rough: 0.92, surf: 'paper', bump: 0.03 }), 0, 0.27, 0, 0, games);
     // monitor on a proper stand, showing the comparison table
     var gMon = monitorRig(5.4, 3.3, 'compare');
     gMon.position.set(0, 3.2, -1.2);
@@ -1652,9 +2046,9 @@
     // dark with a colour band, which reads as a game case.
     function gameCase(x, z, ry, rz, col, band) {
       var g = new THREE.Group();
-      put(rbox(1.5, 2.1, 0.46, 0.09), mat(col, { flat: false, rough: 0.34, metal: 0.1, env: 0.9 }),
+      put(rbox(1.5, 2.1, 0.46, 0.09), mat(col, { flat: false, rough: 0.34, metal: 0.1, env: 0.9, surf: 'plastic' }),
         0, 0, 0, 0, g);
-      put(rbox(1.18, 1.78, 0.06, 0.04), mat(0x151d30, { flat: false, rough: 0.42, env: 0.7 }),
+      put(rbox(1.18, 1.78, 0.06, 0.04), mat(0x151d30, { flat: false, rough: 0.42, env: 0.7, surf: 'paper', bump: 0.004 }),
         0, 0.04, 0.25, 0, g).castShadow = false;                       // cover art
       put(rbox(1.18, 0.3, 0.07, 0.03), mat(band, { flat: false, rough: 0.45 }),
         0, 0.72, 0.26, 0, g).castShadow = false;                       // title band
@@ -1692,21 +2086,37 @@
        because the tag positions below are projection-tuned. */
     var TAG_W = 288, TAG_H = 160, tagSprites = [];
 
+    /* The shadow and the hairline used to be authored as 'rgba(var(--hair),.34)'.
+       A canvas 2D context is not CSS: var() does not resolve there, the
+       assignment is silently DISCARDED, and the property keeps whatever it
+       already held. So shadowColor stayed at its default transparent-black —
+       no shadow was ever drawn, which is exactly the "floats ON the render"
+       problem the shadow was added to fix — and strokeStyle stayed at its
+       default #000, ringing every pastel tag in a hard 2px black outline.
+       Both are literals now. Canvas colours must always be literals. */
     function paintTag(cv, bg, title, sub) {
       var c = cv.getContext('2d');
       c.clearRect(0, 0, TAG_W, TAG_H);
       c.save();
-      c.shadowColor = 'rgba(var(--hair),.34)';
+      c.shadowColor = 'rgba(46,38,26,.38)';
       c.shadowBlur = 18; c.shadowOffsetY = 9;
       c.fillStyle = bg;
-      c.beginPath();
-      if (c.roundRect) { c.roundRect(16, 10, 256, 118, 20); } else { c.rect(16, 10, 256, 118); }
+      rr(c, 16, 10, 256, 118, 20);
       c.fill();
       c.restore();
+
+      /* A flat fill is the other half of "printed sticker". Real card stock
+         under a raking sun is brighter along its top edge and falls off toward
+         the bottom, and it has a hint of thickness at the fold. */
+      var sh = c.createLinearGradient(0, 10, 0, 128);
+      sh.addColorStop(0, 'rgba(255,255,255,.24)');
+      sh.addColorStop(0.45, 'rgba(255,255,255,0)');
+      sh.addColorStop(1, 'rgba(60,48,32,.16)');
+      c.fillStyle = sh; rr(c, 16, 10, 256, 118, 20); c.fill();
+
       // hairline edge a shade darker than the fill — reads as card stock
-      c.strokeStyle = 'rgba(var(--hair),.2)'; c.lineWidth = 2;
-      c.beginPath();
-      if (c.roundRect) { c.roundRect(17, 11, 254, 116, 19); } else { c.rect(17, 11, 254, 116); }
+      c.strokeStyle = 'rgba(58,48,34,.22)'; c.lineWidth = 2;
+      rr(c, 17, 11, 254, 116, 19);
       c.stroke();
 
       c.textAlign = 'center'; c.textBaseline = 'middle';
@@ -1787,20 +2197,21 @@
     // phone") instead of side by side. Spacing 3.2 > body width 2.3 leaves
     // clear air between them; no z-lean, so tops don't tilt into neighbors.
     var phones = new THREE.Group();
-    put(new THREE.CylinderGeometry(6.2, 6.8, 0.55, 40), paperMat('plinth', { rough: 0.92 }), 0, 0.27, 0, 0, phones);
+    put(new THREE.CylinderGeometry(6.2, 6.8, 0.55, 40), paperMat('plinth', { rough: 0.92, surf: 'paper', bump: 0.03 }), 0, 0.27, 0, 0, phones);
     [[-3.2, 4.6, 0x232f4e, 0xa78bfa, 0.1, 0.5], [0, 5.6, 0x2c3e6b, 0x22d3ee, -0.06, -0.4], [3.2, 4.2, 0x35507e, 0x67e8f9, 0.12, 0.3]]
       .forEach(function (ph, i) {
         var g = new THREE.Group();
         var h = ph[1], cy = h / 2 + 0.5;
         // brushed metal rail around a rounded slab — the chamfer plus a real
         // metalness is what turns a blue box into a phone
-        put(rbox(2.3, h, 0.42, 0.26), mat(ph[2], { flat: false, rough: 0.3, metal: 0.7, env: 1.1 }),
+        put(rbox(2.3, h, 0.42, 0.26), mat(ph[2], { flat: false, rough: 0.3, metal: 0.7, env: 1.1, surf: 'brushed', bump: 0.006 }),
           0, cy, 0, 0, g);
         put(rbox(2.1, h - 0.22, 0.1, 0.2), BEZEL, 0, cy, 0.2, 0, g).castShadow = false;
         var sc = new THREE.Mesh(new THREE.PlaneGeometry(1.88, h - 0.5), screenMat('phone', 0.8));
         sc.position.set(0, cy, 0.25);
         sc.castShadow = false; sc.receiveShadow = false;
         g.add(sc);
+        glassOver(2.1, h - 0.22, g, 0, cy, 0.262);
         // rear camera bump reads even in silhouette from the approach angle
         var bump = put(rbox(0.78, 0.78, 0.1, 0.16),
           mat(ph[2], { flat: false, rough: 0.35, metal: 0.6 }), -0.6, cy + h / 2 - 0.85, -0.24, 0, g);
@@ -1846,6 +2257,10 @@
       { m: paperPlane(), r: 21, h: 9.5, sp: 0.11, ph: 0 },
       { m: paperPlane(), r: 27, h: 12.5, sp: -0.08, ph: 2.4 }
     ];
+
+    /* Last thing built: it walks the finished scene graph for world positions,
+       so every emitter must already be parented and placed. */
+    buildGlow();
 
     /* ---------- camera stops (one per section) ---------- */
     var STOPS = [
@@ -1963,7 +2378,11 @@
           tg.s.position.y = tg.y + Math.sin(t * 1.1 + tg.ph) * 0.35;
         });
         // the mast beacon has always been described as blinking; now it does
-        beaconMat.emissiveIntensity = 1.15 + Math.pow((Math.sin(t * 1.6) + 1) / 2, 3) * 1.9;
+        var pulse = Math.pow((Math.sin(t * 1.6) + 1) / 2, 3);
+        beaconMat.emissiveIntensity = 1.15 + pulse * 1.9;
+        // the halo has to breathe with the lamp, or the beacon reads as a
+        // steady light sitting inside a flickering one
+        if (glowLayers.lg) glowLayers.lg.material.size = GLOW_BUCKETS.lg * (0.45 + pulse * 0.9);
       }
       renderer.render(scene, camera);
       // reveal only once there is a real frame in the buffer, never on script

@@ -1,6 +1,6 @@
 # LazyComparo — Project State
 
-_Last updated: 2026-08-09. Update this file whenever state changes materially._
+_Last updated: 2026-08-10. Update this file whenever state changes materially._
 
 > **How to resume in a new Claude session:** paste this whole file into your first
 > message, or say "read `PROJECT_STATE.md`". Everything Claude needs is here.
@@ -173,6 +173,16 @@ is opt-in, then remembered in `localStorage` under `lc-theme`.
 - Canvas textures used as colour maps need an explicit
   `colorSpace = SRGBColorSpace`. three.js defaults a texture to `NoColorSpace`,
   i.e. "already linear", and the tags rendered washed out for exactly this reason.
+  **The inverse is also true**: `roughnessMap` / `bumpMap` are data, not colour,
+  and must be left at the default — setting sRGB on them would gamma-decode a
+  channel that was never encoded.
+- **A canvas 2D context is not CSS.** `c.shadowColor = 'rgba(var(--hair),.34)'`
+  parses as an invalid colour, so the assignment is *silently discarded* and the
+  property keeps its previous value. The price tags shipped for three weeks with
+  no drop shadow at all (default is transparent black) and a hard 2px **black**
+  outline (default `strokeStyle` is `#000`) around every pastel card — the
+  opposite of both intents, with nothing in the console. Canvas colours must
+  always be literals.
 
 ## Trust pages (landing project)
 
@@ -217,18 +227,43 @@ so their 404 pages are purely additive and are fine.
 ## Deal heat (cross-site colour language)
 
 One semantic scale for "how good is this price right now", so a badge means
-the same thing on the landing page and in the app:
+the same thing on the landing page and in both apps:
 `hot` (ember + glow) · `warm` (amber) · `mild` (emerald) · `none` (zinc).
-Thresholds: **at its ITAD all-time low → always hot**, else discount `>=60`
-hot, `>=30` warm, `>0` mild. An all-time low outranks the raw percentage on
-purpose — 20% off a game that has never been cheaper beats a routine 50% sale.
 
+- **Games thresholds:** at its ITAD all-time low → always hot, else discount
+  `>=60` hot, `>=30` warm, `>0` mild. An all-time low outranks the raw
+  percentage on purpose — 20% off a game that has never been cheaper beats a
+  routine 50% sale.
+- **Phone thresholds** (drop measured against **launch RRP**, not yesterday):
+  below its brand's depreciation curve by `>=10%` → always hot, else drop
+  `>=45` hot, `>=25` warm, `>0` mild. The brand-curve rule is the phone
+  equivalent of the all-time-low rule and exists for the same reason: an old
+  phone has fallen a long way, but that is arithmetic, not a bargain —
+  everything that old has fallen. What is worth flagging is falling *further
+  than its own brand normally falls by that age*, which the catalog can answer
+  because `brandDepreciationStats()` already measures exactly that curve.
+  Those phones carry a "below <brand>'s curve" pill.
+  Known consequence, stated on `/how-we-rank`: the curve is a per-brand average
+  over our own catalog, so **a phone can gain or lose that pill when the
+  catalog grows, with no price change**. It is a claim about its peers here,
+  not about the market.
 - Games app: `HEAT` map + `dealHeat()` in `games/index.html` (just after
   `dollarsPerHour`). Drives the `PriceTag` discount badge, the "Low" marker,
   the `GameCard` ring/glow, and `Pill tone="hot"`. **Class strings are spelled
-  out in full on purpose** — never build them by concatenation.
+  out in full on purpose** — never build them by concatenation (Tailwind's JIT
+  scans source text; a name built by concatenation is a name it never emits).
+- Mobile app: same-named `HEAT` map + `dealHeat()` in `mobile/index.html`,
+  above the UI primitives. Same class strings, same rule about concatenation.
 - Landing: `--heat-*` vars + `.ticker .off.hot/.warm`, same thresholds in the
-  ticker IIFE. If you move a threshold, move it in both files.
+  ticker IIFE. If you move a threshold, move it in every file **and in
+  `landing/how-we-rank.html`**, which names itself as the authority.
+
+**Phone prices are not live, and the site says so.** There is no free keyless
+API publishing Singapore street prices the way Steam and ITAD publish game
+prices, so nothing is fetched at runtime — the figures are the catalog's own
+tracked prices, with a provenance line above the Browse grid naming the review
+date (`CATALOG_REVIEWED`) and linking to `/how-we-rank`. When a real feed
+arrives it lands behind `dealHeat()` and nothing above it changes.
 
 ## Live-data contracts (games site)
 
@@ -277,6 +312,33 @@ purpose — 20% off a game that has never been cheaper beats a routine 50% sale.
   `<name>/index.html`** — Pages 308-redirects `/gog` to `/gog/` for a directory
   index, which would make the sitemap entries and the canonical the middleware
   emits both point at a redirect.
+
+## Phone artwork (mobile site)
+
+Games get card art free from Valve's CDN keyed off an AppID we already store.
+**Phones have no equivalent** — press renders are copyrighted and hotlinking a
+manufacturer's marketing image is neither free nor ours to do — so the art is
+*drawn*, from fields the catalog already has. `PhoneArt` (full card) and
+`PhoneThumb` (Compare/Advisor chips) share `DeviceDefs` + `DeviceBack`.
+
+- **Drawn from the BACK**, which is the counter-intuitive but correct call:
+  every modern phone is the same black rectangle from the front, and the camera
+  island is the only part of the silhouette that identifies a device across a
+  grid of fifty. `cameraStyle()` maps brand + model to one of ten islands —
+  Apple triple/duo/single, Samsung 3- and 4-lens stacks, Pixel's edge-to-edge
+  visor, Nothing's panel, the OnePlus/Oppo-Find/vivo/Honor disc, the Xiaomi
+  squircle, and the Z Flip clamshell with its crease and cover screen.
+- The full card art is a **pair**: a front view behind-left carrying the screen
+  (and so most of the card's colour, drawn as the advisor's own UI), and the
+  back view in front-right carrying the identity. One device alone left a
+  460x215 tile mostly empty.
+- **No `<filter>` anywhere in it.** Browse renders fifty of these at once and an
+  `feGaussianBlur` per card is the one thing that would make that scroll badly;
+  every soft edge is a gradient stop instead.
+- **Gradient ids are prefixed, not bare phone ids.** SVG ids are document-global,
+  not scoped per `<svg>`, and Compare can show the same phone as both a chip and
+  a card at once — bare ids would cross-wire the two.
+- `/how-we-rank` lists these as illustrations, not photographs.
 
 ## Phone catalog (mobile site)
 
@@ -329,6 +391,35 @@ reads BOM-less `.ps1` as ANSI, so a literal `—` is a parse error.
   bootstrap `catch` also reveal (CDN failure → SEO content shows); `<noscript>`
   unaffected.
 
+## Best Value tab (games site)
+
+Reads top-down at decreasing altitude, because the previous version opened with
+a hundred bars and then repeated all hundred as a table — two hundred rows
+before the reader could ask it anything, with the only control (genre) sitting
+*below* the chart:
+
+1. **Distribution** — a stacked bar plus three clickable band cards with counts
+   and the best game in each. This is the entry point, not decoration.
+2. **Narrow it** — search (title / studio / genre) + the genre selector +
+   a result count + clear-filters.
+3. **Leaderboard** — top 10 by default with a "Show all N" toggle.
+4. **Full ranking table**, with a rank column.
+
+- `VALUE_BANDS` + `valueBand()` (just under `dollarsPerHour`) are the **single
+  source of truth** for the band chips, the distribution and the `$ / hour`
+  colour in the table. The 0.50 / 1.50 boundaries are unchanged — they used to
+  be an inline ternary inside one table cell, which meant the only way to find
+  them was to read that cell. They are now also written down on
+  `/how-we-rank`; move both together.
+- **Rank is computed over the whole catalog, never the filtered set.** "#9 of
+  100" has to keep meaning the same thing after you filter to one genre, or it
+  is a row counter with extra steps.
+- The distribution counts are computed **after** genre+search but **before** the
+  band filter — a band chip has to describe the set it is offering to cut.
+- **Bar widths scale to the widest row SHOWN**, not the catalog maximum. Against
+  the catalog max the ten best games were all sub-pixel stubs, so the chart
+  spent its full width repeating what the heading already said.
+
 ## Compare view (games site)
 
 - **Verdict first.** `buildVerdict()` (above `CompareView`) picks a winner from
@@ -377,11 +468,57 @@ reads BOM-less `.ps1` as ANSI, so a literal `—` is a parse error.
   - Ground uses `vnz()` (smoothstep-interpolated value noise) and smooth
     shading. Sampling `nz()` per vertex gave every triangle its own height,
     which was most of the old "raw" faceting.
-  - **Cost check (1280x800):** 437 meshes but only ~103 draw calls and ~45k
-    triangles per frame after culling, 0.6 ms/render, 80 shadow casters.
-    Small parts set `castShadow = false` deliberately — that is what keeps the
-    shadow pass cheap. Re-measure with a temporary
-    `window.__lcDebug = {renderer, scene, camera}` hook if props are added.
+  - **Surface detail maps.** `detailTex()` builds three shared greyscale
+    canvases — `brushed` (anisotropic, for metal), `plastic` (fine isotropic
+    grain), `paper` — applied as **both** `roughnessMap` and `bumpMap` via
+    `mat({surf, bump})`. They are centred near white on purpose: `roughnessMap`
+    *multiplies* the material roughness, so a dark texture would turn the whole
+    scene glossy. Three textures for ~48 materials, so three uploads.
+  - **The ground additionally carries a colour `map`** (`GROUND_MAP`), which the
+    detail maps could not do for it: at roughness 0.98 and metalness 0 there is
+    no specular for a roughness map to vary, so the largest surface on screen
+    stayed a single flat value and the middle distance read as empty page. A
+    colour map multiplies the material colour, so it survives the theme switch
+    untouched. Kept in 0.90–1.0 or the light theme's cream looks dirty.
+  - **Screens sit under glass.** `glassOver()` puts a near-transparent,
+    near-mirror plane (`envMapIntensity` 2.4, `depthWrite:false`) over every
+    monitor and phone display. Without it a panel has no reflection of its own,
+    never reacts to the camera, and reads as a printed sticker.
+  - **`screenTex` draws the actual apps** — the games browse grid (filter bar,
+    six cards with key-art tiles, deal-heat price chips, an ember ring on the
+    hot one) and the advisor (verdict card, spec scoreline, ember CTA).
+    Deliberately **text-free**: the plaza monitor is ~210 screen px wide for
+    768 px of texture, so real copy would be sub-pixel, and it would drag a
+    webfont dependency into a canvas painted before fonts load.
+    The scanline overlay is pitch **4**, not 3 — at 3 it beat against the phone
+    texture's sample grid and rippled.
+  - **Emissive glow is faked with `Points`.** EffectComposer/UnrealBloomPass are
+    examples/jsm, which the pinned UMD build lacks, so `buildGlow()` collects
+    every emitter and emits three additive, size-attenuated, vertex-coloured
+    `Points` layers (`sm`/`md`/`lg`) sharing one radial sprite — camera-facing
+    for free, three draw calls for 56 glows. Two non-obvious settings:
+    `fog:false` (three.js fog mixes toward the fog colour, and under additive
+    blending that would ADD paper-white behind every distant LED) and
+    `frustumCulled:false` (a point's centre leaves the frustum long before its
+    sprite does). The `sm` bucket is held at 0.3 opacity because the rack LEDs
+    saturate to white dots above that, losing the cyan/violet/amber that is the
+    only thing telling one rack from the next. The `lg` bucket is the mast
+    beacon alone, which is what lets `loop()` pulse that layer's point size.
+  - **Cable runs** (`cable()`, Catmull-Rom + `TubeGeometry`) patch rack to rack,
+    tower to rack and GPU to rack. Machines plugged into nothing is a loud
+    "modelled, not photographed" tell, and a cable is the only line in the scene
+    that sags — it tells the eye the whole village obeys gravity.
+  - **Cost check — measure at the HERO stop, not a close one.** The camera
+    matters more than the prop count: at the games-corner stop culling does most
+    of the work (88 calls, 42.5k tris, 0.60 ms) while the hero overview sees
+    nearly the whole village at once and is the real worst case. At 1280x720,
+    hero stop: **453 draw calls, 101k triangles, 1.34 ms/render** (median of 7
+    runs of 120). Before the 2026-08-10 realism pass the same stop measured 437
+    calls / 99k tris / 1.11 ms, so all of the above costs ~0.23 ms — roughly
+    1.5% of a 60 fps frame. 458 meshes, 80 shadow casters; small parts set
+    `castShadow = false` deliberately, which is what keeps the shadow pass cheap.
+    Re-measure with a temporary `window.__lcDebug = {renderer, scene, camera}`
+    hook just above `loop()` (add it, measure, remove it — it is not shipped).
 - **Reveal choreography.** `.reveal` no longer fades the copy block as one
   lump: the container fades its scrim in, then children arrive in reading order
   on a fixed delay ladder (rule draws → eyebrow → headline lines mask up → sub
@@ -541,6 +678,40 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-08-10** Realism pass on the landing world + the mobile site brought up
+  to the games site's card standard. **(1) The 3D village.** Six changes, all
+  aimed at the same tell — geometry was already good, but every surface was a
+  mathematically perfect uniform colour and every machine was plugged into
+  nothing. Added shared procedural roughness/bump maps (brushed / plastic /
+  paper), a colour map on the ground (the one surface a roughness map cannot
+  help, and the largest thing on screen), cover glass over every display,
+  cable runs between the racks and the tower, and a fake bloom built from three
+  additive `Points` layers because the pinned r158 UMD build has no
+  post-processing. The screens now draw the actual apps — the games browse grid
+  with deal-heat price chips, the advisor with its verdict card — instead of
+  abstract bars. Costs 0.23 ms/render at the hero stop (1.11 → 1.34 ms),
+  measured before/after rather than estimated. **(2) A real bug, found on the
+  way.** `paintTag()` set `shadowColor` and `strokeStyle` to
+  `'rgba(var(--hair),…)'`; canvas 2D does not resolve CSS vars, so both
+  assignments were silently discarded and every floating price tag shipped with
+  no drop shadow and a hard black outline — the exact opposite of what the
+  comments above them described. **(3) Mobile.** The phone site had generic icon
+  tiles where the games site has artwork, and a bare `S$1234` where it has a
+  price tag. Phones now get drawn back-view artwork keyed off brand and model
+  (ten camera-island families), a `PriceTag` with launch RRP struck through and
+  a deal-heat drop badge, heat rings and glows on the cards, a "best value now"
+  filter, price-drop sorting and a result count — the same vocabulary as
+  `pcgames.`, so crossing between the two sites teaches nothing new.
+  **The prices are honestly labelled**: no free API publishes SG phone street
+  prices, so nothing is fetched at runtime and a provenance line above the grid
+  says so rather than dressing catalog data up as a feed. `/how-we-rank` gained
+  the phone heat thresholds, the brand-curve rule, its known weakness, and a
+  line stating the artwork is illustration. **(4) Best Value tab rebuilt** — it
+  had no search and no filter above the fold, and opened by dumping 100 bars
+  followed by the same 100 games as a table. Now: a clickable distribution
+  across three value bands, search + genre, a top-10 leaderboard that expands,
+  and a full ranking table with catalog-wide ranks. The band boundaries moved
+  out of an inline ternary into `VALUE_BANDS` and onto `/how-we-rank`.
 - **2026-08-09** Professionalism pass, three items. **(1) One brand mark.** The
   site was running three different logos — a cyan/violet bolt on the landing, a
   violet/teal bolt on mobile, and no favicon at all on games, so every browser

@@ -1162,6 +1162,30 @@
       return Math.round((game.price / game.displayInfo.hoursToBeat) * 100) / 100;
     }
 
+    /* Three value bands, and they are the SINGLE source of truth for the Best
+       Value tab: the distribution graph, the band filter chips and the $/hour
+       colour in the table all read from here. They used to be an inline
+       ternary in one table cell, which meant the only way to know where the
+       boundaries were was to read that cell.
+
+       The 0.50 / 1.50 boundaries are unchanged — this is a refactor of where
+       they live, not a change to what they say.
+
+       Class strings spelled out in full, per the note on HEAT below: the
+       Tailwind Play CDN scans the document for literal class names, so
+       anything concatenated never gets a rule. */
+    const VALUE_BANDS = [
+      { id: 'best', max: 0.5, label: 'Under S$0.50/hr', hint: 'exceptional value',
+        text: 'text-emerald-300', bar: 'bg-emerald-400', ring: 'ring-emerald-500/40', tint: 'bg-emerald-500/10' },
+      { id: 'good', max: 1.5, label: 'S$0.50 – S$1.50/hr', hint: 'solid value',
+        text: 'text-amber-300', bar: 'bg-amber-400', ring: 'ring-amber-500/40', tint: 'bg-amber-500/10' },
+      { id: 'rich', max: Infinity, label: 'Over S$1.50/hr', hint: 'short, or priced as a premium',
+        text: 'text-rose-300', bar: 'bg-rose-400', ring: 'ring-rose-500/40', tint: 'bg-rose-500/10' },
+    ];
+    function valueBand(perHour) {
+      return VALUE_BANDS.find(b => perHour <= b.max) || VALUE_BANDS[VALUE_BANDS.length - 1];
+    }
+
     /* ---------------- Deal heat ----------------
        One semantic scale for "how good is this price, right now", used by every
        surface that shows a price — cards, compare table, value tab — and mirrored
@@ -2313,57 +2337,183 @@
     };
 
     /* ---------------- Value view ---------------- */
+    /* ---------------- Best value ----------------
+       This tab used to open with a hundred bars and then repeat all hundred as
+       a table — two hundred rows before the reader could ask it anything, and
+       the only control (genre) sat BELOW the chart. A ranked list is the right
+       answer to "what's the best value", but only once you've been told what
+       the field looks like; leading with all of it is a data dump.
+
+       So it now reads top-down at decreasing altitude: the shape of the field,
+       then a way to narrow it, then the leaderboard, then the full ranking.
+       Every level drives the same filter state, so the table is always the
+       expansion of whatever the bands and search say. */
+    const VALUE_TOP_N = 10;
+
     const ValueView = () => {
       const { games: GAMES } = useGames();
       const [genre, setGenre] = useState('All');
+      const [query, setQuery] = useState('');
+      const [band, setBand] = useState(null);      // null = all bands
+      const [showAllBars, setShowAllBars] = useState(false);
       const genres = bucketOptions(GAMES);
 
-      const rows = useMemo(() => {
+      /* Rank is over the WHOLE catalog, deliberately — "#3 of 100" has to keep
+         meaning the same thing after you filter to one genre, or the number is
+         just a row counter with extra steps. */
+      const ranked = useMemo(() => {
         return GAMES
-          .filter(g => genre === 'All' || genreBucket(g) === genre)
           .map(g => ({ game: g, perHour: dollarsPerHour(g) }))
-          .sort((a, b) => a.perHour - b.perHour);
-      }, [GAMES, genre]);
+          .sort((a, b) => a.perHour - b.perHour)
+          .map((r, i) => ({ ...r, rank: i + 1 }));
+      }, [GAMES]);
 
-      const maxPerHour = Math.max(...rows.map(r => r.perHour), 0.1);
+      // Genre + search applied, but NOT the band — the distribution has to
+      // describe the set the bands are offering to cut, or the counts lie.
+      const scoped = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        return ranked.filter(r =>
+          (genre === 'All' || genreBucket(r.game) === genre) &&
+          (q === '' || (r.game.title + ' ' + r.game.studio + ' ' + r.game.genre).toLowerCase().includes(q))
+        );
+      }, [ranked, genre, query]);
+
+      const bandStats = useMemo(() => VALUE_BANDS.map(b => {
+        const inBand = scoped.filter(r => valueBand(r.perHour).id === b.id);
+        return { ...b, count: inBand.length, top: inBand.length ? inBand[0].game.title : null };
+      }), [scoped]);
+
+      const rows = useMemo(
+        () => band ? scoped.filter(r => valueBand(r.perHour).id === band) : scoped,
+        [scoped, band]
+      );
+
+      const bars = showAllBars ? rows : rows.slice(0, VALUE_TOP_N);
+      /* Bar scale is the widest row SHOWN, not the catalog maximum. Scaled
+         against the catalog the ten best games are all sub-pixel stubs against
+         a 100x longer worst case — the chart spent its whole width saying
+         "these are cheap", which the heading already said. */
+      const barMax = Math.max(...bars.map(r => r.perHour), 0.05);
+      const filtered = genre !== 'All' || query.trim() !== '' || band !== null;
+      const clear = () => { setGenre('All'); setQuery(''); setBand(null); setShowAllBars(false); };
 
       return (
         <div className="animate-fade-in">
           <SectionTitle eyebrow="Best value" icon={TrendingUp}
             title="Which games give you the most hours per dollar?"
-            subtitle="Price ÷ hours-to-beat, sorted cheapest per hour first. Great for deciding what to grab in a Steam sale when budget is tight." />
+            subtitle="Price ÷ hours-to-beat, cheapest per hour first. Start from the bands, narrow with search, then open the full ranking." />
 
-          <Card className="p-5 mb-6">
-            <div className="text-sm text-zinc-300 mb-4 font-medium">S$ per hour of playtime (lower = better value)</div>
-            <div className="space-y-3">
-              {rows.map(({ game: g, perHour }) => (
-                <div key={g.id}>
-                  <div className="flex items-baseline justify-between text-xs mb-1">
-                    <span className="text-zinc-300 font-medium">{g.title}</span>
-                    <span className="text-zinc-400">S${perHour}/hr</span>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-ink-800 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500"
-                         style={{ width: `${(perHour / maxPerHour) * 100}%`, background: `linear-gradient(90deg, ${g.accent}80, ${g.accent})` }} />
-                  </div>
-                </div>
+          {/* ---- altitude 1: the shape of the field, and the way in ---- */}
+          <Card className="p-5 mb-3">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
+              <div className="text-sm text-zinc-300 font-medium">
+                How {scoped.length} game{scoped.length === 1 ? '' : 's'} split by value
+              </div>
+              <div className="text-xs text-zinc-500">Pick a band to narrow everything below</div>
+            </div>
+            <div className="flex h-4 rounded-full overflow-hidden bg-ink-800 ring-1 ring-ink-700"
+                 role="img" aria-label={bandStats.map(b => `${b.count} ${b.label}`).join(', ')}>
+              {bandStats.filter(b => b.count > 0).map(b => (
+                <div key={b.id} style={{ width: `${(b.count / scoped.length) * 100}%` }}
+                     className={cx('h-full transition-opacity duration-300', b.bar,
+                                   band && band !== b.id ? 'opacity-25' : 'opacity-90')} />
               ))}
             </div>
-            <div className="mt-4 text-xs text-zinc-500 flex items-start gap-2">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <div>"Hours to beat" is main-content playtime, not 100%-completion — sandbox/live-service games (Terraria, Deep Rock Galactic) will keep paying off well past this number.</div>
+
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {bandStats.map(b => (
+                <button key={b.id} type="button" disabled={!b.count}
+                        aria-pressed={band === b.id}
+                        onClick={() => { setBand(band === b.id ? null : b.id); setShowAllBars(false); }}
+                        className={cx('text-left rounded-xl px-3 py-2.5 ring-1 transition',
+                                      !b.count ? 'bg-ink-900 ring-ink-800 opacity-40 cursor-not-allowed'
+                                      : band === b.id ? cx(b.tint, b.ring)
+                                      : 'bg-ink-900 ring-ink-700 hover:ring-ink-600')}>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className={cx('text-xl font-semibold tabular-nums', b.text)}>{b.count}</span>
+                    <span className="text-xs text-zinc-500">game{b.count === 1 ? '' : 's'}</span>
+                  </div>
+                  <div className="text-xs text-zinc-300 mt-0.5">{b.label}</div>
+                  <div className="text-[11px] text-zinc-500 truncate">
+                    {b.top ? <>{b.hint} · best: {b.top}</> : b.hint}
+                  </div>
+                </button>
+              ))}
             </div>
           </Card>
 
+          {/* ---- altitude 2: narrow it ---- */}
           <Card className="p-3 mb-6">
-            <Selector value={genre} onChange={setGenre} options={genres} label="Genre" />
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+              <div className="relative">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input value={query} onChange={e => { setQuery(e.target.value); setShowAllBars(false); }}
+                  placeholder="Search a game, studio or genre..." aria-label="Search games by title, studio or genre"
+                  className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500" />
+              </div>
+              <Selector value={genre} onChange={v => { setGenre(v); setShowAllBars(false); }} options={genres} label="Genre" />
+            </div>
+            <div className="mt-3 flex items-center gap-3 flex-wrap text-xs">
+              <span className="text-zinc-500">
+                {rows.length} of {GAMES.length} shown
+                {band && <span className="text-zinc-400"> · {VALUE_BANDS.find(b => b.id === band).label}</span>}
+              </span>
+              {filtered && (
+                <button type="button" onClick={clear}
+                        className="text-zinc-400 hover:text-accent-soft transition inline-flex items-center gap-1">
+                  <X className="w-3 h-3" /> Clear filters
+                </button>
+              )}
+            </div>
           </Card>
 
+          {/* ---- altitude 3: the leaderboard, capped ---- */}
+          {rows.length > 0 && (
+            <Card className="p-5 mb-6">
+              <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+                <div className="text-sm text-zinc-300 font-medium">
+                  {showAllBars || rows.length <= VALUE_TOP_N
+                    ? 'S$ per hour of playtime (lower = better value)'
+                    : `Top ${VALUE_TOP_N} by S$ per hour of playtime`}
+                </div>
+                {rows.length > VALUE_TOP_N && (
+                  <button type="button" onClick={() => setShowAllBars(v => !v)}
+                          className="text-xs text-zinc-400 hover:text-accent-soft transition inline-flex items-center gap-1">
+                    {showAllBars ? 'Show top 10' : `Show all ${rows.length}`}
+                    <ChevronDown className={cx('w-3.5 h-3.5 transition-transform', showAllBars && 'rotate-180')} />
+                  </button>
+                )}
+              </div>
+              <div className="space-y-3">
+                {bars.map(({ game: g, perHour, rank }) => (
+                  <div key={g.id}>
+                    <div className="flex items-baseline justify-between gap-3 text-xs mb-1">
+                      <span className="text-zinc-300 font-medium truncate">
+                        <span className="text-zinc-600 tabular-nums mr-1.5">#{rank}</span>{g.title}
+                      </span>
+                      <span className={cx('shrink-0 tabular-nums', valueBand(perHour).text)}>S${perHour}/hr</span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-ink-800 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500"
+                           style={{ width: `${Math.max((perHour / barMax) * 100, 3)}%`, background: `linear-gradient(90deg, ${g.accent}80, ${g.accent})` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 text-xs text-zinc-500 flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <div>"Hours to beat" is main-content playtime, not 100%-completion — sandbox/live-service games (Terraria, Deep Rock Galactic) will keep paying off well past this number. Bars are scaled against the longest bar shown, so they compare the games in view, not the whole catalogue.</div>
+              </div>
+            </Card>
+          )}
+
+          {/* ---- altitude 4: the full ranking ---- */}
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-ink-800/60 text-zinc-400 text-xs uppercase tracking-wider">
                   <tr>
+                    <th className="text-left px-4 py-3 font-medium">#</th>
                     <th className="text-left px-4 py-3 font-medium">Game</th>
                     <th className="text-left px-4 py-3 font-medium">Price</th>
                     <th className="text-left px-4 py-3 font-medium">Hours to beat</th>
@@ -2372,19 +2522,23 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ game: g, perHour }, i) => (
+                  {rows.map(({ game: g, perHour, rank }, i) => (
                     <tr key={g.id} className={cx(i % 2 === 0 ? 'bg-ink-850' : 'bg-ink-900/60')}>
+                      <td className="px-4 py-3 text-zinc-500 tabular-nums">{rank}</td>
                       <td className="px-4 py-3 text-zinc-200 whitespace-nowrap">{g.title} <span className="text-zinc-500">· {g.year}</span></td>
                       <td className="px-4 py-3 text-zinc-400"><PriceTag g={g} /></td>
                       <td className="px-4 py-3 text-zinc-200">{g.displayInfo.hoursToBeat}h</td>
                       <td className="px-4 py-3">
-                        <span className={cx(perHour <= 0.5 ? 'text-emerald-300' : perHour <= 1.5 ? 'text-amber-300' : 'text-rose-300')}>S${perHour}</span>
+                        <span className={cx('tabular-nums', valueBand(perHour).text)}>S${perHour}</span>
                       </td>
                       <td className="px-4 py-3 text-zinc-300">{g.displayInfo.rating}%</td>
                     </tr>
                   ))}
                   {rows.length === 0 && (
-                    <tr><td colSpan="5" className="px-4 py-8 text-center text-zinc-500">No games match this filter.</td></tr>
+                    <tr><td colSpan="6" className="px-4 py-8 text-center text-zinc-500">
+                      No games match your filters.{' '}
+                      <button type="button" onClick={clear} className="text-accent-soft hover:underline">Clear them</button>.
+                    </td></tr>
                   )}
                 </tbody>
               </table>
