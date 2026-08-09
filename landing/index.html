@@ -17,6 +17,25 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://lazycomparo.com/og-image.png" />
   <meta name="theme-color" content="#f6f1e7" />
+  <!-- Theme has to resolve BEFORE first paint, which is the one thing a
+       deferred external file cannot do — a stored dark preference would
+       otherwise flash the full-bleed cream page first. So this half is
+       inlined and blocking (it is three lines), and theme.js, which only
+       wires the button, is deferred. Paper is the default and the brand:
+       no stored choice means no attribute, and prefers-color-scheme is
+       deliberately NOT consulted, so a visitor whose OS is dark still gets
+       the paper landing until they ask for otherwise. -->
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('lc-theme') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#0a0a0b');
+        }
+      } catch (e) { /* private mode: paper, and the toggle still works per-session */ }
+    })();
+  </script>
   <!-- One mark across all three sites (see favicon.svg). Google's search-result
        favicon slot wants a raster at a multiple of 48px, and iOS ignores SVG
        entirely, so the PNGs are not optional decoration. -->
@@ -83,14 +102,45 @@
   </script>
 
   <style>
+    /* ================= THEME TOKENS =================
+       Light paper is the default and the brand — dark is opt-in, remembered
+       per visitor, and set on <html data-theme> by the inline script in
+       <head> before first paint. Every themed value lives in these two
+       blocks; nothing below hard-codes a page colour.
+
+       Two of these are rgb TRIPLETS rather than colours, because the page
+       needs them at a dozen different alphas:
+         --hair  hairlines, borders and the copy scrim's ink. Flips to near
+                 white on dark, so a "10% ink border" stays a border and does
+                 not become an invisible black line on charcoal.
+         --cast  drop shadows. Deliberately does NOT flip — a shadow is
+                 absence of light in both themes. Flipping it would turn
+                 every card's shadow into a glow.
+       --accent-strong is "the ember with more contrast against the page", so
+       it darkens on paper and lightens on charcoal. It used to be called
+       --accent-dark, which lied in exactly one of the two themes. */
     :root {
       --paper: #f6f1e7;
+      --paper-rgb: 246,241,231;
       --paper-deep: #ece4d3;
+      --surface: #fdfaf3;       /* cards, chips, the ticker */
       --ink: #1c1a17;
       --ink-soft: #57524a;
+      --hair: 28,26,23;
+      --cast: 28,26,23;
       --accent: #d9482b;        /* persimmon CTA, like a hanko stamp */
-      --accent-dark: #b93a20;
+      --accent-strong: #b93a20;
       --indigo: #2c3e6b;
+      --live: #2e9e5b;          /* "this is live data" pulse */
+      --live-rgb: 46,158,91;
+      /* the inverted slab: finale panel + footer. On paper it is near-black
+         ink; on charcoal it lifts ABOVE the page instead, because a darker
+         slab on a dark page would just disappear. */
+      --slab: #1c1a17;
+      --slab-ink: #f6f1e7;
+      --slab-ink-soft: #b9b2a6;
+      --slab-link: #ece4d3;
+      --slab-hair: 246,241,231;   /* slab edges are light in BOTH themes */
       --serif: 'Fraunces', Georgia, serif;
       --sans: 'Inter', system-ui, sans-serif;
 
@@ -116,6 +166,37 @@
          grid, which is the kind of drift that reads as unfinished. */
       --r-ctl: 3px;
       --r-card: 6px;
+    }
+
+    /* Dark: the games and phones apps' own charcoal ramp, so a visitor
+       crossing from lazycomparo.com into pcgames.lazycomparo.com does not
+       change worlds. Values lifted verbatim from the shared Tailwind config
+       — ink-950 #0a0a0b page, ink-900 #111113 surfaces, ink-700 #28282c
+       lines, and the app cyan #22d3ee. Ember stays ember: it is the one
+       colour all three sites already share. */
+    :root[data-theme="dark"] {
+      --paper: #0a0a0b;
+      --paper-rgb: 10,10,11;
+      --paper-deep: #161618;
+      --surface: #111113;
+      --ink: #ededee;
+      --ink-soft: #a1a1a6;
+      --hair: 244,244,245;
+      --cast: 0,0,0;
+      --accent: #d9482b;
+      --accent-strong: #e05a3a;   /* ember.soft — lighter, not darker, on charcoal */
+      --indigo: #4b6098;
+      --live: #4ade80;            /* #2e9e5b is too dim to read as "live" on black */
+      --live-rgb: 74,222,128;
+      --slab: #161618;
+      --slab-ink: #ededee;
+      --slab-ink-soft: #a1a1a6;
+      --slab-link: #e4e4e7;
+      --slab-hair: 244,244,245;
+      /* heat has to stay legible against charcoal, not paper */
+      --heat-warm: #e08a3c;
+      --heat-mild: #a2906c;
+      --heat-none: #a1a1a6;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -180,8 +261,8 @@
     .vignette {
       position: fixed; inset: 0; z-index: 1; pointer-events: none;
       background:
-        linear-gradient(to bottom, rgba(246,241,231,.85), transparent 14%),
-        linear-gradient(to top, rgba(246,241,231,.9), transparent 18%);
+        linear-gradient(to bottom, rgba(var(--paper-rgb),.85), transparent 14%),
+        linear-gradient(to top, rgba(var(--paper-rgb),.9), transparent 18%);
     }
 
     /* keyboard focus ring — the browser default is nearly invisible on the
@@ -191,7 +272,7 @@
       outline-offset: 3px;
       border-radius: 2px;
     }
-    .copy.darkpanel :focus-visible, footer :focus-visible { outline-color: #f6f1e7; }
+    .copy.darkpanel :focus-visible, footer :focus-visible { outline-color: var(--slab-ink); }
 
     .skiplink {
       position: fixed; top: 8px; left: 8px; z-index: 100;
@@ -213,22 +294,22 @@
     /* once scrolled off the hero the header sits over 3D props, not empty
        paper — give it its own paper backing so the wordmark stays legible */
     header.docked {
-      background: rgba(246,241,231,.82);
+      background: rgba(var(--paper-rgb),.82);
       backdrop-filter: blur(10px);
-      box-shadow: 0 1px 0 rgba(28,26,23,.09), 0 10px 30px -26px rgba(28,26,23,.6);
+      box-shadow: 0 1px 0 rgba(var(--hair),.09), 0 10px 30px -26px rgba(var(--cast),.6);
     }
     .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
     /* the mark is a solid tile, not the old mostly-empty bolt glyph — at the
        bolt's 26px it out-weighed the 19px wordmark next to it */
     .brand svg { width: 23px; height: 23px; }
     .brand b { font-family: var(--serif); font-size: 19px; font-weight: 560; letter-spacing: .01em; }
-    nav.top { margin-left: auto; display: flex; gap: 4px; background: rgba(246,241,231,.72); backdrop-filter: blur(8px); border: 1px solid rgba(28,26,23,.1); border-radius: 4px; padding: 4px; }
+    nav.top { margin-left: auto; display: flex; gap: 4px; background: rgba(var(--paper-rgb),.72); backdrop-filter: blur(8px); border: 1px solid rgba(var(--hair),.1); border-radius: 4px; padding: 4px; }
     nav.top a {
       font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
       color: var(--ink-soft); text-decoration: none; padding: 7px 13px; border-radius: var(--r-ctl);
       transition: background .2s, color .2s; white-space: nowrap;
     }
-    nav.top a:hover { color: var(--ink); background: rgba(28,26,23,.06); }
+    nav.top a:hover { color: var(--ink); background: rgba(var(--hair),.06); }
     .cta-pill {
       margin-left: 16px;
       font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
@@ -240,7 +321,28 @@
     }
     /* hover lift is a variable, not a transform — the magnetic-cursor code
        owns transform and the two would otherwise overwrite each other */
-    .cta-pill:hover { background: var(--accent-dark); --lift: -1px; }
+    .cta-pill:hover { background: var(--accent-strong); --lift: -1px; }
+
+    /* ---------- theme toggle ----------
+       Sized and finished to match a nav.top item so the header still reads
+       as one control cluster rather than a button bolted on beside it. */
+    .themetoggle {
+      margin-left: 8px; flex: none;
+      width: 34px; height: 34px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(var(--paper-rgb),.72);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(var(--hair),.1);
+      border-radius: var(--r-ctl);
+      color: var(--ink-soft); cursor: pointer;
+      transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast);
+    }
+    .themetoggle:hover { color: var(--ink); background: rgba(var(--hair),.06); border-color: rgba(var(--hair),.2); }
+    .themetoggle svg { width: 17px; height: 17px; display: block; }
+    /* show the icon for the theme you would switch TO */
+    .themetoggle .i-sun { display: none; }
+    :root[data-theme="dark"] .themetoggle .i-moon { display: none; }
+    :root[data-theme="dark"] .themetoggle .i-sun { display: block; }
 
     /* ---------- scroll sections ---------- */
     main { position: relative; z-index: 2; }
@@ -259,7 +361,7 @@
        "01 / 03" lines; they're fully hidden behind the copy block. */
     .copy::before {
       content: ''; position: absolute; inset: -14% -16%; z-index: -1;
-      background: rgba(246,241,231,.96);
+      background: rgba(var(--paper-rgb),.96);
       border-radius: 20px;
       /* The solid core stays — it is what guarantees no prop half-bleeds
          through the eyebrow. What changed is the falloff: a single 40px
@@ -269,8 +371,8 @@
          the veil has no locatable edge — and the outer one is weak enough
          that the scene is still clearly visible around the text. */
       box-shadow:
-        0 0 34px 20px rgba(246,241,231,.9),
-        0 0 90px 44px rgba(246,241,231,.55);
+        0 0 34px 20px rgba(var(--paper-rgb),.9),
+        0 0 90px 44px rgba(var(--paper-rgb),.55);
     }
     .rule { width: 34px; height: 2px; background: var(--ink); margin-bottom: 14px; opacity: .8; }
     .stopno { font-size: 10px; letter-spacing: .3em; color: var(--ink-soft); margin-bottom: 6px; }
@@ -298,7 +400,7 @@
     .taglist { margin-top: 30px; display: flex; gap: 22px; flex-wrap: wrap; }
     .taglist span {
       font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
-      color: var(--ink); border-bottom: 1.5px solid rgba(28,26,23,.35); padding-bottom: 3px;
+      color: var(--ink); border-bottom: 1.5px solid rgba(var(--hair),.35); padding-bottom: 3px;
     }
     .actions { margin-top: 36px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
     .btn {
@@ -310,9 +412,9 @@
          wrong rule later. */
     }
     .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 8px 22px -10px rgba(217,72,43,.65); }
-    .btn.primary:hover { background: var(--accent-dark); --lift: -1px; box-shadow: 0 14px 30px -12px rgba(217,72,43,.8); }
-    .btn.ghost { color: var(--ink); border: 1.5px solid rgba(28,26,23,.4); }
-    .btn.ghost:hover { border-color: var(--ink); background: rgba(28,26,23,.05); }
+    .btn.primary:hover { background: var(--accent-strong); --lift: -1px; box-shadow: 0 14px 30px -12px rgba(217,72,43,.8); }
+    .btn.ghost { color: var(--ink); border: 1.5px solid rgba(var(--hair),.4); }
+    .btn.ghost:hover { border-color: var(--ink); background: rgba(var(--hair),.05); }
     .arrowlink {
       font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
       color: var(--ink); text-decoration: none; border-bottom: 2px solid var(--accent);
@@ -325,7 +427,7 @@
        size and, once /api/steam answers, real SGD prices pulled live. */
     .proof {
       margin-top: 38px; padding-top: 22px;
-      border-top: 1px solid rgba(28,26,23,.14);
+      border-top: 1px solid rgba(var(--hair),.14);
       display: flex; gap: 34px; flex-wrap: wrap;
     }
     .proof .stat .n {
@@ -351,14 +453,14 @@
       margin-bottom: 12px;
     }
     .ticker .dot {
-      width: 7px; height: 7px; border-radius: 50%; background: #2e9e5b; flex: none;
+      width: 7px; height: 7px; border-radius: 50%; background: var(--live); flex: none;
       animation: livepulse 2s infinite;
     }
     .ticker ul { list-style: none; display: flex; gap: 10px; flex-wrap: wrap; }
     .ticker li {
       display: inline-flex; align-items: baseline; gap: 8px;
-      background: #fdfaf3; border: 1px solid rgba(28,26,23,.12); border-radius: var(--r-card);
-      padding: 9px 13px; box-shadow: 0 10px 26px -20px rgba(28,26,23,.6);
+      background: var(--surface); border: 1px solid rgba(var(--hair),.12); border-radius: var(--r-card);
+      padding: 9px 13px; box-shadow: 0 10px 26px -20px rgba(var(--cast),.6);
       max-width: 100%;
     }
     .ticker .t {
@@ -387,8 +489,8 @@
     }
     .rail button {
       position: relative; width: 12px; height: 12px; padding: 0;
-      border-radius: 50%; border: 1.5px solid rgba(28,26,23,.35);
-      background: rgba(246,241,231,.6); cursor: pointer;
+      border-radius: 50%; border: 1.5px solid rgba(var(--hair),.35);
+      background: rgba(var(--paper-rgb),.6); cursor: pointer;
       transition: background .25s, border-color .25s, transform .25s;
     }
     .rail button:hover { border-color: var(--ink); }
@@ -396,8 +498,8 @@
     .rail .lbl {
       position: absolute; right: 24px; top: 50%; transform: translateY(-50%);
       font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
-      color: var(--ink-soft); background: rgba(246,241,231,.92);
-      border: 1px solid rgba(28,26,23,.1); border-radius: var(--r-ctl);
+      color: var(--ink-soft); background: rgba(var(--paper-rgb),.92);
+      border: 1px solid rgba(var(--hair),.1); border-radius: var(--r-ctl);
       padding: 4px 9px; white-space: nowrap;
       opacity: 0; pointer-events: none; transition: opacity .2s;
     }
@@ -420,21 +522,21 @@
     /* ---------- live Epic freebie pill (games stop) ---------- */
     .livefree {
       margin-top: 26px; display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;
-      background: #fdfaf3; border: 1px solid rgba(28,26,23,.12); border-radius: var(--r-card);
+      background: var(--surface); border: 1px solid rgba(var(--hair),.12); border-radius: var(--r-card);
       padding: 12px 16px; font-size: 12.5px; line-height: 1.5; color: var(--ink);
-      box-shadow: 0 10px 26px -18px rgba(28,26,23,.5);
+      box-shadow: 0 10px 26px -18px rgba(var(--cast),.5);
     }
     .livefree .dot {
-      width: 8px; height: 8px; border-radius: 50%; background: #2e9e5b; flex: none;
-      box-shadow: 0 0 0 0 rgba(46,158,91,.45); animation: livepulse 2s infinite;
+      width: 8px; height: 8px; border-radius: 50%; background: var(--live); flex: none;
+      box-shadow: 0 0 0 0 rgba(var(--live-rgb),.45); animation: livepulse 2s infinite;
     }
     .livefree b { font-weight: 600; }
     .livefree a { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
     .livefree a:hover { text-decoration: underline; }
     @keyframes livepulse {
-      0% { box-shadow: 0 0 0 0 rgba(46,158,91,.45); }
-      70% { box-shadow: 0 0 0 8px rgba(46,158,91,0); }
-      100% { box-shadow: 0 0 0 0 rgba(46,158,91,0); }
+      0% { box-shadow: 0 0 0 0 rgba(var(--live-rgb),.45); }
+      70% { box-shadow: 0 0 0 8px rgba(var(--live-rgb),0); }
+      100% { box-shadow: 0 0 0 0 rgba(var(--live-rgb),0); }
     }
 
     /* ---------- reveal choreography ----------
@@ -512,25 +614,31 @@
     }
     .btn.magnetic, .cta-pill.magnetic { transition-duration: var(--t-fast); }
 
-    /* dark finale panel — bridges the paper landing into the dark app pages */
+    /* Finale panel — on paper this is the near-black slab that bridges into
+       the dark app pages. In dark mode that job is already done by the page
+       itself, so the slab inverts its RELATIONSHIP rather than its colour:
+       --slab lifts to #161618, just above the #0a0a0b page, and a hairline
+       gives it the edge the contrast no longer provides. A darker slab on a
+       dark page would simply vanish. */
     .copy.darkpanel {
-      background: #1c1a17; border-radius: 8px;
+      background: var(--slab); border-radius: 8px;
       padding: 56px 54px 50px;
-      box-shadow: 0 40px 80px -40px rgba(28,26,23,.55);
+      box-shadow: 0 40px 80px -40px rgba(var(--cast),.55);
+      border: 1px solid rgba(var(--slab-hair),.07);
     }
     .copy.darkpanel::before { display: none; }
-    .copy.darkpanel h2 { color: #f6f1e7; }
-    .copy.darkpanel .rule { background: #f6f1e7; }
-    .copy.darkpanel .eyebrow { color: #b9b2a6; }
-    .copy.darkpanel .btn.ghost { color: #f6f1e7; border-color: rgba(246,241,231,.45); }
-    .copy.darkpanel .btn.ghost:hover { border-color: #f6f1e7; background: rgba(246,241,231,.08); }
+    .copy.darkpanel h2 { color: var(--slab-ink); }
+    .copy.darkpanel .rule { background: var(--slab-ink); }
+    .copy.darkpanel .eyebrow { color: var(--slab-ink-soft); }
+    .copy.darkpanel .btn.ghost { color: var(--slab-ink); border-color: rgba(var(--slab-hair),.45); }
+    .copy.darkpanel .btn.ghost:hover { border-color: var(--slab-ink); background: rgba(var(--slab-hair),.08); }
     @media (max-width: 760px) { .copy.darkpanel { padding: 40px 28px 36px; } }
 
     /* ---------- how-it-works cards ---------- */
     .cards { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 860px; }
     .pcard {
-      background: #fdfaf3; border: 1px solid rgba(28,26,23,.1); border-radius: var(--r-card);
-      padding: 26px 22px; box-shadow: 0 14px 34px -22px rgba(28,26,23,.4);
+      background: var(--surface); border: 1px solid rgba(var(--hair),.1); border-radius: var(--r-card);
+      padding: 26px 22px; box-shadow: 0 14px 34px -22px rgba(var(--cast),.4);
       transform: perspective(800px) rotateX(1.5deg);
       transition: transform .25s ease, box-shadow .25s ease;
     }
@@ -539,7 +647,7 @@
     .pcard:hover,
     .reveal.in .cards .pcard:hover {
       transform: perspective(800px) rotateX(0) translateY(-5px);
-      box-shadow: 0 24px 44px -22px rgba(28,26,23,.45);
+      box-shadow: 0 24px 44px -22px rgba(var(--cast),.45);
     }
     .pcard .k { font-family: var(--serif); font-size: 26px; font-weight: 560; margin-bottom: 10px; }
     .pcard p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
@@ -548,14 +656,18 @@
     /* ---------- footer ---------- */
     footer {
       position: relative; z-index: 2;
-      background: var(--ink); color: #b9b2a6;
+      /* was var(--ink) — which in dark mode is the near-WHITE text colour,
+         so the footer would have inverted into a bright slab. It is the same
+         inverted slab as the finale panel and shares its tokens. */
+      background: var(--slab); color: var(--slab-ink-soft);
+      border-top: 1px solid rgba(var(--slab-hair),.07);
       padding: 54px 4vw 40px;
       font-size: 12px; line-height: 1.7;
     }
     footer .cols { display: flex; justify-content: space-between; gap: 30px; flex-wrap: wrap; max-width: 1200px; margin: 0 auto; }
-    footer a { color: #ece4d3; text-decoration: none; }
+    footer a { color: var(--slab-link); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
-    footer .brandline { font-family: var(--serif); color: #f6f1e7; font-size: 17px; margin-bottom: 8px; }
+    footer .brandline { font-family: var(--serif); color: var(--slab-ink); font-size: 17px; margin-bottom: 8px; }
 
     @media (max-width: 760px) {
       header { gap: 12px; padding: 14px 5vw; }
@@ -589,6 +701,10 @@
       .brand b { font-size: 17px; }
       .brand svg { width: 20px; height: 20px; }
       nav.top a { padding: 6px 8px; font-size: 9.5px; letter-spacing: .08em; }
+      /* the toggle is the newest thing competing for a 375px header, so it
+         gives up width first — brand and product links matter more */
+      .themetoggle { width: 30px; height: 30px; margin-left: 5px; }
+      .themetoggle svg { width: 15px; height: 15px; }
     }
     /* smallest phones (320-360px): drop the wordmark, keep the mark — two
        nav links plus "LazyComparo" cannot both fit honestly */
@@ -655,6 +771,19 @@
       <a href="https://mobile.lazycomparo.com/">Phones</a>
       <a class="inpage" href="#how">How it works</a>
     </nav>
+    <!-- Both icons ship; CSS shows whichever one describes the ACTION, so in
+         paper mode you see a moon ("go dark"). aria-label is written by
+         theme.js and says the same thing in words. -->
+    <button class="themetoggle" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      </svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.7"/>
+        <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4 17 7M7 17l-1.6 1.6"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </button>
     <a class="cta-pill" href="https://pcgames.lazycomparo.com/">Start comparing</a>
   </header>
 
@@ -792,6 +921,7 @@
   </footer>
 
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+  <script src="/theme.js" defer></script>
 
   <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
   <script>
@@ -852,8 +982,59 @@
       renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
     } catch (e) { document.body.classList.add('no3d'); return; }
 
-    var PAPER = 0xf6f1e7, small = window.innerWidth < 760;
-    renderer.setClearColor(PAPER);
+    var small = window.innerWidth < 760;
+
+    /* ---------- world palette ----------
+       Dark mode is not a filter over the paper village — it is dusk in the
+       same village. The props are unchanged; what changes is who is lighting
+       them. On paper a warm 30-degree sun does the work and the emissive
+       parts (rack LEDs, fan rings, bollard lenses, the mast beacon, every
+       screen) are incidental detail. On charcoal the sun drops to a cool,
+       weak moon and those emissives become the primary light in frame —
+       which is the whole reason the scene is full of RGB hardware. Their
+       intensities are deliberately NOT changed between themes: ACES is
+       rolling them off, so the same value that reads as a tasteful accent
+       against cream reads as a light source against black.
+
+       Everything the two themes disagree about lives here. Nothing below
+       hard-codes a world colour, so adding a third theme is this block plus
+       one line in the CSS. */
+    var WORLD = {
+      light: {
+        bg: 0xf6f1e7, ground: 0xece3d0, plinth: 0xe6dcc4, capTop: 0xf3ece0,
+        dish: 0xe9e1cf, plane: 0xfdfaf3,
+        hemiSky: 0xfff6e6, hemiGround: 0xcdc3ae, hemiI: 0.34,
+        sun: 0xffe8c8, sunI: 2.3,
+        rim: 0xdce8ff, rimI: 0.5,
+        exposure: 1.2,
+        fog: [58, 125],
+        // contact decals: warm shadow on paper, true black at dusk
+        cast: '74,62,44', castA: 0.55,
+        // equirect environment, horizon at stop 3 of 5
+        sky: ['#fffdf7', '#f7efdd', '#e4d8bf', '#c3b69b', '#a89b81'],
+        glow: '255,246,222'
+      },
+      dark: {
+        bg: 0x0a0a0b, ground: 0x141416, plinth: 0x1d1d20, capTop: 0x3a3a40,
+        dish: 0x4b4b53, plane: 0xd4d4d8,
+        hemiSky: 0x2b3550, hemiGround: 0x08080a, hemiI: 0.5,
+        sun: 0x9fb4e8, sunI: 1.1,
+        rim: 0x22d3ee, rimI: 0.75,     // the app cyan, doing the rim-light job
+        exposure: 1.35,
+        // pulled in, because fog IS the horizon here — props should dissolve
+        // into black well before the 240-unit ground plane runs out
+        fog: [46, 104],
+        cast: '0,0,0', castA: 0.7,
+        sky: ['#1b2133', '#151a28', '#0f131d', '#0b0d14', '#08090d'],
+        glow: '150,190,255'
+      }
+    };
+    function readTheme() {
+      return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    }
+    var W = WORLD[readTheme()];
+
+    renderer.setClearColor(W.bg);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -872,11 +1053,11 @@
        seam where the ground meets the background.
        Exposure compensates for the ~15% midtone drop the curve introduces. */
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = W.exposure;
     var MAX_ANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 
     var scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(PAPER, 58, 125);
+    scene.fog = new THREE.Fog(W.bg, W.fog[0], W.fog[1]);
 
     var camera = new THREE.PerspectiveCamera(small ? 55 : 42, 1, 0.1, 300);
 
@@ -888,30 +1069,39 @@
        through a horizon band into ground bounce. 128x64 is plenty — it is
        only ever seen blurred in a reflection, never directly (the scene
        background stays the flat paper clear-colour). */
-    (function () {
+    /* Built fresh per theme rather than repainted in place: three.js turns a
+       scene.environment equirect into a PMREM cubemap and caches it in a
+       WeakMap keyed by the texture OBJECT, with no version check — so
+       bumping needsUpdate on the source canvas would silently keep serving
+       the old reflections. Disposing the previous texture is what evicts
+       that cache entry. */
+    function buildEnv() {
       var cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
       var c = cv.getContext('2d');
       var g = c.createLinearGradient(0, 0, 0, 64);
-      g.addColorStop(0.00, '#fffdf7');
-      g.addColorStop(0.42, '#f7efdd');
-      g.addColorStop(0.52, '#e4d8bf');   // horizon
-      g.addColorStop(0.75, '#c3b69b');
-      g.addColorStop(1.00, '#a89b81');   // ground bounce
+      g.addColorStop(0.00, W.sky[0]);
+      g.addColorStop(0.42, W.sky[1]);
+      g.addColorStop(0.52, W.sky[2]);   // horizon
+      g.addColorStop(0.75, W.sky[3]);
+      g.addColorStop(1.00, W.sky[4]);   // ground bounce
       c.fillStyle = g; c.fillRect(0, 0, 128, 64);
-      // a soft warm "sun" blob so highlights have a hotspot to catch
+      // a soft "sun" blob so highlights have a hotspot to catch
       var s = c.createRadialGradient(34, 16, 0, 34, 16, 22);
-      s.addColorStop(0, 'rgba(255,246,222,1)'); s.addColorStop(1, 'rgba(255,246,222,0)');
+      s.addColorStop(0, 'rgba(' + W.glow + ',1)');
+      s.addColorStop(1, 'rgba(' + W.glow + ',0)');
       c.fillStyle = s; c.fillRect(0, 0, 128, 40);
       var tx = new THREE.CanvasTexture(cv);
       tx.mapping = THREE.EquirectangularReflectionMapping;
       tx.colorSpace = THREE.SRGBColorSpace;
-      scene.environment = tx;
-    })();
+      return tx;
+    }
+    scene.environment = buildEnv();
 
     /* ---------- lights ---------- */
     // hemisphere pulled back from 0.85 — scene.environment now supplies most
     // of the ambient fill, and stacking both washes the models out flat
-    scene.add(new THREE.HemisphereLight(0xfff6e6, 0xcdc3ae, 0.34));
+    var hemi = new THREE.HemisphereLight(W.hemiSky, W.hemiGround, W.hemiI);
+    scene.add(hemi);
     /* Sun elevation is 30 degrees, down from the 48 it sat at. A high sun
        puts every shadow directly under the prop that cast it, which is what
        made the village read flat — nothing had length, so nothing had form.
@@ -926,7 +1116,7 @@
        the big monitor, i.e. the hero props — now catch more light, not
        less. Safe to push past the old ceiling only because ACES is rolling
        the highlights off now instead of clipping them. */
-    var sun = new THREE.DirectionalLight(0xffe8c8, 2.3);
+    var sun = new THREE.DirectionalLight(W.sun, W.sunI);
     sun.position.set(24, 17.3, 18);
     sun.castShadow = true;
     sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048);
@@ -943,7 +1133,7 @@
     sun.shadow.normalBias = 0.045;
     scene.add(sun);
     // cool rim from behind-left so dark chassis edges separate from the fog
-    var rim = new THREE.DirectionalLight(0xdce8ff, 0.5);
+    var rim = new THREE.DirectionalLight(W.rim, W.rimI);
     rim.position.set(-26, 14, -22);
     scene.add(rim);
 
@@ -966,6 +1156,17 @@
         // gradient — the ground plane is exactly that case. Costs nothing.
         dithering: !!o.dither
       });
+    }
+    /* Same as mat(), but the colour is a WORLD key instead of a literal, and
+       the material is remembered so a theme switch can recolour it in place.
+       Only the paper-coloured surfaces go through this — the hardware props
+       (rack chassis, sled metal, phone bodies, PCB gold) are the same objects
+       at dusk as at noon and deliberately do not theme. */
+    var themedMats = [];
+    function paperMat(key, opts) {
+      var m = mat(W[key], opts);
+      themedMats.push({ m: m, key: key });
+      return m;
     }
     function put(geo, m, x, y, z, ry, group) {
       var mesh = new THREE.Mesh(geo, m);
@@ -1025,17 +1226,23 @@
        The shadow map covers a 110-unit area, so where an object meets the
        ground it is far too soft to read as contact. A cheap darkening decal
        under each cluster does the grounding the shadow map can't. */
-    var contactTex = (function () {
-      var cv = document.createElement('canvas'); cv.width = cv.height = 128;
-      var c = cv.getContext('2d');
+    /* Unlike the environment map this one CAN be repainted in place — it is
+       an ordinary map on a MeshBasicMaterial, so needsUpdate is enough and
+       every decal in the scene shares the one texture object. */
+    var contactCanvas = document.createElement('canvas');
+    contactCanvas.width = contactCanvas.height = 128;
+    function paintContact() {
+      var c = contactCanvas.getContext('2d');
+      c.clearRect(0, 0, 128, 128);
       var g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
-      g.addColorStop(0, 'rgba(74,62,44,.55)');
-      g.addColorStop(0.45, 'rgba(74,62,44,.28)');
-      g.addColorStop(1, 'rgba(74,62,44,0)');
+      g.addColorStop(0, 'rgba(' + W.cast + ',' + W.castA + ')');
+      g.addColorStop(0.45, 'rgba(' + W.cast + ',' + (W.castA * 0.51).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(' + W.cast + ',0)');
       c.fillStyle = g; c.fillRect(0, 0, 128, 128);
-      var t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      return t;
-    })();
+    }
+    paintContact();
+    var contactTex = new THREE.CanvasTexture(contactCanvas);
+    contactTex.colorSpace = THREE.SRGBColorSpace;
     var contactGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     function contact(x, z, rx, rz, op, group) {
       var m = new THREE.Mesh(contactGeo, new THREE.MeshBasicMaterial({
@@ -1134,7 +1341,7 @@
     })();
     // smooth-shaded: flat shading turned every one of these triangles into a
     // visible facet, which was most of the "raw" look
-    var gmesh = new THREE.Mesh(ground, mat(0xece3d0, { flat: false, rough: 0.98, env: 0.35, dither: true }));
+    var gmesh = new THREE.Mesh(ground, paperMat('ground', { flat: false, rough: 0.98, env: 0.35, dither: true }));
     gmesh.receiveShadow = true;
     scene.add(gmesh);
 
@@ -1282,7 +1489,7 @@
 
     // chunky gamepad centrepiece on a paper plinth
     var pad = new THREE.Group();
-    put(new THREE.CylinderGeometry(4.2, 4.7, 0.5, 32), mat(0xe6dcc4, { rough: 0.92 }), 0, 0.25, 0, 0, pad);
+    put(new THREE.CylinderGeometry(4.2, 4.7, 0.5, 32), paperMat('plinth', { rough: 0.92 }), 0, 0.25, 0, 0, pad);
     var padShell = mat(0xc0452a, { flat: false, rough: 0.42, metal: 0.12, env: 0.85 });
     var padGrip = mat(0xa8341c, { flat: false, rough: 0.62, metal: 0.05 });
     put(rbox(3.6, 0.9, 1.75, 0.38), padShell, 0, 1.0, 0, 0, pad);
@@ -1318,7 +1525,7 @@
     put(rbox(4.4, 0.1, 1.9, 0.05), mat(0x151d33, { flat: false, rough: 0.7 }), 0, 0.48, 0, 0, kb)
       .castShadow = false;
     var capGeo = rbox(0.5, 0.3, 0.5, 0.09);
-    var capPlain = mat(0xe6dcc4, { flat: false, rough: 0.72 });
+    var capPlain = paperMat('plinth', { flat: false, rough: 0.72 });
     var capLit = mat(0x22d3ee, { emissive: 0x22d3ee, ei: 1.3, rough: 0.4, flat: false });
     for (var kr = 0; kr < 3; kr++) for (var kc = 0; kc < 7; kc++) {
       var glow = (kr === 0 && kc === 2) || (kr === 1 && (kc === 1 || kc === 2 || kc === 3));
@@ -1355,7 +1562,7 @@
       .forEach(function (kd, i) {
         var g = new THREE.Group();
         put(capBody, mat(kd[2], { flat: false, rough: 0.5, metal: 0.1, env: 0.85 }), 0, 0, 0, 0, g);
-        put(capTop, mat(0xf3ece0, { flat: false, rough: 0.6 }), 0, 0.34, 0, 0, g).castShadow = false;
+        put(capTop, paperMat('capTop', { flat: false, rough: 0.6 }), 0, 0.34, 0, 0, g).castShadow = false;
         g.position.set(kd[0], 0.36, kd[1]);
         g.rotation.y = nz(i, 4) * 1.5;
         g.rotation.z = (nz(i, 9) - 0.5) * 0.16;
@@ -1376,7 +1583,7 @@
       put(rbox(1.9, 0.1, 0.1, 0.04), POST_MAT, 0, 5.5, 0, 0, g);
       [-0.8, 0.8].forEach(function (dx) {
         var dish = put(new THREE.CylinderGeometry(0.05, 0.32, 0.24, 16),
-          mat(0xe9e1cf, { flat: false, rough: 0.6 }), dx, 5.72, 0, 0, g);
+          paperMat('dish', { flat: false, rough: 0.6 }), dx, 5.72, 0, 0, g);
         dish.rotation.x = 0.5;
       });
       put(rbox(0.3, 0.34, 0.3, 0.08), POST_MAT, 0, 7.32, 0, 0, g);
@@ -1432,7 +1639,7 @@
 
     /* ---------- games corner (+x): paper arcade ---------- */
     var games = new THREE.Group();
-    put(new THREE.CylinderGeometry(6.4, 7, 0.55, 40), mat(0xe6dcc4, { rough: 0.92 }), 0, 0.27, 0, 0, games);
+    put(new THREE.CylinderGeometry(6.4, 7, 0.55, 40), paperMat('plinth', { rough: 0.92 }), 0, 0.27, 0, 0, games);
     // monitor on a proper stand, showing the comparison table
     var gMon = monitorRig(5.4, 3.3, 'compare');
     gMon.position.set(0, 3.2, -1.2);
@@ -1489,7 +1696,7 @@
       var c = cv.getContext('2d');
       c.clearRect(0, 0, TAG_W, TAG_H);
       c.save();
-      c.shadowColor = 'rgba(28,26,23,.34)';
+      c.shadowColor = 'rgba(var(--hair),.34)';
       c.shadowBlur = 18; c.shadowOffsetY = 9;
       c.fillStyle = bg;
       c.beginPath();
@@ -1497,7 +1704,7 @@
       c.fill();
       c.restore();
       // hairline edge a shade darker than the fill — reads as card stock
-      c.strokeStyle = 'rgba(28,26,23,.2)'; c.lineWidth = 2;
+      c.strokeStyle = 'rgba(var(--hair),.2)'; c.lineWidth = 2;
       c.beginPath();
       if (c.roundRect) { c.roundRect(17, 11, 254, 116, 19); } else { c.rect(17, 11, 254, 116); }
       c.stroke();
@@ -1580,7 +1787,7 @@
     // phone") instead of side by side. Spacing 3.2 > body width 2.3 leaves
     // clear air between them; no z-lean, so tops don't tilt into neighbors.
     var phones = new THREE.Group();
-    put(new THREE.CylinderGeometry(6.2, 6.8, 0.55, 40), mat(0xe6dcc4, { rough: 0.92 }), 0, 0.27, 0, 0, phones);
+    put(new THREE.CylinderGeometry(6.2, 6.8, 0.55, 40), paperMat('plinth', { rough: 0.92 }), 0, 0.27, 0, 0, phones);
     [[-3.2, 4.6, 0x232f4e, 0xa78bfa, 0.1, 0.5], [0, 5.6, 0x2c3e6b, 0x22d3ee, -0.06, -0.4], [3.2, 4.2, 0x35507e, 0x67e8f9, 0.12, 0.3]]
       .forEach(function (ph, i) {
         var g = new THREE.Group();
@@ -1612,7 +1819,17 @@
     phones.rotation.y = 0.4;
     scene.add(phones);
 
-    /* ---------- paper planes circling the world ---------- */
+    /* ---------- paper planes circling the world ----------
+       One shared material rather than one per plane — it needs DoubleSide,
+       which mat() does not expose, so it registers with the theme list by
+       hand. Paper planes stay pale at dusk: they are the one prop that is
+       literally paper, and letting them go charcoal would lose them against
+       the sky entirely. */
+    var PLANE_MAT = new THREE.MeshStandardMaterial({
+      color: W.plane, flatShading: true, roughness: 0.8, side: THREE.DoubleSide
+    });
+    themedMats.push({ m: PLANE_MAT, key: 'plane' });
+
     function paperPlane() {
       var g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
@@ -1620,9 +1837,7 @@
         0, 0, 1.4,    0, -0.12, -0.6,    1.1, 0.18, -0.9   // right wing
       ]), 3));
       g.computeVertexNormals();
-      var m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
-        color: 0xfdfaf3, flatShading: true, roughness: 0.8, side: THREE.DoubleSide
-      }));
+      var m = new THREE.Mesh(g, PLANE_MAT);
       m.castShadow = true;
       scene.add(m);
       return m;
@@ -1682,6 +1897,41 @@
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = 0; }
       else if (!running) { running = true; resize(); rafId = requestAnimationFrame(loop); }
+    });
+
+    /* ---------- live theme switch ----------
+       Rebuilding the scene on toggle would be simpler, but it would also
+       reset the camera to the hero stop and drop a second's worth of frames
+       mid-scroll. Everything here is an in-place update instead, so the
+       switch is a cross-fade of the same world rather than a reload. */
+    window.addEventListener('themechange', function (e) {
+      var next = (e.detail && e.detail.theme) === 'dark' ? 'dark' : 'light';
+      if (WORLD[next] === W) return;
+      W = WORLD[next];
+
+      renderer.setClearColor(W.bg);
+      renderer.toneMappingExposure = W.exposure;
+      scene.fog.color.setHex(W.bg);
+      scene.fog.near = W.fog[0];
+      scene.fog.far = W.fog[1];
+
+      hemi.color.setHex(W.hemiSky);
+      hemi.groundColor.setHex(W.hemiGround);
+      hemi.intensity = W.hemiI;
+      sun.color.setHex(W.sun); sun.intensity = W.sunI;
+      rim.color.setHex(W.rim); rim.intensity = W.rimI;
+
+      themedMats.forEach(function (t) { t.m.color.setHex(W[t.key]); });
+
+      paintContact();
+      contactTex.needsUpdate = true;
+
+      var oldEnv = scene.environment;
+      scene.environment = buildEnv();
+      if (oldEnv) oldEnv.dispose();     // evicts the cached PMREM
+
+      // reduced motion parks the render loop, so nothing would repaint
+      if (!running) renderer.render(scene, camera);
     });
 
     var clock = new THREE.Clock();

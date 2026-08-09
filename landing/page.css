@@ -8,12 +8,42 @@
 :root {
   --paper: #f6f1e7;
   --paper-deep: #ece4d3;
+  --surface: #fdfaf3;
   --ink: #1c1a17;
   --ink-soft: #57524a;
+  --hair: 28,26,23;          /* hairlines — flips near-white on dark */
   --accent: #d9482b;
-  --accent-dark: #b93a20;
+  --accent-strong: #b93a20;  /* the ember with more contrast against the page */
+  --accent-rgb: 217,72,43;
+  --slab: #17150f;           /* the footer */
+  --slab-ink: #f6f1e7;
+  --slab-ink-soft: #cfc7b6;
+  --slab-fine: #a89f8d;
+  --slab-link: #ece4d3;
+  --slab-hair: 246,241,231;  /* slab edges are light in BOTH themes */
   --serif: 'Fraunces', Georgia, serif;
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Same charcoal ramp as index.html and the two apps — see the comment on the
+   landing page's token block for why these exact values. Set on <html> by the
+   inline snippet in each page's <head>, wired by theme.js. */
+:root[data-theme="dark"] {
+  --paper: #0a0a0b;
+  --paper-deep: #161618;
+  --surface: #111113;
+  --ink: #ededee;
+  --ink-soft: #a1a1a6;
+  --hair: 244,244,245;
+  --accent: #d9482b;
+  --accent-strong: #e05a3a;
+  --accent-rgb: 224,90,58;
+  --slab: #161618;
+  --slab-ink: #ededee;
+  --slab-ink-soft: #a1a1a6;
+  --slab-fine: #85858c;
+  --slab-link: #e4e4e7;
+  --slab-hair: 244,244,245;
 }
 
 * { box-sizing: border-box; }
@@ -31,7 +61,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-a { color: var(--accent-dark); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a { color: var(--accent-strong); text-underline-offset: 3px; text-decoration-thickness: 1px; }
 a:hover { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
 
@@ -45,7 +75,7 @@ a:hover { color: var(--accent); }
 .site-head {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 18px clamp(20px, 5vw, 56px);
-  border-bottom: 1px solid rgba(28,26,23,.09);
+  border-bottom: 1px solid rgba(var(--hair),.09);
 }
 .site-head .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
 .site-head .brand svg { width: 23px; height: 23px; }
@@ -56,15 +86,33 @@ a:hover { color: var(--accent); }
   font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
   padding: 8px 10px; border-radius: 7px;
 }
-.site-head nav a:hover { color: var(--ink); background: rgba(28,26,23,.05); }
-.site-head nav a[aria-current="page"] { color: var(--accent-dark); background: rgba(217,72,43,.08); }
+.site-head nav a:hover { color: var(--ink); background: rgba(var(--hair),.05); }
+.site-head nav a[aria-current="page"] { color: var(--accent-strong); background: rgba(var(--accent-rgb),.08); }
+
+/* ---------- theme toggle ----------
+   Finished like a nav item so the header stays one cluster. Lives inside
+   .site-head nav so it wraps with the links on narrow screens instead of
+   being stranded on its own row. */
+.themetoggle {
+  width: 30px; height: 30px; padding: 0; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid rgba(var(--hair),.13); border-radius: 7px;
+  color: var(--ink-soft); cursor: pointer;
+  transition: color .18s, background .18s, border-color .18s;
+}
+.themetoggle:hover { color: var(--ink); background: rgba(var(--hair),.05); border-color: rgba(var(--hair),.24); }
+.themetoggle svg { width: 15px; height: 15px; display: block; }
+/* show the icon for the theme you would switch TO */
+.themetoggle .i-sun { display: none; }
+:root[data-theme="dark"] .themetoggle .i-moon { display: none; }
+:root[data-theme="dark"] .themetoggle .i-sun { display: block; }
 
 /* ---------- page body ---------- */
 main { max-width: 720px; margin: 0 auto; padding: clamp(40px, 7vw, 80px) clamp(20px, 5vw, 24px) 90px; }
 
 .eyebrow {
   font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--accent-dark); margin-bottom: 14px;
+  color: var(--accent-strong); margin-bottom: 14px;
 }
 .rule { width: 46px; height: 3px; background: var(--accent); border-radius: 2px; margin-bottom: 22px; }
 
@@ -90,7 +138,7 @@ strong { font-weight: 650; }
 .updated {
   font-size: 13px; color: var(--ink-soft);
   padding-top: 14px; margin-top: 6px;
-  border-top: 1px solid rgba(28,26,23,.1);
+  border-top: 1px solid rgba(var(--hair),.1);
 }
 
 /* a boxed aside for the disclosures that people actually scan for */
@@ -105,28 +153,29 @@ strong { font-weight: 650; }
 .callout h3 { margin-top: 0; }
 
 table { width: 100%; border-collapse: collapse; margin: 0 0 20px; font-size: 15px; }
-th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid rgba(28,26,23,.1); vertical-align: top; }
+th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid rgba(var(--hair),.1); vertical-align: top; }
 th { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; }
 .wrap-x { overflow-x: auto; }
 
 code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: .88em; background: rgba(28,26,23,.06); padding: 1px 5px; border-radius: 4px;
+  font-size: .88em; background: rgba(var(--hair),.06); padding: 1px 5px; border-radius: 4px;
 }
 
 /* ---------- footer ---------- */
 .site-foot {
-  background: #17150f; color: #cfc7b6;
+  background: var(--slab); color: var(--slab-ink-soft);
+  border-top: 1px solid rgba(var(--slab-hair),.07);
   padding: 44px clamp(20px, 5vw, 56px) 40px;
   font-size: 14px; line-height: 1.6;
 }
-.site-foot a { color: #ece4d3; text-decoration: none; }
+.site-foot a { color: var(--slab-link); text-decoration: none; }
 .site-foot a:hover { text-decoration: underline; }
-.site-foot :focus-visible { outline-color: #f6f1e7; }
+.site-foot :focus-visible { outline-color: var(--slab-ink); }
 .site-foot .cols { display: flex; justify-content: space-between; gap: 30px; flex-wrap: wrap; max-width: 1200px; margin: 0 auto; }
-.site-foot .brandline { font-family: var(--serif); color: #f6f1e7; font-size: 17px; margin-bottom: 8px; }
+.site-foot .brandline { font-family: var(--serif); color: var(--slab-ink); font-size: 17px; margin-bottom: 8px; }
 .site-foot nav { display: flex; flex-direction: column; gap: 6px; }
-.site-foot .fine { max-width: 340px; color: #a89f8d; font-size: 13px; }
+.site-foot .fine { max-width: 340px; color: var(--slab-fine); font-size: 13px; }
 
 @media (max-width: 560px) {
   body { font-size: 16px; }

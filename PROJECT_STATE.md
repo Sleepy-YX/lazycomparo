@@ -46,7 +46,9 @@ so `lazycomparo.sg` is not registered and not planned. Don't re-open it as a
   Ports in CWD-level `.claude/launch.json`: mobile 5173, games 5174 (alt 5184),
   landing 5175 (alt 5185) — alts exist because other sessions can hold a port.
 - Brand: warm charcoal ink (`#0c0a08`), paper `#f6f1e7`, persimmon/ember
-  `#d9482b`, Fraunces serif + Inter; apps stay dark, landing is light paper.
+  `#d9482b`, Fraunces serif + Inter; apps stay dark, landing is light paper
+  **by default** — the landing now also ships an opt-in dark theme that
+  borrows the apps' charcoal ramp. See "Landing theme switch" below.
 
 ## Brand mark (one, finally)
 
@@ -102,6 +104,75 @@ pre-rendered SEO copy. Now:
 Verified locally: cold boot compiles and stores ~200 KB (games) / ~59 KB
 (mobile); reload leaves `typeof Babel === 'undefined'` with the app mounted;
 both a stale source hash and a truncated cache entry recompile cleanly.
+
+## Landing theme switch (light default, dark opt-in)
+
+The landing project ships both themes. **Paper is still the default and the
+brand** — `prefers-color-scheme` is deliberately **not** consulted, so a
+visitor whose OS is dark still lands on paper until they ask otherwise. Dark
+is opt-in, then remembered in `localStorage` under `lc-theme`.
+
+- Dark reuses the **apps' exact charcoal ramp** (`#0a0a0b` page, `#111113`
+  surfaces, `#28282c` lines, cyan `#22d3ee`) so crossing from the landing into
+  `pcgames.` / `mobile.` does not change worlds. Ember `#d9482b` is unchanged —
+  it is the one colour all three sites already share.
+- Every themed value is a CSS custom property in two blocks: `:root` and
+  `:root[data-theme="dark"]`, in **both** `landing/index.html` (inline) and
+  `landing/page.css`. Nothing else hard-codes a page colour. Three tokens are
+  easy to get wrong:
+  - `--hair` / `--slab-hair` are **rgb triplets**, not colours, because they
+    are needed at a dozen alphas. `--hair` flips near-white on dark; `--slab-hair`
+    stays light in **both** themes, because a slab edge is always the light one.
+  - `--cast` (drop shadows) deliberately does **not** flip. A shadow is absence
+    of light in either theme; flipping it turns every card shadow into a glow.
+  - `--accent-strong` is "the ember with more contrast against the page", so it
+    darkens on paper and *lightens* on charcoal. It was `--accent-dark`, a name
+    that lied in exactly one of the two themes.
+- The footer and the finale panel are the **inverted slab** (`--slab*`). On
+  paper the slab is near-black; on charcoal it *lifts* to `#161618` above the
+  `#0a0a0b` page and gains a hairline, because a darker slab on a dark page just
+  disappears. The footer previously used `var(--ink)` as its background, which in
+  dark mode is the near-white text colour — it would have inverted to a bright slab.
+- **Split by necessity:** resolving the theme has to happen before first paint,
+  which a deferred external file cannot do, so that half is an inline blocking
+  `<script>` in the `<head>` of all five pages. `landing/theme.js` (deferred,
+  shared) only wires the button. If you add a page to the landing project, it
+  needs **both**.
+- The 3D world themes too, in place — see "Landing 3D stage" below. `theme.js`
+  never calls into three.js: it dispatches a `themechange` event and the scene
+  listens, which is why the trust pages can share the same file.
+
+## Landing 3D stage (rendering notes)
+
+- **Tone mapping is ACES filmic**, exposure 1.2 light / 1.35 dark. Before it the
+  pipeline was linear, so the near-white ground clipped to flat `#fff` and every
+  emissive (LEDs, fan rings, beacon, screens, `ei` 1.8–2.6) clipped to white,
+  losing the colour it exists to show. Emissive intensities are **the same in
+  both themes** on purpose: with the curve rolling them off, the value that
+  reads as a tasteful accent against cream reads as a light source against black.
+- **Safe against the paper backdrop** because three.js mixes fog *after*
+  `tonemapping_fragment` and `colorspace_fragment` and uploads `fogColor` already
+  in output space. Fog and clear colour both stay exactly the page colour, so
+  there is no seam where the ground meets the background. Verified against the
+  pinned r158 build, not assumed — if three.js is ever bumped, re-check it.
+- Sun sits at **30° elevation** (was 48°, which put every shadow directly under
+  its own prop and was most of why the village read flat). Only `y` moved, so the
+  composition is unchanged.
+- Theme switching is **in place, never a rebuild** — a rebuild would reset the
+  camera to the hero stop mid-scroll. `WORLD` holds both palettes; `paperMat()`
+  registers the paper-coloured surfaces so they can be recoloured. Hardware props
+  (rack chassis, sled metal, phone bodies, PCB gold) deliberately do not theme.
+- **The environment map must be rebuilt, not repainted.** three.js turns a
+  `scene.environment` equirect into a PMREM cubemap cached in a WeakMap keyed by
+  the *texture object*, with no version check — bumping `needsUpdate` silently
+  keeps serving the old reflections. Disposing the old texture is what evicts it.
+  The contact-shadow decal is an ordinary map and *can* be repainted in place.
+- Canvas-drawn text (the floating price tags) must be **repainted on
+  `document.fonts.ready`**. Painted at first script execution it silently gets the
+  system fallback, because Inter is a webfont and has not loaded yet.
+- Canvas textures used as colour maps need an explicit
+  `colorSpace = SRGBColorSpace`. three.js defaults a texture to `NoColorSpace`,
+  i.e. "already linear", and the tags rendered washed out for exactly this reason.
 
 ## Trust pages (landing project)
 

@@ -14,6 +14,19 @@
   <meta property="og:image" content="https://lazycomparo.com/og-image.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="theme-color" content="#f6f1e7" />
+  <!-- Theme must resolve before first paint; see the fuller note in
+       index.html. theme.js (deferred, below) only wires the button. -->
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('lc-theme') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#0a0a0b');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -57,6 +70,15 @@
       <a href="/about">About</a>
       <a href="/how-we-rank" aria-current="page">How we rank</a>
       <a href="/privacy">Privacy</a>
+      <button class="themetoggle" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme">
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+        </svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4 17 7M7 17l-1.6 1.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </button>
     </nav>
   </header>
 
@@ -230,5 +252,6 @@
     </div>
   </footer>
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+<script src="/theme.js" defer></script>
 </body>
 </html>
