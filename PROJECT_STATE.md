@@ -110,6 +110,20 @@ both a stale source hash and a truncated cache entry recompile cleanly.
 `/privacy` — **named `<name>.html`, not `<name>/index.html`**, same 308-redirect
 trap as the games hubs.
 
+**The games project has NO `404.html`, and must not get one** without also
+rewriting the routing. It shipped with one on 2026-08-09 and was reverted the
+same day: a custom `404.html` takes precedence over the `/game/* /index.html
+200` rule in `games/_redirects`, so `context.next()` handed the middleware the
+404 page instead of the app shell. All 100 `/game/<slug>` pages then answered
+**404**, carrying the 404 page's `noindex` — while the middleware still injected
+the right title and JSON-LD into it, so it looked half-correct in a curl. The
+`#root` rewrite silently did nothing because the 404 page has no `#root`.
+If a branded games 404 is ever wanted, the middleware has to fetch the shell
+itself via the `env.ASSETS` binding (which bypasses middleware, unlike a
+self-`fetch` to the origin, which would re-enter it and append JSON-LD twice)
+and force a 200 for known slugs. `landing/` and `mobile/` have no `_redirects`,
+so their 404 pages are purely additive and are fine.
+
 - **`/how-we-rank` is transcribed from the constants the code actually runs on**
   (deal-heat thresholds, `ROW_WEIGHT`, the 12% "It's close" margin, the 0/5/15
   ecosystem penalty, the 8 / 3–8 / <3 verdict bands). **If you change a weight
@@ -467,7 +481,9 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
   method, no privacy policy, no contact and a hard-coded copyright year. Added
   `/about`, `/how-we-rank` (every data source, threshold and weight, transcribed
   from the code) and `/privacy` (+ terms, PDPA), linked from all three footers
-  and the games pre-render, plus branded 404s on all three projects. The
+  and the games pre-render, plus branded 404s on the landing and mobile (the
+  games one had to be reverted — see "Trust pages" for why it breaks
+  `/game/<slug>`). The
   "no ads, no affiliate links, no paid placement" disclosure is now stated
   explicitly rather than merely being true. Mobile's footer no longer calls its
   own catalogue "mock data for demo". **(3) Boot cost.** Both apps were pulling
