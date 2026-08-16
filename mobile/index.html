@@ -99,13 +99,89 @@
       box-shadow: 0 0 0 4px rgba(124,92,255,0.15);
       cursor: pointer;
     }
+
+    /* ---- Boot splash ----
+       The edge middleware injects plain SEO HTML into #root for crawlers;
+       without this it flashes unstyled before React mounts. Keep the content
+       in the DOM but hidden until the app reveals itself (html.app-ready, set
+       from App's mount effect, the bootstrap's failure path, or a safety
+       timer). Same markup and timings as the games site. */
+    #root { visibility: hidden; }
+    html.app-ready #root { visibility: visible; }
+    #boot-splash {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: #0a0a0b;
+      transition: opacity .3s ease-out;
+    }
+    html.app-ready #boot-splash { opacity: 0; pointer-events: none; }
+    #boot-splash .wordmark {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 1.5rem; color: #e7e7ea; letter-spacing: .01em;
+      animation: bootPulse 1.2s ease-in-out infinite;
+    }
+    #boot-splash .wordmark em { font-style: normal; color: #e05a3a; }
+    @keyframes bootPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      #boot-splash .wordmark { animation: none; }
+      #boot-splash { transition: none; }
+    }
+
+    /* Thumbnail strip inside the compare bar scrolls, without a scrollbar
+       eating 10px of a 375px-wide phone. */
+    .no-scrollbar { scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+
+    /* ---- Sticky compare bar ----
+       Real CSS rather than Tailwind classes because env() inside calc()
+       cannot be expressed reliably as a Tailwind arbitrary value. Unlike the
+       games site there is NO fixed bottom tab bar here — navigation lives in
+       the sticky header — so the bar sits on the floor at every width and
+       only has to clear the home indicator. z-index stays under the header's
+       z-20 stacking so nothing about navigation can be covered. */
+    .compare-bar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    /* Slides up the first time it appears. Keyed on the count in React, so it
+       replays when you go 0 -> 1 but not on every add. */
+    .compare-bar-in { animation: cbarIn .3s cubic-bezier(.16, 1, .3, 1) both; }
+    @keyframes cbarIn { from { transform: translateY(115%); } to { transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .compare-bar-in { animation: none; }
+    }
   </style>
+  <noscript>
+    <style>
+      /* No JS: show the server-injected SEO content instead of the splash. */
+      #root { visibility: visible; }
+      #boot-splash { display: none; }
+    </style>
+  </noscript>
 </head>
 <body class="dark">
   <div id="root"></div>
+  <div id="boot-splash" aria-hidden="true">
+    <div class="wordmark">Lazy<em>Comparo</em></div>
+  </div>
+  <script>
+    // Reveal the app (hide the splash, show #root). Called from App's mount
+    // effect; the 6s timer is a safety net so a failed CDN script never
+    // leaves the page stuck on the splash — worst case the SEO content shows.
+    window.__reveal = function () {
+      document.documentElement.classList.add('app-ready');
+      // Remove the node after the fade — background tabs freeze CSS
+      // transitions, so don't rely on opacity alone to clear the overlay.
+      setTimeout(function () {
+        var s = document.getElementById('boot-splash');
+        if (s) s.remove();
+      }, 400);
+    };
+    setTimeout(window.__reveal, 6000);
+  </script>
 
   <script id="app-source" type="text/plain">
-    const { useState, useMemo, useEffect } = React;
+    const { useState, useMemo, useEffect, useRef } = React;
 
     /* ---------------- Icons (inline SVG, Lucide-style) ---------------- */
     const Icon = ({ children, className = 'w-4 h-4', ...rest }) => (
@@ -175,6 +251,18 @@
     const PARAMS = (() => {
       try { return new URLSearchParams(window.location.search); }
       catch (e) { return new URLSearchParams(''); }
+    })();
+
+    /* /phone/<id> is a real, crawlable page served by the edge middleware from
+       this same shell (see mobile/functions/_middleware.js). A visitor who
+       lands there came for that one phone, so the app opens with it already in
+       the shortlist rather than dumping them on an unfiltered catalog. Unknown
+       slugs never reach here — the middleware lets those 404. */
+    const DEEP_LINK_PHONE_ID = (() => {
+      try {
+        const m = window.location.pathname.match(/^\/phone\/([^/]+)\/?$/);
+        return m ? decodeURIComponent(m[1]) : null;
+      } catch (e) { return null; }
     })();
 
     function paramPhoneId(fallback) {
@@ -750,7 +838,7 @@
     };
 
     /* ---------------- Phone card (used in Browse + Compare picker) ---------------- */
-    const PhoneCard = ({ phone, selected, onClick, disabled, showPrice = true }) => {
+    const PhoneCard = ({ phone, selected, onClick, disabled, showPrice = true, full = false }) => {
       const heat = dealHeat(phone);
       const beatsCurve = underCurve(phone);
       const modelLabel = phone.model.replace(new RegExp(`^${phone.brand}\\s+`, 'i'), '');
@@ -783,13 +871,52 @@
               <Pill tone="hot"><TrendingDown className="w-3 h-3" /> below {phone.brand}'s curve</Pill>
             )}
           </div>
+          {/* The real select control.
+              Selection used to be a bare onClick on the card <div>: no role,
+              no keyboard focus, nothing announced, and the only instruction
+              lived in the Browse subtitle. This button is what a keyboard
+              reaches and what a screen reader announces (as a toggle, via
+              aria-pressed).
+
+              The card is deliberately NOT given role="button" — a button
+              nesting other controls is invalid and unusable with a screen
+              reader. The div's onClick stays a mouse-only convenience that
+              duplicates a control which IS exposed.
+
+              stopPropagation is load-bearing: without it the card's own
+              onClick fires too and the toggle immediately cancels itself. */}
+          <div className="mt-3">
+            <button type="button"
+                    onClick={(e) => { e.stopPropagation(); if (onClick) onClick(); }}
+                    aria-pressed={!!selected}
+                    aria-label={selected
+                      ? `Remove ${phoneName(phone)} from the comparison`
+                      : `Add ${phoneName(phone)} to the comparison`}
+                    title={full ? 'Comparison is full — remove one first' : undefined}
+                    /* min-h on phones because text-xs + py-2 came out 32px
+                       tall, under the 44px touch minimum, and this is now the
+                       primary action on every card. */
+                    className={cx('w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition',
+                      'min-h-[44px] md:min-h-[36px]',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                      selected ? 'bg-accent text-ink-950'
+                        /* Full but not selected: dimmed, yet still clickable —
+                           the click is what surfaces the "compare holds 3"
+                           explanation, so disabling it would hide the reason. */
+                        : full ? 'bg-ink-800 text-zinc-500 ring-1 ring-ink-700'
+                               : 'bg-ink-800 text-zinc-200 ring-1 ring-ink-700 hover:bg-ink-700 hover:text-white')}>
+              {selected
+                ? <React.Fragment><Check className="w-3.5 h-3.5" /> Added</React.Fragment>
+                : <React.Fragment><Plus className="w-3.5 h-3.5" /> Compare</React.Fragment>}
+            </button>
+          </div>
         </div>
       </Card>
       );
     };
 
     /* ---------------- Browse view ---------------- */
-    const BrowseView = ({ shortlist, onToggle }) => {
+    const BrowseView = ({ shortlist, onToggle, max = 3 }) => {
       const [query, setQuery] = useState('');
       const [brand, setBrand] = useState('All');
       const [tier, setTier] = useState('All');
@@ -822,9 +949,13 @@
 
       return (
         <div className="animate-fade-in">
+          {/* The subtitle used to end "Tap a card to add it to your comparison
+              shortlist" — the only instruction on the page, in an element that
+              is hidden on phones. The instruction now lives above the grid at
+              every width, and on the cards themselves. */}
           <SectionTitle eyebrow="Catalog" icon={Layers}
             title="Browse phones"
-            subtitle={`${PHONES.length} devices across ${brands.length-1} brands, budget to flagship-plus, from 2021 to 2026. Tap a card to add it to your comparison shortlist.`} />
+            subtitle={`${PHONES.length} devices across ${brands.length-1} brands, budget to flagship-plus, from 2021 to 2026.`} />
 
           <Card className="p-3 mb-3">
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-2">
@@ -871,9 +1002,21 @@
             </span>
           </div>
 
+          {/* Shown at ALL widths, unlike the subtitle it replaces, and retires
+              once there is something in the shortlist — from then on the
+              compare bar is the thing explaining the flow. */}
+          {shortlist.length === 0 && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-zinc-400">
+              <Plus className="w-3.5 h-3.5 text-accent-soft shrink-0" />
+              <span>Add up to {max} phones with <span className="text-zinc-200 font-medium">Compare</span> to put them side by side.</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {list.map(p => (
-              <PhoneCard key={p.id} phone={p} selected={shortlist.includes(p.id)} onClick={() => onToggle(p.id)} />
+              <PhoneCard key={p.id} phone={p} selected={shortlist.includes(p.id)}
+                         full={shortlist.length >= max && !shortlist.includes(p.id)}
+                         onClick={() => onToggle(p.id)} />
             ))}
             {list.length === 0 && (
               <div className="col-span-full text-center text-zinc-500 py-12">No phones match your filters.</div>
@@ -897,20 +1040,35 @@
     /* ---------------- Compare view ---------------- */
     const CompareView = ({ shortlist, setShortlist, onGoBrowse }) => {
       const picked = shortlist.map(id => PHONES.find(p => p.id === id)).filter(Boolean);
-      const canAddMore = picked.length < 3;
+      const canAddMore = picked.length < MAX_COMPARE;
+      // Guard the ids against the catalog: phones.json is edited by hand and a
+      // sample that names a deleted phone would open an empty comparison.
+      const sampleIds = SAMPLE_COMPARE.filter(id => PHONES.some(p => p.id === id));
 
       if (picked.length < 2) {
         return (
           <div className="animate-fade-in">
             <SectionTitle eyebrow="Compare" icon={Layers}
               title="Side-by-side spec matrix"
-              subtitle="Pick 2 or 3 phones from the catalog to compare specs, sentiment, and pros/cons." />
+              subtitle={`Pick 2 or ${MAX_COMPARE} phones from the catalog to compare specs, sentiment, and pros/cons.`} />
             <Card className="p-8 text-center">
               <div className="text-zinc-400 mb-4">You have {picked.length} phone{picked.length === 1 ? '' : 's'} selected. Add {2 - picked.length} more to start comparing.</div>
-              <button onClick={onGoBrowse}
-                className="inline-flex items-center gap-2 bg-ember hover:bg-ember-soft text-white font-semibold rounded-lg px-4 py-2 transition">
-                Browse phones <ArrowRight className="w-4 h-4" />
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button onClick={onGoBrowse}
+                  className="inline-flex items-center gap-2 bg-ember hover:bg-ember-soft text-white font-semibold rounded-lg px-4 py-2 transition">
+                  Browse phones <ArrowRight className="w-4 h-4" />
+                </button>
+                {/* The demo the shortlist used to give everyone by pre-seeding
+                    itself, now opt-in. Offered ONLY at zero picks — offering to
+                    overwrite a phone someone actually chose would repeat the
+                    original mistake in a new place. */}
+                {picked.length === 0 && sampleIds.length >= 2 && (
+                  <button onClick={() => setShortlist(sampleIds.slice(0, MAX_COMPARE))}
+                    className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-zinc-300 ring-1 ring-ink-700 hover:text-white hover:ring-ink-600 transition">
+                    See a sample comparison
+                  </button>
+                )}
+              </div>
             </Card>
           </div>
         );
@@ -1388,6 +1546,99 @@
       );
     };
 
+    /* ---------------- Shortlist plumbing ----------------
+       The matrix is built for 2-3 columns, so this is the single source of
+       the cap — nothing else may hard-code a 3. */
+    const MAX_COMPARE = 3;
+    /* The demo the shortlist used to provide by pre-seeding itself. One phone
+       per ecosystem, which is the comparison this site exists to make. Offered
+       only from Compare's empty state, never written over real picks. */
+    const SAMPLE_COMPARE = ['iphone-17', 'galaxy-s26', 'pixel-10'];
+
+    // localStorage-backed useState. Storage can be unavailable (private mode,
+    // blocked cookies), and a shortlist is not worth a crashed app, so every
+    // access is wrapped and failure just means "no memory this session".
+    function usePersistedState(key, initial) {
+      const [value, setValue] = useState(() => {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw == null ? initial : JSON.parse(raw);
+        } catch (e) { return initial; }
+      });
+      useEffect(() => {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+      }, [key, value]);
+      return [value, setValue];
+    }
+
+    /* ---------------- Sticky compare bar ----------------
+       Browse had no bridge to Compare. After picking phones the only signal
+       was a small count badge in the header you had already scrolled past, so
+       the selection went nowhere and the shortlist was invisible while you
+       were still choosing. This is that bridge, and the one place the
+       shortlist can be seen and edited without leaving the grid.
+
+       Renders NOTHING at zero picks, so a visitor who is only browsing pays
+       no bar, no spacer and no layout shift. */
+    const CompareBar = ({ picked, max, notice, onRemove, onClear, onCompare }) => {
+      if (!picked.length) return null;
+      const ready = picked.length >= 2;
+      return (
+        <div className="compare-bar compare-bar-in" role="region" aria-label="Comparison shortlist">
+          <div className="bg-ink-950/95 backdrop-blur-md border-t border-ink-700 shadow-2xl shadow-black/60">
+            {/* The "compare is full" message from toggleShortlist. aria-live so
+                a screen reader hears the refusal instead of silence. */}
+            {notice && (
+              <div role="status" aria-live="polite"
+                   className="bg-amber-500/10 border-b border-amber-500/25 text-amber-200 text-xs px-4 md:px-6 py-2 text-center">
+                {notice}
+              </div>
+            )}
+            <div className="max-w-7xl mx-auto px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center gap-2.5 md:gap-4">
+
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="hidden lg:block text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">
+                  Comparing
+                </span>
+                <div className="flex items-center gap-3 min-w-0 overflow-x-auto no-scrollbar py-1">
+                  {picked.map(p => (
+                    <div key={p.id} className="relative shrink-0 flex items-center gap-2 pr-1">
+                      <PhoneThumb phone={p} className="w-8 h-11" />
+                      <span className="text-[11px] text-zinc-300 max-w-[110px] truncate">{phoneName(p)}</span>
+                      <button onClick={() => onRemove(p.id)}
+                              aria-label={`Remove ${phoneName(p)} from the comparison`}
+                              title={`Remove ${phoneName(p)}`}
+                              className="p-0.5 rounded-full bg-ink-900 ring-1 ring-ink-700 text-zinc-400 hover:text-rose-400 transition">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <span className="shrink-0 text-[11px] text-zinc-500 tabular-nums">{picked.length}/{max}</span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={onClear}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition px-2 py-2 shrink-0">
+                  Clear
+                </button>
+                {/* Disabled at one pick rather than hidden: the label is what
+                    tells you what is missing, so removing it removes the
+                    instruction too. */}
+                <button onClick={onCompare} disabled={!ready}
+                        className={cx('flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap',
+                          ready ? 'bg-ember hover:bg-ember-soft text-white'
+                                : 'bg-ink-800 text-zinc-500 cursor-not-allowed')}>
+                  {ready ? `Compare ${picked.length} phones` : 'Pick 1 more to compare'}
+                  {ready && <ArrowRight className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     /* ---------------- App shell ---------------- */
     const TABS = [
       { id: 'browse',  label: 'Browse',  icon: Layers },
@@ -1403,15 +1654,87 @@
         const t = PARAMS.get('tab');
         return TABS.some(x => x.id === t) ? t : 'browse';
       });
-      const [shortlist, setShortlist] = useState(['iphone-17-pro-max', 'galaxy-s26-ultra']);
+      /* Starts EMPTY. It used to seed ['iphone-17-pro-max','galaxy-s26-ultra'],
+         so a first-time visitor arrived on Compare with two phones they had
+         never chosen — and combined with the old eviction rule below, their
+         first real pick silently deleted one of them. The demo those seeds
+         provided now lives in Compare's empty state as an explicit "see a
+         sample" button. Returning visitors keep whatever they actually
+         picked. */
+      const [shortlist, setShortlist] = usePersistedState('lc-phones-shortlist', []);
+      // Set when an add is refused because the shortlist is full; the compare
+      // bar renders it and it clears itself.
+      const [shortlistNotice, setShortlistNotice] = useState('');
 
-      const toggleShortlist = (id) => {
-        setShortlist(prev => {
-          if (prev.includes(id)) return prev.filter(x => x !== id);
-          if (prev.length >= 3) return [...prev.slice(1), id];
-          return [...prev, id];
+      // One-time on load: drop stored ids that have left the catalog, trim
+      // anything longer than the cap (an older build could store 3+), and put
+      // a /phone/<id> deep link at the front of whatever was already there.
+      useEffect(() => {
+        applyShortlist(prev => {
+          let ids = prev.filter(id => PHONES.some(p => p.id === id));
+          if (DEEP_LINK_PHONE_ID && PHONES.some(p => p.id === DEEP_LINK_PHONE_ID)) {
+            ids = Array.from(new Set([DEEP_LINK_PHONE_ID, ...ids]));
+          }
+          return ids.slice(0, MAX_COMPARE);
         });
+      }, []);
+
+      /* Mirrors `shortlist`, but updated SYNCHRONOUSLY inside applyShortlist.
+         toggleShortlist has to KNOW the current list before it can choose
+         between add, remove and refuse, and reading the `shortlist` state
+         variable there is a stale-closure trap: React batches, so two clicks
+         in one tick both read the pre-click value and the second overwrites
+         the first. Tapping three cards quickly dropped two of them. The
+         effect keeps the ref honest when the list changes from anywhere else
+         — Clear, the bar's remove buttons, CompareView, the catalog prune. */
+      const shortlistRef = useRef(shortlist);
+      useEffect(() => { shortlistRef.current = shortlist; }, [shortlist]);
+
+      /* THE ONLY WAY THE SHORTLIST IS WRITTEN. The ref write MUST happen here
+         and not inside a setShortlist updater — an updater does not run until
+         React processes the queue, so the ref would still hold the pre-click
+         value for anything else firing in the same tick, which is the exact
+         bug it exists to prevent. Accepts a value or an updater. */
+      const applyShortlist = (next) => {
+        const v = typeof next === 'function' ? next(shortlistRef.current) : next;
+        shortlistRef.current = v;
+        setShortlist(v);
       };
+      const clearShortlist = () => { applyShortlist([]); setShortlistNotice(''); };
+
+      /* Adding a 4th phone used to do `[...prev.slice(1), id]` — it silently
+         deleted the FIRST pick, with no message anywhere. You only found out
+         on the Compare tab, where a phone you had chosen was simply missing
+         and nothing said why. Refusing the add and saying so is the honest
+         behaviour. Removal is always allowed, so this can never get stuck. */
+      const toggleShortlist = (id) => {
+        const cur = shortlistRef.current;
+        if (cur.includes(id)) {
+          applyShortlist(cur.filter(x => x !== id));
+          setShortlistNotice('');
+          return;
+        }
+        if (cur.length >= MAX_COMPARE) {
+          setShortlistNotice(`Compare holds ${MAX_COMPARE} phones — remove one to add another.`);
+          return;
+        }
+        applyShortlist([...cur, id]);
+        setShortlistNotice('');
+      };
+
+      // The notice is a nudge, not a modal: it clears itself so it cannot
+      // linger over an unrelated action. Re-arms on every new refusal.
+      useEffect(() => {
+        if (!shortlistNotice) return;
+        const t = setTimeout(() => setShortlistNotice(''), 4000);
+        return () => clearTimeout(t);
+      }, [shortlistNotice]);
+
+      const pickedPhones = shortlist.map(id => PHONES.find(p => p.id === id)).filter(Boolean);
+
+      // App is mounted — drop the boot splash and show #root (which until now
+      // held the crawler pre-render this component just replaced).
+      useEffect(() => { if (window.__reveal) window.__reveal(); }, []);
 
       return (
         <div className="min-h-screen bg-ink-950">
@@ -1453,9 +1776,9 @@
 
           <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-8">
             {tab === 'browse' &&
-              <BrowseView shortlist={shortlist} onToggle={toggleShortlist} />}
+              <BrowseView shortlist={shortlist} onToggle={toggleShortlist} max={MAX_COMPARE} />}
             {tab === 'compare' &&
-              <CompareView shortlist={shortlist} setShortlist={setShortlist} onGoBrowse={() => setTab('browse')} />}
+              <CompareView shortlist={shortlist} setShortlist={applyShortlist} onGoBrowse={() => setTab('browse')} />}
             {tab === 'advisor' &&
               <AdvisorView />}
             {tab === 'resale' &&
@@ -1479,6 +1802,28 @@
               </nav>
             </div>
           </footer>
+
+          {/* Sticky compare bar. Not shown on the Compare tab itself, where the
+              same chips already sit at the top of the view and a second copy
+              would just cover the matrix it is pointing at. The spacer keeps
+              the footer clear of it; both appear and disappear together, so an
+              empty shortlist costs no layout at all. */}
+          {tab !== 'compare' && pickedPhones.length > 0 && (
+            <React.Fragment>
+              {/* Sized against the measured bar, not guessed: it stacks into
+                  two rows at 375px (119px), and the refusal notice adds a
+                  third (~152px). Anything shorter lets the bar cover the
+                  footer's last line when you scroll to the very bottom. */}
+              <div aria-hidden="true" className="h-40 md:h-24" />
+              <CompareBar
+                picked={pickedPhones}
+                max={MAX_COMPARE}
+                notice={shortlistNotice}
+                onRemove={toggleShortlist}
+                onClear={clearShortlist}
+                onCompare={() => { setTab('compare'); window.scrollTo({ top: 0 }); }} />
+            </React.Fragment>
+          )}
         </div>
       );
     };
@@ -1543,6 +1888,9 @@
 
       function fail(headline, detail) {
         console.error('App bootstrap failed:', detail);
+        // #root is hidden behind the boot splash until the app reveals itself,
+        // so an error written into it would otherwise be invisible.
+        if (window.__reveal) window.__reveal();
         root.innerHTML =
           '<div style="max-width:640px;margin:12vh auto;padding:0 24px;' +
           'font-family:Inter,system-ui,sans-serif;color:#e7e7ea;">' +
@@ -1574,7 +1922,10 @@
         });
       }
 
-      var catalog = fetch('phones.json')
+      /* ABSOLUTE path. /phone/<slug> is a real route served from this same
+         shell, and a relative 'phones.json' there would resolve to
+         /phone/phones.json and 404 every per-phone page. */
+      var catalog = fetch('/phones.json')
         .then(function (res) {
           if (!res.ok) throw new Error('phones.json -> HTTP ' + res.status);
           return res.json();

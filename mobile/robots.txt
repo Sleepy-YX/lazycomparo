@@ -2,9 +2,9 @@ User-agent: *
 Allow: /
 
 # Do NOT disallow /phones.json here, however much it looks like the /api/ block
-# on the games site. That block is safe because the games content is
-# pre-rendered server-side; this catalog is fetched by the page at boot, so
-# blocking it means Googlebot renders the "Couldn't load the phone catalog"
-# error panel and indexes THAT instead of the site.
+# on the games site. The catalog is fetched by the page at boot, so blocking it
+# means Googlebot's rendered pass gets the "Couldn't load the phone catalog"
+# error panel — which would then disagree with the server-side pre-render it
+# saw first, the worst of both worlds.
 
 Sitemap: https://mobile.lazycomparo.com/sitemap.xml

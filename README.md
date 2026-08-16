@@ -7,7 +7,7 @@ Two products live in this repo today. **Games is the current focus; mobile is se
 - **[games/](games/)** — [PcGames.LazyComparo](https://pcgames.lazycomparo.com/), a PC game comparison and value advisor, and the product we're actively building out. Compares games on price, rating, hours-to-beat, and co-op support across **Steam, Epic and GOG** — including live free-game alerts and cross-store price comparison — to help you decide what's worth buying on sale (or claiming for free).
 - **[mobile/](mobile/)** — smartphone comparison and switching advisor (secondary). Weighs priorities, budget, and ecosystem trade-offs (iMessage, DeX, AirDrop, Samsung Cloud, etc.) to tell you whether to upgrade or switch brands.
 
-Currently both are single-file demos. Roadmap: expand catalogs and migrate to Next.js + Supabase.
+Each product is a single HTML file plus its catalog as JSON — `games/games.json` (100 games) and `mobile/phones.json` (50 phones) — read by both the app and that site's Cloudflare Pages middleware, which pre-renders crawlable pages at `/game/<id>` and `/phone/<id>`. Roadmap: expand catalogs and migrate to Next.js + Supabase.
 
 ---
 
@@ -23,7 +23,7 @@ Currently both are single-file demos. Roadmap: expand catalogs and migrate to Ne
 
 ### mobile — phone comparison & switching advisor (secondary)
 
-- **Browse** — 14 phones across 6 brands (Apple, Samsung, Google, Xiaomi, OnePlus, Nothing) with filters, search, and multi-sort.
+- **Browse** — 50 phones across 9 brands (Apple, Samsung, Google, Xiaomi, OnePlus, Oppo, vivo, Honor, Nothing) with filters, search, and multi-sort.
 - **Compare** — side-by-side spec matrix for 2–3 phones with per-row winner highlighting, sentiment bars, and pros/cons columns.
 - **Switching Advisor** — pick your current phone, set your budget and priority sliders (camera / battery / performance / display), and get ranked recommendations with an ecosystem-friction penalty applied for cross-brand and cross-platform switches. Includes a verdict banner (*Worth upgrading* / *Marginal* / *Wait a generation*).
 
@@ -49,11 +49,9 @@ Each recommendation surfaces: the two priorities the phone matches best, the eco
 
 No build step. Each product is a single HTML file with React 18, Tailwind, and Babel loaded via CDN.
 
-**Option A — open the file directly**
+**Serve it — opening the file directly no longer works**
 
-Double-click `mobile/index.html` or `games/index.html`. Everything works offline as long as the CDNs load.
-
-**Option B — serve it (recommended, matches deployed behavior)**
+Both apps fetch their catalog (`games.json` / `phones.json`) at boot, which a `file://` page cannot do, so they need a server:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .claude\serve.ps1 5173 mobile

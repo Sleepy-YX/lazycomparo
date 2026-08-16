@@ -2,25 +2,23 @@
   check-sync.ps1 -- catalog consistency check for the games and mobile sites.
 
   WHY THIS EXISTS
-  The same 100 games are written down in three places, by hand:
+  Both catalogs are now data files, each read by exactly one app and one edge
+  middleware:
 
-    games/index.html               the real catalog the app renders
-    games/functions/_middleware.js a trimmed copy used for SEO pre-render
-    games/sitemap.xml              one <loc> per /game/<id>
+    games/games.json      100 games   -> games/index.html + games/functions/_middleware.js
+    mobile/phones.json     50 phones  -> mobile/index.html + mobile/functions/_middleware.js
 
-  Nothing enforces agreement, and the failure is silent: a game added to the
-  app but not the middleware still renders for humans while crawlers get the
-  homepage fallback, and a stale price in the middleware is served to Google
-  as the indexed price. Both look fine in a browser.
-
-  It also sanity-checks mobile/phones.json, which the mobile app fetches at
-  boot -- malformed JSON there is a blank site, not a degraded one.
+  That kills the failure this script was written for -- a game added to the app
+  but not to the hand-mirrored copy in the middleware, so humans saw it and
+  crawlers got the homepage fallback. What is left to police is the DERIVED
+  files (two sitemaps and landing/phones-mini.json, all generated) and the
+  hand-typed counts in the landing hero, which go stale silently.
 
   Run this before `git push`. Exit code 0 = clean, 1 = something drifted.
 
     powershell -NoProfile -ExecutionPolicy Bypass -File .claude\check-sync.ps1
 
-  Add a check whenever you add a hand-maintained copy of catalog data.
+  Add a check whenever you add a derived copy of catalog data.
 #>
 
 [CmdletBinding()]
@@ -31,11 +29,16 @@ $ErrorActionPreference = 'Stop'
 
 . "$PSScriptRoot\JsLiteral.ps1"
 
-$root       = Split-Path -Parent $PSScriptRoot
-$appPath    = Join-Path $root 'games\index.html'
-$seoPath    = Join-Path $root 'games\functions\_middleware.js'
-$mapPath    = Join-Path $root 'games\sitemap.xml'
-$siteOrigin = 'https://pcgames.lazycomparo.com'
+$root        = Split-Path -Parent $PSScriptRoot
+$gamesPath   = Join-Path $root 'games\games.json'
+$appPath     = Join-Path $root 'games\index.html'
+$seoPath     = Join-Path $root 'games\functions\_middleware.js'
+$mapPath     = Join-Path $root 'games\sitemap.xml'
+$phonesPath  = Join-Path $root 'mobile\phones.json'
+$mobileHtml  = Join-Path $root 'mobile\index.html'
+$mobileMap   = Join-Path $root 'mobile\sitemap.xml'
+$miniPath    = Join-Path $root 'landing\phones-mini.json'
+$landingPath = Join-Path $root 'landing\index.html'
 
 $script:Problems = 0
 
@@ -57,194 +60,177 @@ function Report {
     if ($Hint) { Write-Host "           -> $Hint" -ForegroundColor DarkGray }
 }
 
+# Bind before wrapping: PS 5.1 hands a JSON array to the pipeline as ONE item,
+# so @(... | ConvertFrom-Json) would yield a nested 1-element array.
+function Read-JsonArray {
+    param([Parameter(Mandatory)][string]$Path)
+    $parsed = Read-SourceText -Path $Path | ConvertFrom-Json
+    return @($parsed)
+}
+
 Write-Host ''
 Write-Host 'LazyComparo -- catalog sync check' -ForegroundColor Cyan
 
 # ---------------------------------------------------------------- load sources
-$app     = @(Get-JsLiteral -Path $appPath -Name GAMES)
-$seo     = @(Get-JsLiteral -Path $seoPath -Name GAMES)
+$games   = @()
+$phones  = @()
+$loadFails = @()
+try   { $games  = Read-JsonArray -Path $gamesPath }
+catch { $loadFails += "games/games.json is not valid JSON: $($_.Exception.Message)" }
+try   { $phones = Read-JsonArray -Path $phonesPath }
+catch { $loadFails += "mobile/phones.json is not valid JSON: $($_.Exception.Message)" }
+
+if ($loadFails.Count) {
+    Report -Label 'catalogs parse' -Failures $loadFails `
+           -Hint 'neither site renders without its catalog -- fix the JSON first'
+    Write-Host ''
+    Write-Host "  $($script:Problems) problem(s) found -- fix before pushing." -ForegroundColor Red
+    Write-Host ''
+    exit 1
+}
+
 $buckets = Get-JsLiteral -Path $appPath -Name GENRE_BUCKETS
-$stores  = Get-JsLiteral -Path $appPath -Name EXTRA_STORES
+$gameIds = @($games | ForEach-Object { $_.id })
 
-$mapXml  = [xml](Read-SourceText -Path $mapPath)
-$locs    = @($mapXml.urlset.url | ForEach-Object { $_.loc })
-$mapIds  = @($locs | Where-Object { $_ -match '/game/([^/]+)/?$' } |
-                     ForEach-Object { [regex]::Match($_, '/game/([^/]+)/?$').Groups[1].Value })
-
-Write-Host ("  games/index.html      {0,3} games" -f $app.Count)   -ForegroundColor DarkGray
-Write-Host ("  _middleware.js        {0,3} games" -f $seo.Count)   -ForegroundColor DarkGray
-Write-Host ("  sitemap.xml           {0,3} game URLs" -f $mapIds.Count) -ForegroundColor DarkGray
+Write-Host ("  games/games.json      {0,3} games"  -f $games.Count)  -ForegroundColor DarkGray
+Write-Host ("  mobile/phones.json    {0,3} phones" -f $phones.Count) -ForegroundColor DarkGray
 Write-Host ''
 
-$appIds = @($app | ForEach-Object { $_.id })
-$seoIds = @($seo | ForEach-Object { $_.id })
-
-# ------------------------------------------------------------- 1. unique ids
+# ------------------------------------------------------------- 1. games.json shape
+# A missing field renders as 'undefined' on one card only, or throws inside the
+# middleware's trim() and takes the whole pre-render down with it.
+$required     = @('id','appId','title','studio','genre','year','price','accent','maxPlayers','specs','displayInfo','tags','pros','cons')
+$requiredSpec = @('combat','story','coop','replay')
+$requiredInfo = @('hoursToBeat','rating','players','earlyAccess','platform')
 $fails = @()
-foreach ($grp in ($appIds | Group-Object | Where-Object Count -gt 1)) {
-    $fails += "duplicate id '$($grp.Name)' in games/index.html ($($grp.Count)x)"
-}
-foreach ($grp in ($seoIds | Group-Object | Where-Object Count -gt 1)) {
-    $fails += "duplicate id '$($grp.Name)' in _middleware.js ($($grp.Count)x)"
-}
-# A duplicate AppID means two catalog entries fight over the same live price.
-foreach ($grp in (@($app | ForEach-Object { $_.appId }) | Group-Object | Where-Object Count -gt 1)) {
-    $names = ($app | Where-Object { "$($_.appId)" -eq $grp.Name } | ForEach-Object { $_.id }) -join ', '
-    $fails += "duplicate appId $($grp.Name) shared by: $names"
-}
-Report -Label 'ids and Steam AppIDs are unique' -Failures $fails
-
-# --------------------------------------------- 2. app catalog vs SEO middleware
-$fails = @()
-foreach ($id in ($appIds | Where-Object { $seoIds -notcontains $_ })) {
-    $fails += "'$id' is in the app catalog but missing from _middleware.js"
-}
-foreach ($id in ($seoIds | Where-Object { $appIds -notcontains $_ })) {
-    $fails += "'$id' is in _middleware.js but missing from the app catalog"
-}
-Report -Label 'the SEO middleware lists the same games as the app' -Failures $fails `
-       -Hint 'mirror the entry into the GAMES array in games/functions/_middleware.js'
-
-# ------------------------------------------------------- 3. shared field values
-# The middleware copy is trimmed, so only compare what both sides carry.
-# left  = property path in _middleware.js, right = where it lives in index.html
-$mirrored = @(
-    @{ Seo = 'title';   App = { param($g) $g.title } }
-    @{ Seo = 'appId';   App = { param($g) $g.appId } }
-    @{ Seo = 'studio';  App = { param($g) $g.studio } }
-    @{ Seo = 'genre';   App = { param($g) $g.genre } }
-    @{ Seo = 'year';    App = { param($g) $g.year } }
-    @{ Seo = 'price';   App = { param($g) $g.price } }
-    @{ Seo = 'rating';  App = { param($g) $g.displayInfo.rating } }
-    @{ Seo = 'hours';   App = { param($g) $g.displayInfo.hoursToBeat } }
-    @{ Seo = 'players'; App = { param($g) $g.displayInfo.players } }
-    @{ Seo = 'pro';     App = { param($g) if ($g.pros.Count) { $g.pros[0] } else { $null } } }
-)
-$appById = @{}
-foreach ($g in $app) { $appById[$g.id] = $g }
-
-$fails = @()
-foreach ($s in $seo) {
-    if (-not $appById.ContainsKey($s.id)) { continue }   # already reported above
-    $a = $appById[$s.id]
-    foreach ($f in $mirrored) {
-        $seoVal = $s.PSObject.Properties[$f.Seo].Value
-        $appVal = & $f.App $a
-        $same = if ($seoVal -is [ValueType] -or $appVal -is [ValueType]) {
-            [double]$seoVal -eq [double]$appVal
-        } else {
-            [string]$seoVal -ceq [string]$appVal
-        }
-        if (-not $same) {
-            $fails += ("{0}.{1}: middleware '{2}' vs app '{3}'" -f $s.id, $f.Seo, $seoVal, $appVal)
+if ($games.Count -eq 0) { $fails += 'games.json contains no games' }
+foreach ($g in $games) {
+    $keys = @($g.PSObject.Properties | ForEach-Object { $_.Name })
+    $missing = @($required | Where-Object { $keys -notcontains $_ })
+    if ($missing.Count) { $fails += "game '$($g.id)' is missing: $($missing -join ', ')"; continue }
+    $sk = @($g.specs.PSObject.Properties | ForEach-Object { $_.Name })
+    foreach ($k in $requiredSpec) { if ($sk -notcontains $k) { $fails += "game '$($g.id)' has no specs.$k" } }
+    $ik = @($g.displayInfo.PSObject.Properties | ForEach-Object { $_.Name })
+    foreach ($k in $requiredInfo) { if ($ik -notcontains $k) { $fails += "game '$($g.id)' has no displayInfo.$k" } }
+    # `stores` is optional (Steam-only games carry none) but must be a list of
+    # real store names when present. 'Steam' is implied everywhere and listing
+    # it again would print it twice.
+    if ($g.PSObject.Properties['stores']) {
+        foreach ($s in @($g.stores)) {
+            if ($s -eq 'Steam') { $fails += "game '$($g.id)' lists 'Steam' in stores (it is implied)" }
+            elseif ([string]::IsNullOrWhiteSpace($s)) { $fails += "game '$($g.id)' has an empty store name" }
         }
     }
 }
-Report -Label 'mirrored fields agree (title, appId, studio, genre, year, price, rating, hours, players, pro)' `
-       -Failures $fails -Hint 'the app catalog is the source of truth -- copy its value into _middleware.js'
+Report -Label "games/games.json is loadable and complete ($($games.Count) games)" -Failures $fails `
+       -Hint 'copy the shape of an existing entry -- every game needs the same keys'
 
-# -------------------------------------------------------------- 4. sitemap.xml
+# ------------------------------------------------------------- 2. unique ids
 $fails = @()
-if ($locs -notcontains "$siteOrigin/") { $fails += "homepage <loc> $siteOrigin/ is missing" }
-foreach ($id in ($appIds | Where-Object { $mapIds -notcontains $_ })) {
-    $fails += "'$id' has no sitemap entry ($siteOrigin/game/$id)"
+foreach ($grp in ($gameIds | Group-Object | Where-Object Count -gt 1)) {
+    $fails += "duplicate id '$($grp.Name)' in games.json ($($grp.Count)x)"
 }
-foreach ($id in ($mapIds | Where-Object { $appIds -notcontains $_ })) {
-    $fails += "sitemap lists '/game/$id', which is not in the catalog"
+# A duplicate AppID means two catalog entries fight over the same live price.
+foreach ($grp in (@($games | ForEach-Object { $_.appId }) | Group-Object | Where-Object Count -gt 1)) {
+    $names = ($games | Where-Object { "$($_.appId)" -eq $grp.Name } | ForEach-Object { $_.id }) -join ', '
+    $fails += "duplicate appId $($grp.Name) shared by: $names"
 }
-foreach ($grp in ($mapIds | Group-Object | Where-Object Count -gt 1)) {
-    $fails += "sitemap lists '/game/$($grp.Name)' $($grp.Count) times"
+foreach ($grp in (@($phones | ForEach-Object { $_.id }) | Group-Object | Where-Object Count -gt 1)) {
+    $fails += "duplicate phone id '$($grp.Name)' ($($grp.Count)x)"
 }
-Report -Label 'sitemap.xml covers every game and nothing else' -Failures $fails `
-       -Hint 'add <url><loc>.../game/<id></loc><changefreq>weekly</changefreq><priority>0.8</priority></url>'
+Report -Label 'ids and Steam AppIDs are unique' -Failures $fails
+
+# ------------------------------------------------- 3. no catalog copies left behind
+# Both catalogs are files now. An inline array left in an app -- or a mirrored
+# one in a middleware -- would be dead code that still looks authoritative.
+$fails = @()
+$appHtml = Read-SourceText -Path $appPath
+if ($appHtml -match '(?m)^[ \t]*const[ \t]+GAMES[ \t]*=[ \t]*\[') {
+    $fails += 'games/index.html still declares an inline GAMES array (games.json is the source of truth)'
+}
+if ($appHtml -match '(?m)^[ \t]*const[ \t]+EXTRA_STORES[ \t]*=[ \t]*\{') {
+    $fails += 'games/index.html still declares EXTRA_STORES (store availability lives on the game now)'
+}
+$seoJs = Read-SourceText -Path $seoPath
+if ($seoJs -match '(?m)^[ \t]*const[ \t]+GAMES[ \t]*=[ \t]*\[') {
+    $fails += 'games/functions/_middleware.js still declares its own GAMES copy'
+}
+if ($seoJs -match '(?m)^[ \t]*const[ \t]+EXTRA_STORES[ \t]*=[ \t]*\{') {
+    $fails += 'games/functions/_middleware.js still declares its own EXTRA_STORES copy'
+}
+$mobHtml = Read-SourceText -Path $mobileHtml
+if ($mobHtml -match '(?m)^[ \t]*const[ \t]+PHONES[ \t]*=[ \t]*\[') {
+    $fails += 'mobile/index.html still declares an inline PHONES array (phones.json is the source of truth)'
+}
+Report -Label 'no catalog copies left in the apps or middlewares' -Failures $fails `
+       -Hint 'delete the copy -- the JSON file is the only catalog'
+
+# ------------------------------------------------------------- 4. phones.json shape
+$fails = @()
+if ($phones.Count -eq 0) { $fails += 'phones.json contains no phones' }
+if ($phones.Count -gt 0) {
+    # Every phone must carry the same shape as the first, or a view that reads
+    # the missing field renders 'undefined' for that one device only.
+    $refKeys  = @($phones[0].PSObject.Properties | ForEach-Object { $_.Name })
+    $specKeys = @('camera', 'battery', 'performance', 'display')   # used by scorePhone
+    foreach ($p in $phones) {
+        $keys = @($p.PSObject.Properties | ForEach-Object { $_.Name })
+        $missing = @($refKeys | Where-Object { $keys -notcontains $_ })
+        if ($missing.Count) { $fails += "phone '$($p.id)' is missing: $($missing -join ', ')" }
+        if ($p.PSObject.Properties['specs']) {
+            $sk = @($p.specs.PSObject.Properties | ForEach-Object { $_.Name })
+            $sm = @($specKeys | Where-Object { $sk -notcontains $_ })
+            if ($sm.Count) { $fails += "phone '$($p.id)' has no specs.$($sm -join '/, specs.')" }
+        }
+    }
+}
+Report -Label "mobile/phones.json is loadable and complete ($($phones.Count) phones)" -Failures $fails `
+       -Hint 'fix mobile/phones.json -- the mobile site will not render without it'
 
 # --------------------------------------------------- 5. genre buckets coverage
 # An unmapped genre silently drops the game into 'Other' in the filter.
 $bucketKeys = @($buckets.PSObject.Properties | ForEach-Object { $_.Name })
 $fails = @()
-foreach ($genre in (@($app | ForEach-Object { $_.genre }) | Sort-Object -Unique)) {
+foreach ($genre in (@($games | ForEach-Object { $_.genre }) | Sort-Object -Unique)) {
     if ($bucketKeys -notcontains $genre) {
-        $used = ($app | Where-Object { $_.genre -eq $genre } | ForEach-Object { $_.id }) -join ', '
+        $used = ($games | Where-Object { $_.genre -eq $genre } | ForEach-Object { $_.id }) -join ', '
         $fails += "genre '$genre' is not in GENRE_BUCKETS -- falls into 'Other' (used by: $used)"
     }
 }
 Report -Label 'every genre maps to a filter bucket' -Failures $fails `
        -Hint 'add the genre to GENRE_BUCKETS in games/index.html'
 
-# --------------------------------------------------- 6. mobile phones.json
-# The phone catalog is a separate data file, so a malformed or truncated
-# phones.json blanks the mobile site at boot -- worth catching here rather
-# than in production.
-$phonesPath = Join-Path $root 'mobile\phones.json'
-$fails = @()
-$phones = @()
-try {
-    # Bind before wrapping: ConvertFrom-Json emits the array as ONE item, so
-    # @(... | ConvertFrom-Json) would yield a nested 1-element array.
-    $parsedPhones = Read-SourceText -Path $phonesPath | ConvertFrom-Json
-    $phones = @($parsedPhones)
-} catch {
-    $fails += "phones.json is not valid JSON: $($_.Exception.Message)"
-}
-if ($fails.Count -eq 0) {
-    if ($phones.Count -eq 0) { $fails += 'phones.json contains no phones' }
-
-    foreach ($grp in (@($phones | ForEach-Object { $_.id }) | Group-Object | Where-Object Count -gt 1)) {
-        $fails += "duplicate phone id '$($grp.Name)' ($($grp.Count)x)"
-    }
-    # Every phone must carry the same shape as the first, or a view that reads
-    # the missing field renders 'undefined' for that one device only.
-    if ($phones.Count -gt 0) {
-        $refKeys  = @($phones[0].PSObject.Properties | ForEach-Object { $_.Name })
-        $specKeys = @('camera', 'battery', 'performance', 'display')   # used by scorePhone
-        foreach ($p in $phones) {
-            $keys = @($p.PSObject.Properties | ForEach-Object { $_.Name })
-            $missing = @($refKeys | Where-Object { $keys -notcontains $_ })
-            if ($missing.Count) { $fails += "phone '$($p.id)' is missing: $($missing -join ', ')" }
-            if ($p.PSObject.Properties['specs']) {
-                $sk = @($p.specs.PSObject.Properties | ForEach-Object { $_.Name })
-                $sm = @($specKeys | Where-Object { $sk -notcontains $_ })
-                if ($sm.Count) { $fails += "phone '$($p.id)' has no specs.$($sm -join '/, specs.')" }
-            }
+# ------------------------------------------------------- 6. sitemaps are fresh
+# Both sitemaps are generated from their catalog. The only failure mode worth
+# guarding is "someone edited the catalog and forgot to re-run the generator",
+# which would leave new pages unlisted and deleted ones advertised.
+$derived = @(
+    @{ Name = 'games/sitemap.xml';        Path = $mapPath;   Script = 'make-games-sitemap.ps1' }
+    @{ Name = 'mobile/sitemap.xml';       Path = $mobileMap; Script = 'make-mobile-sitemap.ps1' }
+    @{ Name = 'landing/phones-mini.json'; Path = $miniPath;  Script = 'make-phones-mini.ps1' }
+)
+foreach ($d in $derived) {
+    $fails = @()
+    if (-not (Test-Path -LiteralPath $d.Path)) {
+        $fails += "$($d.Name) does not exist"
+    } else {
+        $expected = & (Join-Path $PSScriptRoot $d.Script) -AsString
+        $onDisk   = Read-SourceText -Path $d.Path
+        # Normalise line endings: git may hand back CRLF on checkout.
+        if (($onDisk -replace "`r`n", "`n") -cne ($expected -replace "`r`n", "`n")) {
+            $fails += "$($d.Name) does not match the catalog it is generated from"
         }
     }
-    # The app reads the catalog from phones.json now; an inline array left
-    # behind in index.html would be dead code that looks authoritative.
-    $mobileHtml = Read-SourceText -Path (Join-Path $root 'mobile\index.html')
-    if ($mobileHtml -match '(?m)^[ \t]*const[ \t]+PHONES[ \t]*=[ \t]*\[') {
-        $fails += 'mobile/index.html still declares an inline PHONES array (phones.json is the source of truth)'
-    }
+    Report -Label "$($d.Name) is regenerated from the catalog" -Failures $fails `
+           -Hint "run .claude\$($d.Script) (never hand-edit the derived file)"
 }
-Report -Label "mobile/phones.json is loadable and complete ($($phones.Count) phones)" -Failures $fails `
-       -Hint 'fix mobile/phones.json -- the mobile site will not render without it'
 
-# ------------------------------------------ 7. landing/phones-mini.json is fresh
-# The landing's inline advisor scores against a trimmed copy of the phone
-# catalog, generated by .claude\make-phones-mini.ps1. It is derived data, so
-# the only failure mode worth guarding is "someone edited phones.json and
-# forgot to re-run the generator" -- which would have the landing quietly
-# recommending a phone at last month's price.
-$miniPath = Join-Path $root 'landing\phones-mini.json'
-$fails = @()
-if (-not (Test-Path -LiteralPath $miniPath)) {
-    $fails += 'landing/phones-mini.json does not exist'
-} else {
-    $expectedMini = & (Join-Path $PSScriptRoot 'make-phones-mini.ps1') -AsString
-    $onDisk = Read-SourceText -Path $miniPath
-    if ($onDisk -cne $expectedMini) {
-        $fails += 'landing/phones-mini.json does not match mobile/phones.json'
-    }
-}
-Report -Label 'landing/phones-mini.json is regenerated from the phone catalog' -Failures $fails `
-       -Hint 'run .claude\make-phones-mini.ps1 (never hand-edit the derived file)'
-
-# ------------------------------------------- 8. landing hero proof-strip counts
+# ------------------------------------------- 7. landing hero proof-strip counts
 # The landing hero advertises catalogue sizes as hand-typed numbers. They are
 # markup on purpose -- deriving them at runtime would mean a cross-origin fetch
 # on the critical path and numbers that pop in after paint. The cost of that
 # choice is that they go stale silently, and a comparison site showing a stale
 # count is exactly the credibility it sells. So they are checked here instead.
-$landingPath = Join-Path $root 'landing\index.html'
 $landing = Read-SourceText -Path $landingPath
 $fails = @()
 
@@ -258,7 +244,7 @@ function Get-ProofStat {
 }
 
 $expected = @(
-    @{ Label = 'Games tracked'; Actual = $app.Count }
+    @{ Label = 'Games tracked'; Actual = $games.Count }
     @{ Label = 'Phones scored'; Actual = $phones.Count }
 )
 foreach ($e in $expected) {
@@ -272,19 +258,10 @@ foreach ($e in $expected) {
 Report -Label 'landing hero proof strip matches the real catalog sizes' -Failures $fails `
        -Hint 'update the .proof stat in landing/index.html to the real count'
 
-# ------------------------------------------------------ 9. EXTRA_STORES keys
-# A typo'd key here is dead data: it never matches a game and never shows up.
-$fails = @()
-foreach ($key in ($stores.PSObject.Properties | ForEach-Object { $_.Name })) {
-    if ($appIds -notcontains $key) { $fails += "EXTRA_STORES key '$key' matches no game id" }
-}
-Report -Label 'EXTRA_STORES keys all match real game ids' -Failures $fails `
-       -Hint 'fix the key in games/index.html (it must equal the game id)'
-
 # ---------------------------------------------------------------------- result
 Write-Host ''
 if ($script:Problems -eq 0) {
-    Write-Host "  All checks passed -- $($app.Count) games in sync across 3 files." -ForegroundColor Green
+    Write-Host "  All checks passed -- $($games.Count) games and $($phones.Count) phones, one source each." -ForegroundColor Green
     Write-Host ''
     exit 0
 }

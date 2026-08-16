@@ -40,11 +40,15 @@ so `lazycomparo.sg` is not registered and not planned. Don't re-open it as a
   vanilla JS + **three.js r158 UMD, now SELF-HOSTED at `landing/three.min.js`
   — do NOT bump; r160+ removed UMD builds.** It is no longer in the markup at
   all: a capability gate injects it (see "Landing 3D gate" below).
-  - Exception: the phone catalog is **data, not markup** — `mobile/phones.json`,
-    fetched at boot (see "Phone catalog" below). Games are still inline.
-    `landing/phones-mini.json` is a **generated** trim of it — see "Landing
-    inline advisor".
-- Cloudflare Pages Functions live under `games/functions/` (that project's root).
+  - **Both catalogs are data, not markup**: `mobile/phones.json` and (since
+    2026-08-16) `games/games.json`, each fetched at boot and read by that
+    site's edge middleware. The games catalog used to be 712 lines inline in
+    `games/index.html` plus a hand-mirrored copy in `_middleware.js` plus a
+    separate `EXTRA_STORES` map — see "Games catalog" below.
+    `landing/phones-mini.json` is a **generated** trim of `phones.json` — see
+    "Landing inline advisor".
+- Cloudflare Pages Functions live under `games/functions/` and (since
+  2026-08-16) `mobile/functions/` — each is that project's root directory.
 - Local preview: PowerShell `.claude/serve.ps1` (no Node/Python on this PC).
   Ports in CWD-level `.claude/launch.json`: mobile 5173, games 5174 (alt 5184),
   landing 5175 (alt 5185) — alts exist because other sessions can hold a port.
@@ -205,8 +209,10 @@ the right title and JSON-LD into it, so it looked half-correct in a curl. The
 If a branded games 404 is ever wanted, the middleware has to fetch the shell
 itself via the `env.ASSETS` binding (which bypasses middleware, unlike a
 self-`fetch` to the origin, which would re-enter it and append JSON-LD twice)
-and force a 200 for known slugs. `landing/` and `mobile/` have no `_redirects`,
-so their 404 pages are purely additive and are fine.
+and force a 200 for known slugs. **That is exactly what `mobile/` now does** —
+it serves `/phone/<slug>` with no `_redirects` file at all and keeps its 404
+page (see "Phone SEO pages"). `landing/` has no `_redirects` either, so its 404
+page is purely additive and fine.
 
 - **`/how-we-rank` is transcribed from the constants the code actually runs on**
   (deal-heat thresholds, `ROW_WEIGHT`, the 12% "It's close" margin, the 0/5/15
@@ -293,9 +299,9 @@ arrives it lands behind `dealHeat()` and nothing above it changes.
   enhancement, not cloaking) + JSON-LD. Per-game pages at `/game/<slug>` get
   unique title/canonical/og via HTMLRewriter; `games/_redirects`
   (`/game/* /index.html 200`) serves the shell; `games/sitemap.xml` lists all
-  game URLs. **Maintenance: the `GAMES` list in `_middleware.js` is a trimmed
-  copy of the one in `games/index.html` — keep them in sync.** Same applies to
-  `EXTRA_STORES` (store availability), mirrored for the no-live-data fallback.
+  game URLs. **Maintenance: none — since 2026-08-16 it loads `games/games.json`,
+  the same file the app boots from** (see "Games catalog"). Store availability
+  for the no-live-data fallback is each game's own `stores` array.
 - **The pre-render carries live prices.** `_middleware.js` calls our own
   `/api/deals` during render, so `/game/<slug>` ships a real cross-store price
   table, an all-time-low verdict, and an `AggregateOffer` built from the *same*
@@ -315,6 +321,43 @@ arrives it lands behind `dealHeat()` and nothing above it changes.
   `<name>/index.html`** — Pages 308-redirects `/gog` to `/gog/` for a directory
   index, which would make the sitemap entries and the canonical the middleware
   emits both point at a redirect.
+
+## Phone SEO pages (mobile site, added 2026-08-16)
+
+The phone site was **one indexable URL**: an empty `#root`, a one-entry
+sitemap, no Functions at all — fifty phones nobody could find, while the games
+site had per-game pre-renders, hubs and JSON-LD. `mobile/functions/_middleware.js`
+closes that gap with the same doctrine, and two deliberate differences.
+
+- **No catalog copy.** It fetches `/phones.json` (via `env.ASSETS`, module-scope
+  cached) rather than mirroring it, because that catalog was already a file.
+- **No `_redirects` rule, and `mobile/404.html` stays.** `/phone/* /index.html
+  200` cannot be used here: a custom 404 page takes precedence over that rule,
+  which is exactly how every `/game/<slug>` answered 404 on 2026-08-09. So the
+  middleware fetches the shell itself through `env.ASSETS` (bypasses middleware
+  — a self-`fetch` would re-enter it and inject twice) and forces a 200.
+  **Unknown slugs are left to `context.next()` and get a real 404**, not a soft
+  one.
+- Routes: `/` (ItemList + a linked list of all phones) and `/phone/<id>`
+  (price answer → specs table → pros/cons → resale/depreciation → switching
+  cost → four cross-ecosystem "vs" links → provenance). Meta is **built to fit**
+  — the site suffix is dropped from a title over 65 chars, and the description
+  takes whole clauses only while they fit in 158.
+- JSON-LD is `Product` + `BreadcrumbList` with `additionalProperty` specs.
+  **Deliberately no `AggregateRating`**: `sentimentScore` is our editorial
+  number, not aggregated user reviews, and marking it up as ratings would be
+  inventing review data.
+- The value math (`priceDrop`, `retainedPct`, annual depreciation, the brand
+  curve and `UNDER_CURVE_MARGIN`) is transcribed from `mobile/index.html` so the
+  page and the pre-render cannot disagree — same rule as `/how-we-rank`.
+- **The mobile app gained the games site's boot splash** in the same change,
+  because injected SEO markup with nothing hiding it flashes on screen before
+  React mounts. `#root` is hidden until `window.__reveal()`; the bootstrap's
+  `fail()` reveals too, or its error panel would be invisible.
+- `/phone/<id>` opens the app with that phone already shortlisted
+  (`DEEP_LINK_PHONE_ID`), and **both** apps now fetch their catalog by absolute
+  path — a relative one 404s under `/phone/…` and `/game/…`.
+- `mobile/sitemap.xml` is generated by `.claude\make-mobile-sitemap.ps1`.
 
 ## Phone artwork (mobile site)
 
@@ -362,6 +405,25 @@ manufacturer's marketing image is neither free nor ours to do — so the art is
 - A malformed `phones.json` is a blank site rather than a degraded one, so
   `.claude/check-sync.ps1` validates it (see "Pre-push check").
 
+## Games catalog (games site, extracted 2026-08-16)
+
+`games/games.json` — 100 entries, the only copy. The app assigns
+`const GAMES = window.__LC_GAMES` and the bootstrap fetches the file (absolute
+`/games.json`: a relative path would resolve to `/game/games.json` on every
+per-game page); `games/functions/_middleware.js` loads the same file through
+the `env.ASSETS` binding and `trim()`s it into the flat shape its render
+functions want (`rating`/`hours`/`players` out of `displayInfo`, `pro` =
+`pros[0]`), cached in module scope per isolate.
+
+- **`stores` is a field on the game**, listing the non-Steam stores it sells on
+  — the old `EXTRA_STORES` map existed twice (app + middleware) and was keyed
+  by id, so a rename orphaned data silently. `'Steam'` is implied and must not
+  be listed; `check-sync.ps1` rejects it.
+- Adding a game is now **one edit plus one generator**, not four hand edits.
+- Verified at extraction: the JSON deep-equals the old inline array entry for
+  entry, and the regenerated `sitemap.xml` came out byte-identical to the
+  hand-maintained one.
+
 ## Pre-push check
 
 `.claude/check-sync.ps1` — run before `git push`; exit 0 clean, 1 on drift:
@@ -370,16 +432,23 @@ manufacturer's marketing image is neither free nor ours to do — so the art is
 powershell -NoProfile -ExecutionPolicy Bypass -File .claude\check-sync.ps1
 ```
 
-Catches the silent failures in hand-maintained catalog copies: ids present in
-`games/index.html` but not `functions/_middleware.js` (crawlers get the homepage
-fallback), mirrored field values that drifted apart (Google indexes the stale
-one), missing/orphan `sitemap.xml` entries, genres absent from `GENRE_BUCKETS`
-(game falls into "Other"), `EXTRA_STORES` keys matching no game, and a
-`phones.json` that is invalid, incomplete, or has duplicate ids.
+Now that each catalog has exactly one copy, the check polices **shape and
+derived files**: `games.json`/`phones.json` parse and carry every required key,
+ids and Steam AppIDs are unique, no inline `GAMES`/`EXTRA_STORES`/`PHONES`
+declaration has crept back into an app or middleware, every genre maps to a
+`GENRE_BUCKETS` entry (unmapped falls into "Other"), and the three **generated**
+files match their source — `games/sitemap.xml`, `mobile/sitemap.xml` and
+`landing/phones-mini.json`. It also checks the hand-typed landing hero counts.
 
-It reads the JS literals with `.claude/JsLiteral.ps1`, a small JS-literal
-parser (no Node on this PC). **Both scripts must stay ASCII-only** — PS 5.1
-reads BOM-less `.ps1` as ANSI, so a literal `—` is a parse error.
+It still reads `GENRE_BUCKETS` out of the markup with `.claude/JsLiteral.ps1`,
+a small JS-literal parser (no Node on this PC) — which is also what converted
+the inline games catalog into JSON. **All the `.ps1` files must stay
+ASCII-only** — PS 5.1 reads BOM-less `.ps1` as ANSI, so a literal `—` is a
+parse error.
+
+Generators (re-run after editing a catalog; the check fails the push if you
+forget): `.claude\make-games-sitemap.ps1`, `.claude\make-mobile-sitemap.ps1`,
+`.claude\make-phones-mini.ps1`.
 
 ## Client-side state (games site)
 
@@ -423,7 +492,25 @@ before the reader could ask it anything, with the only control (genre) sitting
   the catalog max the ten best games were all sub-pixel stubs, so the chart
   spent its full width repeating what the heading already said.
 
-## Shortlist & compare bar (games site, reworked 2026-08-16)
+## Shortlist & compare bar (both apps, reworked 2026-08-16)
+
+**The mobile site carried every one of these bugs until the same day** — it
+seeded `['iphone-17-pro-max','galaxy-s26-ultra']`, evicted the first pick with
+`[...prev.slice(1), id]`, had no bar, and selected via a bare `onClick` on the
+card `<div>`. It is now the same code path, with the same reasoning:
+`usePersistedState('lc-phones-shortlist', [])`, `shortlistRef` +
+`applyShortlist`, a refusal notice instead of eviction, a `＋ Compare` button
+per card, and a `CompareBar`. Two differences, both forced by the layout:
+`.compare-bar` sits at `bottom: 0` at every width (mobile has no fixed tab bar
+— navigation is in the sticky header) at `z-index: 15`, under the header's
+z-20; and the spacer is `h-40 md:h-24`, measured against a bar that stacks to
+119px at 375px and 152px with the notice showing. `SAMPLE_COMPARE` there is one
+flagship per ecosystem, which is the comparison that site exists to make.
+
+Regression-tested in the preview at both widths: 5 adds in a single tick keep
+the first 3 and refuse the rest, 2 removes in one tick both apply, a
+double-tap nets zero, and the footer clears the bar by 41px (375) / 23px
+(1280).
 
 Browsing → picking → comparing had three faults that compounded each other.
 
@@ -806,15 +893,17 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 - **Add a phone:** append an object to `mobile/phones.json` (copy the shape of
   an existing entry — every phone must carry the same keys), then run
-  `.claude\make-phones-mini.ps1` to regenerate `landing/phones-mini.json`, then
+  `.claude\make-phones-mini.ps1` and `.claude\make-mobile-sitemap.ps1`, then
   update the "Phones scored" count in the landing hero. `check-sync.ps1`
-  enforces both.
-- **Add a game:** edit the catalog in `games/index.html` AND the `GAMES` list in
-  `games/functions/_middleware.js` (+ sitemap), and update the "Games tracked"
-  count in the landing hero (`check-sync.ps1` enforces it), push. Also: map the new `genre`
-  string in `GENRE_BUCKETS` (unmapped genres fall into an "Other" bucket), and
-  add cross-store availability to `EXTRA_STORES` — read the real answer off
-  `/api/deals?ids=<appId>` rather than guessing. Verify the AppID first via
+  enforces all three. Its `/phone/<id>` page needs nothing further.
+- **Add a game:** append an object to `games/games.json` (copy the shape of an
+  existing entry), then run `.claude\make-games-sitemap.ps1`, then update the
+  "Games tracked" count in the landing hero, push. The app and the SEO
+  middleware both read that one file. Also: map the new `genre` string in
+  `GENRE_BUCKETS` in `games/index.html` (unmapped genres fall into an "Other"
+  bucket), and put cross-store availability in the game's own `stores` array —
+  read the real answer off `/api/deals?ids=<appId>` rather than guessing, and
+  don't list `'Steam'`, which is implied. Verify the AppID first via
   `store.steampowered.com/api/appdetails?appids=<id>&cc=sg`.
 - **Card artwork** comes free from Steam's CDN via `steamArtUrl()`, keyed off
   `appId` — nothing to upload. Missing/404 art falls back to the accent tile.
@@ -830,6 +919,27 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-08-16 (c)** Three items, each closing a gap the previous work opened.
+  **(1) The mobile site got the games site's browse → compare fix**, which it
+  had been missing entirely: it still shipped a pre-seeded shortlist, still
+  deleted your first pick when you added a third, still had no bridge from
+  Browse to Compare, and still made selection a bare `onClick` on a `<div>`
+  with no keyboard stop and no announced state. Same code path now, plus the
+  boot splash it also lacked. **(2) Fifty phones stopped being invisible.**
+  `mobile/functions/_middleware.js` pre-renders the homepage and a real
+  `/phone/<id>` page per phone, and `mobile/sitemap.xml` went from one URL to
+  51 — reusing the games doctrine but serving the shell through `env.ASSETS`
+  rather than a `_redirects` rule, so `mobile/404.html` survives and unknown
+  slugs still 404 honestly. **(3) The games catalog moved to `games.json`.**
+  It had been 712 lines inline in `index.html`, a hand-mirrored trimmed copy in
+  `_middleware.js`, and a third `EXTRA_STORES` map — 114 vs 109 `appId`
+  mentions across the two, i.e. already drifting. Both consumers now read the
+  one file, `stores` is a field on the game, and `check-sync.ps1` was rewritten
+  to police shape and the three generated files instead of policing copies.
+  **A real bug found on the way:** both bootstraps fetched their catalog by
+  relative path, which resolves to `/phone/phones.json` and `/game/games.json`
+  on exactly the pages this work added — every per-phone and per-game page
+  would have booted into the "couldn't load the catalog" panel.
 - **2026-08-16 (b)** Fixed the browse → pick → compare flow on the games site.
   Three faults that compounded: the shortlist came pre-seeded with three games
   the visitor never chose, adding a 4th silently deleted the 1st, and nothing
