@@ -1719,7 +1719,7 @@
     );
 
     /* ---------------- Game card (used in Browse + Compare picker) ---------------- */
-    const GameCard = ({ game, selected, onClick, showPrice = true }) => {
+    const GameCard = ({ game, selected, onClick, showPrice = true, full = false }) => {
       const { deals } = useDealsCtx();
       const { epicCurrent, giveaways } = useFreebiesCtx();
       const d = deals && game.appId && deals[String(game.appId)];
@@ -1757,13 +1757,59 @@
             {freeOnEpic && <Pill tone="good"><Gift className="w-3 h-3" /> FREE on Epic now</Pill>}
             {atLow && <Pill tone="hot"><Tag className="w-3 h-3" /> lowest price ever</Pill>}
           </div>
-          {steamStoreUrl(game) && (
-            <a href={steamStoreUrl(game)} target="_blank" rel="noopener noreferrer"
-               onClick={(e) => e.stopPropagation()}
-               className="mt-2 inline-flex items-center gap-1 text-[10px] text-zinc-500 hover:text-accent-soft transition">
-              View on Steam <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
+          {/* Actions.
+              The card is still clickable for mouse users who have learned it,
+              but that used to be the ONLY way to select a game and it was
+              invisible: a <div> with no role, no keyboard focus, containing a
+              "View on Steam" link that made the whole thing read as navigation
+              — and the one sentence explaining it was in an element hidden on
+              phones. This button is the real control. It is what a keyboard
+              reaches, what a screen reader announces (as a toggle, via
+              aria-pressed), and what tells a first-time visitor that the card
+              does anything at all.
+
+              The card is deliberately NOT given role="button" — it contains a
+              link and now this button, and a button nesting other interactive
+              elements is invalid and unusable with a screen reader. The div's
+              onClick stays a mouse-only convenience that duplicates a control
+              which IS exposed.
+
+              stopPropagation is load-bearing: without it the card's own
+              onClick fires too and the toggle immediately cancels itself. */}
+          <div className="mt-3 flex items-center gap-2">
+            <button type="button"
+                    onClick={(e) => { e.stopPropagation(); if (onClick) onClick(); }}
+                    aria-pressed={!!selected}
+                    aria-label={selected
+                      ? `Remove ${game.title} from the comparison`
+                      : `Add ${game.title} to the comparison`}
+                    title={full ? 'Comparison is full — remove one first' : undefined}
+                    /* min-h on phones because text-xs + py-2 came out 32px
+                       tall, well under the 44px touch minimum — and this is
+                       now the primary action on every card. Desktop keeps the
+                       tighter box, where the pointer is precise. */
+                    className={cx('flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition',
+                      'min-h-[44px] md:min-h-[36px]',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                      selected ? 'bg-accent text-ink-950'
+                        /* Full but not selected: dimmed, yet still clickable —
+                           the click is what surfaces the "compare holds 3"
+                           explanation, so disabling it would hide the reason. */
+                        : full ? 'bg-ink-800 text-zinc-500 ring-1 ring-ink-700'
+                               : 'bg-ink-800 text-zinc-200 ring-1 ring-ink-700 hover:bg-ink-700 hover:text-white')}>
+              {selected
+                ? <React.Fragment><Check className="w-3.5 h-3.5" /> Added</React.Fragment>
+                : <React.Fragment><Plus className="w-3.5 h-3.5" /> Compare</React.Fragment>}
+            </button>
+            {steamStoreUrl(game) && (
+              <a href={steamStoreUrl(game)} target="_blank" rel="noopener noreferrer"
+                 onClick={(e) => e.stopPropagation()}
+                 aria-label={`View ${game.title} on Steam — opens in a new tab`}
+                 className="shrink-0 inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-2 min-h-[44px] md:min-h-[36px] text-[11px] text-zinc-500 ring-1 ring-ink-700 hover:text-accent-soft hover:ring-ink-600 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                Steam <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
         </div>
       </Card>
       );
@@ -1873,7 +1919,21 @@
         <div className="animate-fade-in">
           <SectionTitle eyebrow="Catalog" icon={Layers}
             title="Browse games"
-            subtitle={`${GAMES.length} PC games, newest first. Steam prices and ratings are live from the Singapore store — with Epic and GOG prices on the store badges when the cross-store feed is up. Tap a card to add it to your comparison shortlist.`} />
+            subtitle={`${GAMES.length} PC games, newest first. Steam prices and ratings are live from the Singapore store — with Epic and GOG prices on the store badges when the cross-store feed is up.`} />
+
+          {/* The old "tap a card to add it" instruction lived inside the
+              subtitle above, which is `hidden sm:block` — so on a phone the
+              only explanation of how selection worked was not rendered at all.
+              Every card now carries a labelled Compare button, so the grid
+              explains itself; this is just the first nudge, and it retires the
+              moment there is something in the shortlist, because from then on
+              the compare bar is saying something more useful. */}
+          {shortlist.length === 0 && (
+            <div className="mb-4 flex items-center gap-2 text-xs text-zinc-400">
+              <Plus className="w-3.5 h-3.5 text-accent-soft shrink-0" />
+              <span>Add 2 or 3 games with <span className="text-zinc-200 font-medium">Compare</span> to see them side by side.</span>
+            </div>
+          )}
 
           <Card className="p-3 mb-4">
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto_auto] gap-2">
@@ -1918,7 +1978,9 @@
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {list.map(g => (
-              <GameCard key={g.id} game={g} selected={shortlist.includes(g.id)} onClick={() => onToggle(g.id)} />
+              <GameCard key={g.id} game={g} selected={shortlist.includes(g.id)}
+                        full={shortlist.length >= MAX_COMPARE && !shortlist.includes(g.id)}
+                        onClick={() => onToggle(g.id)} />
             ))}
             {list.length === 0 && (
               <div className="col-span-full text-center text-zinc-500 py-12">No games match your filters.</div>

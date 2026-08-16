@@ -451,6 +451,29 @@ Browsing → picking → comparing had three faults that compounded each other.
   reintroduces the exact bug). A `useEffect` re-syncs the ref after every
   render as a backstop. Regression-tested with 5 adds, 2 removes and a
   double-tap of the same card, all fired in a single tick.
+- **Every card carries a real `＋ Compare` / `✓ Added` button.** Selection used
+  to be a bare `onClick` on the card `<div>` — no role, no keyboard focus
+  (`tabIndex -1` on all 100), and the card contained a "View on Steam" link,
+  so the whole thing read as navigation rather than a checkbox. The only
+  instruction lived in the `SectionTitle` subtitle, which is `hidden sm:block`,
+  so on a phone it was not rendered at all.
+  - The card is deliberately **not** `role="button"`: it contains a link and
+    now this button, and a button nesting other interactive elements is invalid
+    and unusable with a screen reader. The div's `onClick` stays a mouse-only
+    convenience that duplicates a control which IS exposed.
+  - `e.stopPropagation()` in the button handler is load-bearing — without it
+    the card's own `onClick` fires too and the toggle cancels itself out.
+  - `aria-pressed` + a per-game `aria-label` ("Add X to the comparison" /
+    "Remove X…"), so it announces as a toggle with a real name.
+  - When the shortlist is full the button dims but stays **clickable** — the
+    click is what surfaces the "compare holds 3" explanation, so disabling it
+    would hide the reason.
+  - `min-h-[44px] md:min-h-[36px]`: `text-xs` + `py-2` came out 32px, under the
+    touch minimum, and this is now the primary action on every card.
+  - Browse gained 200 focusable stops (2 per card) in natural reading order
+    after the filters. The stale "tap a card" sentence is gone from the
+    subtitle, replaced by a hint above the grid that shows at **all** widths
+    and retires once the shortlist is non-empty (the compare bar takes over).
 - **`CompareBar` is the bridge from Browse to Compare.** Before it, selecting
   did nothing visible except a count badge in the header you had already
   scrolled past. It shows the picked thumbnails with per-game remove, an n/3
@@ -813,11 +836,10 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
   led from Browse to Compare except a count badge in the header. Now: starts
   empty (with an opt-in sample comparison in Compare's empty state), a full
   shortlist refuses the add and says so instead of evicting, and a sticky
-  `CompareBar` carries the picked games, per-game remove, and the CTA. See
-  "Shortlist & compare bar". Still outstanding from the same review: the game
-  card is a `<div>` with no role and `tabIndex -1`, so the 100-card grid is
-  unreachable by keyboard, and the only "tap a card to add it" instruction is
-  in a `hidden sm:block` element — invisible on phones.
+  `CompareBar` carries the picked games, per-game remove, and the CTA. Then a
+  second pass gave every card a real `＋ Compare` toggle button, which is what
+  finally made the grid keyboard-reachable and made selection discoverable on
+  phones. See "Shortlist & compare bar".
 - **2026-08-16** Three changes aimed at the landing page's actual job.
   **(1) It now does the product instead of describing it.** Every control on
   lazycomparo.com was an exit door, and the ecosystem-friction penalty — the
