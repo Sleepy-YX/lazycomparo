@@ -213,7 +213,7 @@
   </script>
 
   <script id="app-source" type="text/plain">
-    const { useState, useMemo, useEffect } = React;
+    const { useState, useMemo, useEffect, useRef } = React;
 
     /* ---------------- Icons (inline SVG, Lucide-style) ---------------- */
     const Icon = ({ children, className = 'w-4 h-4', ...rest }) => (
@@ -3006,7 +3006,7 @@
         const onHash = () => {
           const h = parseHash();
           setTabState(h ? h.tab : 'browse');
-          if (h && h.ids && h.ids.length >= 2) setShortlist(h.ids);
+          if (h && h.ids && h.ids.length >= 2) applyShortlist(h.ids);
         };
         window.addEventListener('hashchange', onHash);
         return () => window.removeEventListener('hashchange', onHash);
@@ -3016,13 +3016,46 @@
       // then let URL state override — a shared #compare link replaces the
       // list outright; a /game/<slug> deep link is prepended to it.
       useEffect(() => {
-        setShortlist(prev => {
+        applyShortlist(prev => {
           let ids = prev.filter(id => GAMES.some(g => g.id === id));
           if (initialHash && initialHash.ids && initialHash.ids.length >= 2) ids = initialHash.ids;
           else if (deepLinkGame) ids = Array.from(new Set([deepLinkGame.id, ...ids]));
-          return ids.slice(0, 3);
+          return ids.slice(0, MAX_COMPARE);
         });
       }, []);
+
+      /* Mirrors `shortlist`, but updated SYNCHRONOUSLY inside toggleShortlist.
+         The decision below (add / remove / refuse) needs the current list
+         before it can pick a branch, and reading the `shortlist` state
+         variable there is a stale-closure trap: React batches, so two clicks
+         in the same tick both read the pre-click value and the second one
+         overwrites the first. Tapping three cards quickly dropped two of them.
+         The effect keeps the ref honest when the list changes from anywhere
+         else — Clear, the bar's remove buttons, CompareView, the #compare deep
+         link, the catalog prune. */
+      const shortlistRef = useRef(shortlist);
+      useEffect(() => { shortlistRef.current = shortlist; }, [shortlist]);
+
+      /* THE ONLY WAY THE SHORTLIST IS WRITTEN, and the reason is subtle.
+         React batches, so two handlers firing in one tick both read the
+         pre-click state — clicking two remove buttons together applied only
+         one of them, and tapping several cards quickly dropped picks. The
+         usual cure is a functional updater, but that is not enough here:
+         toggleShortlist has to KNOW the current list before it can choose
+         between add, remove and refuse, and it has to do that synchronously.
+         So the ref is the source of truth during a tick, resolved and written
+         before setShortlist is called, and the effect above re-syncs it after
+         every render as a backstop. Accepts a value or an updater. */
+      const applyShortlist = (next) => {
+        // The ref write MUST happen here, not inside a setShortlist updater —
+        // an updater does not run until React processes the queue, so the ref
+        // would still hold the pre-click value for anything else firing in
+        // this same tick, which is the exact bug this ref exists to prevent.
+        const v = typeof next === 'function' ? next(shortlistRef.current) : next;
+        shortlistRef.current = v;
+        setShortlist(v);
+      };
+      const clearShortlist = () => { applyShortlist([]); setShortlistNotice(''); };
 
       /* Adding a 4th game used to do `[...prev.slice(1), id]` — it silently
          deleted the FIRST pick, with no message anywhere. You only found out
@@ -3031,16 +3064,17 @@
          behaviour: nothing the visitor picked disappears without them doing
          it. Removal is always allowed, so the shortlist is never stuck. */
       const toggleShortlist = (id) => {
-        if (shortlist.includes(id)) {
-          setShortlist(shortlist.filter(x => x !== id));
+        const cur = shortlistRef.current;
+        if (cur.includes(id)) {
+          applyShortlist(cur.filter(x => x !== id));
           setShortlistNotice('');
           return;
         }
-        if (shortlist.length >= MAX_COMPARE) {
+        if (cur.length >= MAX_COMPARE) {
           setShortlistNotice(`Compare holds ${MAX_COMPARE} games — remove one to add another.`);
           return;
         }
-        setShortlist([...shortlist, id]);
+        applyShortlist([...cur, id]);
         setShortlistNotice('');
       };
 
@@ -3125,7 +3159,7 @@
               <BrowseView shortlist={shortlist} onToggle={toggleShortlist}
                           initialQuery={deepLinkGame ? deepLinkGame.title : ''} />}
             {tab === 'compare' &&
-              <CompareView shortlist={shortlist} setShortlist={setShortlist} onGoBrowse={() => setTab('browse')} />}
+              <CompareView shortlist={shortlist} setShortlist={applyShortlist} onGoBrowse={() => setTab('browse')} />}
             {tab === 'advisor' &&
               <AdvisorView />}
             {tab === 'value' &&
@@ -3163,8 +3197,8 @@
                 picked={shortlist.map(id => live.games.find(g => g.id === id)).filter(Boolean)}
                 max={MAX_COMPARE}
                 notice={shortlistNotice}
-                onRemove={(id) => { setShortlist(shortlist.filter(x => x !== id)); setShortlistNotice(''); }}
-                onClear={() => { setShortlist([]); setShortlistNotice(''); }}
+                onRemove={toggleShortlist}
+                onClear={clearShortlist}
                 onCompare={() => { setTab('compare'); window.scrollTo({ top: 0 }); }} />
             </React.Fragment>
           )}

@@ -440,6 +440,17 @@ Browsing → picking → comparing had three faults that compounded each other.
   `role="status"` and which clears itself after 4s. Removal is always allowed,
   so the list can never get stuck. `MAX_COMPARE` is the single source of the
   cap (the matrix is built for 2–3 columns).
+- **Every shortlist write goes through `applyShortlist`.** React batches, so
+  two handlers firing in one tick both read the pre-click state: clicking two
+  remove buttons together applied only one, and tapping several cards quickly
+  dropped picks. A functional updater alone does not fix it, because
+  `toggleShortlist` must *know* the current list synchronously before choosing
+  between add / remove / refuse. So `shortlistRef` is the source of truth
+  within a tick — **resolved and written before `setShortlist` is called, never
+  inside an updater** (an updater does not run until React flushes, which
+  reintroduces the exact bug). A `useEffect` re-syncs the ref after every
+  render as a backstop. Regression-tested with 5 adds, 2 removes and a
+  double-tap of the same card, all fired in a single tick.
 - **`CompareBar` is the bridge from Browse to Compare.** Before it, selecting
   did nothing visible except a count badge in the header you had already
   scrolled past. It shows the picked thumbnails with per-game remove, an n/3
