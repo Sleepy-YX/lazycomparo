@@ -322,6 +322,27 @@ arrives it lands behind `dealHeat()` and nothing above it changes.
   index, which would make the sitemap entries and the canonical the middleware
   emits both point at a redirect.
 
+## Featured video (games site, added 2026-08-16)
+
+`games/video.json` is the one source: the app's **"This week on YouTube"** card
+(Browse tab, above the grid) and the middleware's `VideoObject` JSON-LD both
+read it, and **both render nothing while `id` is empty** — so an unpublished
+video is simply absent rather than a broken embed. Publishing is a one-field
+edit plus a push.
+
+- **Click-to-load facade, not an iframe.** Nothing is requested from YouTube
+  until the visitor presses play; then it loads from `youtube-nocookie.com`.
+  The poster is **our own** `games/video-poster.jpg`, rendered from the video —
+  using `i.ytimg.com` would have YouTube seeing every visitor on page load,
+  which `/privacy` says does not happen. That page now documents the player,
+  and its "no embedded players" line was corrected in the same commit. **If the
+  facade is ever replaced with a plain embed, `/privacy` changes with it.**
+- The pre-render carries a real link, the three picks as text and the "prices in
+  the video are a snapshot, the page is live" caveat, so the markup describes
+  content the page actually shows.
+- Video kit (stage, canvas renderer, voiceover, the MP4 itself) lives outside
+  this repo in `Claude/LazyComparoVideo/ep02-short-top3-deals/`.
+
 ## Phone SEO pages (mobile site, added 2026-08-16)
 
 The phone site was **one indexable URL**: an empty `#root`, a one-entry
@@ -919,6 +940,16 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-08-16 (d)** The games site started carrying the YouTube channel. A
+  **"This week on YouTube"** card sits above the Browse grid, driven by
+  `games/video.json`, which the SEO middleware reads too — so the card and the
+  `VideoObject` markup cannot disagree, and both render nothing while the `id`
+  is empty. First video: `NiRQYo8jRSc`, the top-3 deals Short built from the
+  same live `/api/steam` + `/api/deals` data the site runs on. **It is a
+  click-to-load facade, not an embed**: nothing reaches YouTube until you press
+  play, the poster is our own rendered still rather than `i.ytimg.com`, and
+  `/privacy` was corrected in the same commit — it had said the site includes
+  "no embedded players", which would have become false the moment this shipped.
 - **2026-08-16 (c)** Three items, each closing a gap the previous work opened.
   **(1) The mobile site got the games site's browse → compare fix**, which it
   had been missing entirely: it still shipped a pre-seeded shortlist, still

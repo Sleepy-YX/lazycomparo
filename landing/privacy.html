@@ -108,10 +108,13 @@
         <tr><td>unpkg</td><td>Serves the JavaScript libraries the comparison tools are built on</td></tr>
         <tr><td>Steam's CDN</td><td>Game cover artwork on the browse and compare views</td></tr>
         <tr><td>Epic Games</td><td>Only if you click through to claim a free game</td></tr>
+        <tr><td>YouTube</td><td>Only if you press play on the featured video, or click through to the channel. Nothing is requested from YouTube before that — see below</td></tr>
       </tbody>
     </table>
     </div>
-    <p>Each of these sees a request from your browser and therefore your IP address, as is true of any resource a web page loads. None of them are told who you are, because we don't know either. We include no social widgets, embedded players, comment systems, chat popups, heatmaps or session recorders.</p>
+    <p>Each of these sees a request from your browser and therefore your IP address, as is true of any resource a web page loads. None of them are told who you are, because we don't know either. We include no social widgets, comment systems, chat popups, heatmaps or session recorders.</p>
+
+    <p>The one embedded player, on the PC games site, is <strong>click-to-load</strong>: until you press play, the page holds a still image we rendered ourselves and hosts, and your browser contacts YouTube not at all — not even for the thumbnail. Press play and the video loads from <code>youtube-nocookie.com</code>, at which point YouTube sees the request, as it would on any site with a video on it. That is a deliberate design: an ordinary embed would have contacted Google the moment the page opened, whether or not you cared about the video.</p>
 
     <h2>Children</h2>
     <p>The site is a general-audience buying-advice tool and is not directed at children. We knowingly collect nothing from anyone, of any age.</p>
@@ -133,7 +136,7 @@
     <h2>Changes to this page</h2>
     <p>If the site ever starts collecting something — analytics, an account system, anything at all — this page is updated <em>before</em> that ships, with the date below, and the change is noted in the <a href="https://github.com/Sleepy-YX/lazycomparo">public repository</a>. The same applies if an affiliate link or advertisement ever appears: see the commitment on <a href="/about">About</a>.</p>
 
-    <p class="updated">Last updated 9 August 2026 · Operated from Singapore · Questions: <a href="https://github.com/Sleepy-YX/lazycomparo/issues">GitHub issues</a>.</p>
+    <p class="updated">Last updated 16 August 2026 · Operated from Singapore · Questions: <a href="https://github.com/Sleepy-YX/lazycomparo/issues">GitHub issues</a>.</p>
   </main>
 
   <footer class="site-foot">

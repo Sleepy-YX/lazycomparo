@@ -81,6 +81,33 @@ async function loadCatalog(context, url) {
   }
 }
 
+/* The featured YouTube Short, from ../video.json — the same file the app
+   reads, so the page and the VideoObject markup cannot advertise different
+   videos. No id (or no file) means no video block and no markup: an unpublished
+   video simply does not exist as far as this page is concerned. */
+let VIDEO = null;
+let videoChecked = false;
+
+async function loadVideo(context, url) {
+  if (videoChecked) return VIDEO;
+  videoChecked = true;
+  try {
+    const req = new Request(new URL('/video.json', url.origin).toString());
+    const res = context.env && context.env.ASSETS
+      ? await context.env.ASSETS.fetch(req)
+      : await fetch(req);
+    if (!res.ok) return null;
+    const v = await res.json();
+    VIDEO = v && v.id ? v : null;
+  } catch (e) {
+    VIDEO = null;
+  }
+  return VIDEO;
+}
+
+// ISO 8601 duration, which is what schema.org wants — PT58S, not "58".
+const isoDuration = (s) => `PT${Math.max(1, Math.round(Number(s) || 0))}S`;
+
 const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -189,6 +216,24 @@ function atAllTimeLow(entry) {
 
 /* -------------------------------- HOMEPAGE -------------------------------- */
 
+/* The crawlable half of the video section. The app renders a click-to-load
+   facade; this is what a crawler (or a JS-less visitor) gets — a real link to
+   the video and the picks named in text, which is also what makes the
+   VideoObject markup below match visible content rather than assert something
+   the page does not say. */
+function videoHtml() {
+  if (!VIDEO) return '';
+  const picks = (VIDEO.picks || []).map((p) => `<li>${esc(p)}</li>`).join('');
+  return `
+      <h2>This week on YouTube</h2>
+      <p><a href="https://www.youtube.com/watch?v=${esc(VIDEO.id)}">${esc(VIDEO.title)}</a>${
+        VIDEO.published ? ` — filmed ${esc(VIDEO.published)}` : ''
+      }. ${esc(VIDEO.blurb || '')}</p>
+      ${picks ? `<ul>${picks}</ul>` : ''}
+      <p>Prices quoted in the video are a snapshot of that day; the comparison on this page is live.
+      <a href="${esc(VIDEO.channelUrl || 'https://www.youtube.com/@LazyComparo')}">More on the LazyComparo channel</a>.</p>`;
+}
+
 function homeHtml() {
   const cards = GAMES.map((g) => `
     <article>
@@ -213,6 +258,7 @@ function homeHtml() {
         <li><a href="${SITE}/gog">PC games on GOG — where GOG beats Steam right now</a></li>
         <li><a href="${SITE}/deals/all-time-low">PC games at their all-time low price right now</a></li>
       </ul>
+      ${videoHtml()}
 
       <h2>Games we compare</h2>
       ${cards}
@@ -248,12 +294,26 @@ function homeJsonLd() {
       },
     },
   }));
-  const graph = {
-    '@context': 'https://schema.org',
+  const list = {
     '@type': 'ItemList',
     name: 'PC games compared on LazyComparo',
     itemListElement: items,
   };
+  // VideoObject only when a video is actually published. contentUrl is
+  // deliberately absent — we host no video file; embedUrl is the -nocookie
+  // host the page itself uses.
+  const video = VIDEO ? [{
+    '@type': 'VideoObject',
+    name: VIDEO.title,
+    description: VIDEO.blurb || VIDEO.title,
+    uploadDate: VIDEO.published,
+    duration: isoDuration(VIDEO.durationSeconds),
+    thumbnailUrl: `${SITE}${VIDEO.poster || '/video-poster.jpg'}`,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${VIDEO.id}`,
+    url: `https://www.youtube.com/watch?v=${VIDEO.id}`,
+    publisher: { '@type': 'Organization', name: 'LazyComparo', url: 'https://lazycomparo.com' },
+  }] : [];
+  const graph = { '@context': 'https://schema.org', '@graph': [list, ...video] };
   return `<script type="application/ld+json">${JSON.stringify(graph)}</script>`;
 }
 
@@ -637,6 +697,9 @@ export async function onRequest(context) {
   // Catalog first: every branch below needs it, and without it there is nothing
   // to inject, so the page goes out exactly as it would have pre-middleware.
   if (!(await loadCatalog(context, url)).length) return response;
+  // Cheap and cached after the first request; only the homepage renders it,
+  // but the check is here so the flag is set before any branch reads VIDEO.
+  await loadVideo(context, url);
 
   const path = url.pathname.replace(/\/+$/, '') || '/';
   const slugMatch = path.match(/^\/game\/([^/]+)$/);
