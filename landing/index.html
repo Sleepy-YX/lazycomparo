@@ -46,10 +46,12 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <!-- three.js (3D stage) and the games site's edge API (live prices + freebie)
-       are both hit on every load — warm the connections during head parse. -->
-  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <!-- The games site's edge API (live prices + freebie) and the phone catalog
+       the inline advisor scores against are both cross-origin and hit on
+       nearly every load — warm those connections during head parse. three.js
+       is self-hosted now, so it needs no preconnect at all. -->
   <link rel="preconnect" href="https://pcgames.lazycomparo.com" />
+  <link rel="preconnect" href="https://mobile.lazycomparo.com" />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,480;9..144,560&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <script type="application/ld+json">
@@ -240,8 +242,9 @@
     #stage {
       position: fixed; inset: 0; z-index: 0;
       display: block; width: 100%; height: 100%;
-      /* three.min.js is ~600 KB from unpkg, so the scene arrives well after
-         the copy has painted — and it used to arrive by popping in at full
+      /* three.min.js is 651 KB and is only fetched after the capability gate
+         at the bottom of the page passes, so the scene arrives well after the
+         copy has painted — and it used to arrive by popping in at full
          opacity, mid-read. Fading from the paper the canvas already clears
          to means the props materialise and nothing else appears to move. */
       opacity: 0; transition: opacity 1.1s var(--ease);
@@ -469,18 +472,21 @@
     }
     .ticker .p { font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* deal heat: the badge colour IS the information — a 75%-off chip should
-       not look identical to a 10%-off chip. Same scale as the games app. */
-    .ticker .off {
+       not look identical to a 10%-off chip. Same scale as the games app.
+       Unscoped on purpose: the hero ticker and the deal cards in the games
+       stop are the same discount rendered at two sizes, and a hot chip has to
+       mean the same thing in both. Two copies of this would have drifted. */
+    .off {
       font-size: 10px; font-weight: 700; letter-spacing: .04em;
       color: #fff; background: var(--heat-mild); border-radius: var(--r-ctl); padding: 2px 6px;
       white-space: nowrap; font-variant-numeric: tabular-nums;
     }
-    .ticker .off.warm { background: var(--heat-warm); }
-    .ticker .off.hot {
+    .off.warm { background: var(--heat-warm); }
+    .off.hot {
       background: var(--heat-hot);
       box-shadow: 0 0 0 1px rgba(217,72,43,.25), 0 6px 16px -6px rgba(217,72,43,.75);
     }
-    .ticker li:has(.off.hot) { border-color: rgba(217,72,43,.35); }
+    .ticker li:has(.off.hot), .deal:has(.off.hot) { border-color: rgba(217,72,43,.35); }
 
     /* ---------- scroll progress rail ---------- */
     .rail {
@@ -539,6 +545,113 @@
       100% { box-shadow: 0 0 0 0 rgba(var(--live-rgb),0); }
     }
 
+    /* ---------- live deal cards (games stop) ----------
+       The hero ticker proves the prices are real in 12px; this proves the
+       product is real. Deliberately the games app's card at landing scale:
+       Steam key art, deal-heat chip, was-price, review score. */
+    .deals { margin-top: 28px; display: none; }
+    .deals.on { display: block; }
+    .deals-head {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .deals-head .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--live); flex: none;
+      animation: livepulse 2s infinite;
+    }
+    .deals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 620px; }
+    .deal {
+      display: block; text-decoration: none; color: inherit; min-width: 0;
+      background: var(--surface); border: 1px solid rgba(var(--hair),.12);
+      border-radius: var(--r-card); overflow: hidden;
+      box-shadow: 0 12px 28px -20px rgba(var(--cast),.6);
+      transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .2s;
+    }
+    .deal:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 22px 36px -20px rgba(var(--cast),.5);
+    }
+    /* Steam's header.jpg is 460x215. Reserving the ratio means the card does
+       not resize when the art lands — and art from a third-party CDN is
+       exactly the thing that arrives late or not at all. */
+    .deal .art {
+      display: block; width: 100%; aspect-ratio: 92 / 43; object-fit: cover;
+      background: rgba(var(--hair),.07);
+    }
+    .deal .body { padding: 11px 12px 13px; }
+    .deal .t {
+      font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.3;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .deal .row { margin-top: 8px; display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+    .deal .p { font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .deal .was { font-size: 11px; color: var(--ink-soft); text-decoration: line-through; font-variant-numeric: tabular-nums; }
+    .deal .rate { margin-top: 7px; font-size: 10.5px; color: var(--ink-soft); }
+
+    /* ---------- inline phone advisor (phones stop) ----------
+       The one real form on a page that is otherwise all outbound links, so it
+       has to read as the site and not as an embedded widget: paper surface,
+       square controls (the stamp's language), serif reserved for the verdict.
+       Hidden until phones-mini.json lands — same fail-soft rule as the ticker. */
+    .mini { margin-top: 28px; display: none; max-width: 620px; }
+    .mini.on { display: block; }
+    .mini-head {
+      font-size: 9.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--ink-soft); margin-bottom: 12px;
+    }
+    .mini-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .mini-f { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .mini-f .k {
+      font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .mini-f select {
+      font-family: var(--sans); font-size: 13px; line-height: 1.2; color: var(--ink);
+      background: var(--surface); border: 1px solid rgba(var(--hair),.22);
+      border-radius: var(--r-ctl); padding: 11px 30px 11px 11px; width: 100%;
+      cursor: pointer; transition: border-color .2s;
+      /* The native arrow is the one part of a <select> that cannot be themed
+         consistently across platforms, so it goes and ::after draws ours —
+         as a border chevron rather than a background SVG, because a data: URI
+         cannot read --ink-soft and would have to hard-code one grey for two
+         themes. */
+      -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    }
+    .mini-f select:hover { border-color: rgba(var(--hair),.4); }
+    .mini-f::after {
+      content: ''; position: absolute; right: 13px; bottom: 15px;
+      width: 7px; height: 7px; pointer-events: none;
+      border-right: 1.5px solid var(--ink-soft);
+      border-bottom: 1.5px solid var(--ink-soft);
+      transform: rotate(45deg);
+    }
+    .mini-out {
+      margin-top: 14px; background: var(--surface);
+      border: 1px solid rgba(var(--hair),.12); border-radius: var(--r-card);
+      padding: 16px 18px 17px; box-shadow: 0 12px 28px -20px rgba(var(--cast),.55);
+      font-size: 13px; line-height: 1.6; color: var(--ink-soft);
+    }
+    .mini-out .verdict {
+      display: inline-block; font-family: var(--serif); font-size: 21px; font-weight: 560;
+      line-height: 1.15; color: var(--ink); padding-bottom: 3px; margin-bottom: 9px;
+      /* the underline colour carries the verdict, so it survives a greyscale
+         print and does not rely on reading the words first */
+      border-bottom: 2px solid var(--heat-none);
+    }
+    .mini-out .verdict.good { border-bottom-color: var(--live); }
+    .mini-out .verdict.meh  { border-bottom-color: var(--heat-warm); }
+    .mini-out b { color: var(--ink); font-weight: 600; }
+    .mini-out .pen { margin-top: 8px; font-size: 12px; }
+    .mini-out .go {
+      display: inline-block; margin-top: 13px;
+      font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--accent); text-decoration: none;
+      border-bottom: 2px solid var(--accent); padding-bottom: 3px;
+      transition: opacity .2s;
+    }
+    .mini-out .go:hover { opacity: .65; }
+
     /* ---------- reveal choreography ----------
        The old version faded the whole copy block as one lump. Now the block
        itself only fades its scrim in, and the parts arrive in reading order:
@@ -553,35 +666,51 @@
     .reveal .stopno,
     .reveal .eyebrow,
     .reveal .sub,
+    .reveal .trustline,
     .reveal .taglist,
+    .reveal .mini.on,
     .reveal .actions,
     .reveal .proof,
     .reveal .ticker.on,
+    .reveal .deals.on,
     .reveal .livefree { opacity: 0; transform: translateY(14px); }
 
     .reveal.in .rule,
     .reveal.in .stopno,
     .reveal.in .eyebrow,
     .reveal.in .sub,
+    .reveal.in .trustline,
     .reveal.in .taglist,
+    .reveal.in .mini.on,
     .reveal.in .actions,
     .reveal.in .proof,
     .reveal.in .ticker.on,
+    .reveal.in .deals.on,
     .reveal.in .livefree { opacity: 1; transform: none; }
 
     .reveal .rule { transition: transform .55s var(--ease); }
-    .reveal .stopno, .reveal .eyebrow, .reveal .sub, .reveal .taglist,
-    .reveal .actions, .reveal .proof, .reveal .ticker.on, .reveal .livefree {
+    .reveal .stopno, .reveal .eyebrow, .reveal .sub, .reveal .trustline,
+    .reveal .taglist, .reveal .mini.on, .reveal .actions, .reveal .proof,
+    .reveal .ticker.on, .reveal .deals.on, .reveal .livefree {
       transition: opacity .6s var(--ease), transform .6s var(--ease);
     }
     .reveal .stopno   { transition-delay: .06s; }
     .reveal .eyebrow  { transition-delay: .10s; }
     .reveal .sub      { transition-delay: .40s; }
+    .reveal .trustline{ transition-delay: .44s; }
     .reveal .taglist  { transition-delay: .48s; }
+    .reveal .deals.on { transition-delay: .56s; }
+    .reveal .mini.on  { transition-delay: .56s; }
     .reveal .actions  { transition-delay: .54s; }
     .reveal .proof    { transition-delay: .62s; }
     .reveal .ticker.on{ transition-delay: .70s; }
-    .reveal .livefree { transition-delay: .62s; }
+    .reveal .livefree { transition-delay: .64s; }
+    /* The games and phones stops grew live blocks BETWEEN the tag list and the
+       "open the app" link, so their link can no longer share the generic .54s
+       — it would arrive before the thing it refers to. The ladder is per-stop,
+       not global, the moment a stop has extra rungs. */
+    #games .reveal .actions  { transition-delay: .72s; }
+    #phones .reveal .actions { transition-delay: .64s; }
 
     /* headline line masking — .ln is the window, .i is the line that slides up
        through it. The window needs vertical slack or descenders (the "y" in
@@ -633,6 +762,21 @@
     .copy.darkpanel .btn.ghost { color: var(--slab-ink); border-color: rgba(var(--slab-hair),.45); }
     .copy.darkpanel .btn.ghost:hover { border-color: var(--slab-ink); background: rgba(var(--slab-hair),.08); }
     @media (max-width: 760px) { .copy.darkpanel { padding: 40px 28px 36px; } }
+
+    /* ---------- independence line (finale) ----------
+       Sits on the dark slab, so it borrows the slab tokens rather than --ink.
+       The bold clause is the claim; the rest is why it matters. */
+    .trustline {
+      margin-top: 22px; max-width: 56ch;
+      font-size: 14px; line-height: 1.65; color: var(--slab-ink-soft);
+    }
+    .trustline strong { color: var(--slab-ink); font-weight: 600; }
+    .trustline a {
+      color: var(--accent-strong); font-weight: 600; text-decoration: none;
+      white-space: nowrap; border-bottom: 1px solid rgba(217,72,43,.4);
+    }
+    .trustline a:hover { border-bottom-color: var(--accent-strong); }
+    @media (max-width: 760px) { .trustline { font-size: 13px; margin-top: 18px; } }
 
     /* ---------- how-it-works cards ---------- */
     .cards { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 860px; }
@@ -692,6 +836,25 @@
       .proof .stat .n { font-size: 20px; }
       .proof .stat .l { font-size: 8.5px; letter-spacing: .14em; margin-top: 4px; }
       .ticker, .ticker.on { display: none; }
+
+      /* The games and phones stops are min-height:100vh but their content is
+         now allowed to exceed that. Two cards instead of three keeps the CTA
+         under the fold's second screen rather than a third; the hidden card is
+         the smallest discount of the three, so nothing worth seeing is lost.
+         (The hero ticker is dropped entirely above — on a phone these cards
+         are the only live prices on the page, which is the right trade.) */
+      .deals { margin-top: 22px; }
+      .deals-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .deal:nth-child(3) { display: none; }
+      .deal .t { font-size: 12px; }
+      .deal .body { padding: 9px 10px 11px; }
+
+      /* Three selects side by side on a 375px screen give each ~105px, which
+         truncates every phone name. Stack them. */
+      .mini { margin-top: 22px; }
+      .mini-fields { grid-template-columns: 1fr; gap: 9px; }
+      .mini-out { padding: 14px 15px 15px; }
+      .mini-out .verdict { font-size: 19px; }
     }
     /* narrow phones: brand wordmark + two nav links overrun 375px and
        overflow-x:hidden silently clips the last link's padding */
@@ -741,8 +904,9 @@
       }
       .reveal .rule { transform: scaleX(1) !important; }
       .scrollhint svg { animation: none; }
-      .livefree .dot, .ticker .dot { animation: none; }
+      .livefree .dot, .ticker .dot, .deals-head .dot { animation: none; }
       .pcard, .pcard:hover { transition: none; }
+      .deal, .deal:hover { transition: none; }
       .grain { animation: none; }
       #stage { transition: none; }
     }
@@ -828,7 +992,7 @@
     </section>
 
     <!-- stop 1 · games -->
-    <section class="stop" aria-labelledby="h-games">
+    <section class="stop" id="games" aria-labelledby="h-games">
       <div class="copy reveal">
         <div class="rule"></div>
         <div class="stopno">01 / 03</div>
@@ -836,6 +1000,18 @@
         <h2 id="h-games">Never overpay for a game again.</h2>
         <p class="sub">Live prices across Steam, Epic and GOG. All-time-low flags, dollars-per-hour value scores, and this week's free games — all in one lazy glance.</p>
         <div class="taglist"><span>Steam · Epic · GOG</span><span>Free-game alerts</span><span>$ / hour value</span></div>
+
+        <!-- The same live /api/steam response the hero ticker uses, rendered as
+             the app's real card instead of a 12px chip: key art, review score,
+             was-price, deal heat. The hero strip is the teaser; this is the
+             product. One fetch feeds both — see the live-prices IIFE. -->
+        <div class="deals" id="deals">
+          <div class="deals-head">
+            <span class="dot" aria-hidden="true"></span>
+            <span>Biggest drops in our catalogue right now</span>
+          </div>
+          <div class="deals-grid" id="deals-grid"></div>
+        </div>
         <div class="livefree" id="livefree" hidden>
           <span class="dot" aria-hidden="true"></span>
           <span id="livefree-text"></span>
@@ -846,7 +1022,7 @@
     </section>
 
     <!-- stop 2 · phones -->
-    <section class="stop" aria-labelledby="h-phones">
+    <section class="stop" id="phones" aria-labelledby="h-phones">
       <div class="copy reveal">
         <div class="rule"></div>
         <div class="stopno">02 / 03</div>
@@ -854,6 +1030,41 @@
         <h2 id="h-phones">Upgrade only when it's worth it.</h2>
         <p class="sub">The only phone advisor that counts the pain of leaving iMessage or DeX. Set your budget and priorities, and get an honest verdict: worth upgrading, marginal, or wait a generation.</p>
         <div class="taglist"><span>Ecosystem penalty</span><span>Priority sliders</span><span>Honest verdicts</span></div>
+
+        <!-- The page used to DESCRIBE the ecosystem penalty and demonstrate it
+             nowhere. This runs the real scoring on the real catalog, here, and
+             hands the answers to the full advisor instead of making the
+             visitor start over. Stays hidden until phones-mini.json lands, the
+             same fail-soft rule as the ticker and the freebie pill. -->
+        <div class="mini" id="mini">
+          <div class="mini-head">Three questions. Honest answer. No sign-up.</div>
+          <div class="mini-fields">
+            <label class="mini-f">
+              <span class="k">I carry</span>
+              <select id="ma-current"></select>
+            </label>
+            <label class="mini-f">
+              <span class="k">I care most about</span>
+              <select id="ma-pri">
+                <option value="camera">Camera</option>
+                <option value="battery">Battery life</option>
+                <option value="performance">Performance</option>
+                <option value="display">Display</option>
+              </select>
+            </label>
+            <label class="mini-f">
+              <span class="k">Budget</span>
+              <select id="ma-budget">
+                <option value="600">Under S$600</option>
+                <option value="1000">Under S$1,000</option>
+                <option value="1400" selected>Under S$1,400</option>
+                <option value="2000">No real limit</option>
+              </select>
+            </label>
+          </div>
+          <div class="mini-out" id="ma-out" aria-live="polite"></div>
+        </div>
+
         <div class="actions"><a class="arrowlink" href="https://mobile.lazycomparo.com/">Open the phone advisor&nbsp;&nbsp;→</a></div>
       </div>
     </section>
@@ -879,6 +1090,16 @@
         <div class="rule"></div>
         <div class="eyebrow">Free · No sign-up · Built in Singapore</div>
         <h2 id="h-finale">Stop researching. Start deciding.</h2>
+        <!-- This used to live only in the footer's third column at 12px, which
+             is the wrong place for the single claim that separates us from
+             every affiliate-farm comparison site. The footer keeps its copy as
+             boilerplate; this is the one a visitor reads before deciding. -->
+        <p class="trustline">
+          <strong>No ads. No affiliate links. No paid placement.</strong>
+          Nobody pays us to rank them higher, so the ranking has nothing to sell you —
+          and every weight behind it is published.
+          <a href="/how-we-rank">See how we rank&nbsp;→</a>
+        </p>
         <div class="actions">
           <a class="btn primary" href="https://pcgames.lazycomparo.com/">Compare PC games</a>
           <a class="btn ghost" href="https://mobile.lazycomparo.com/">Compare phones</a>
@@ -923,7 +1144,10 @@
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
   <script src="/theme.js" defer></script>
 
-  <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+  <!-- three.min.js is NOT loaded here. It is self-hosted and injected by the
+       capability gate at the very bottom of this file — see "when to build the
+       world at all". A <link rel=preload> would defeat that gate, so there
+       isn't one. -->
   <script>
   /* =====================================================================
      LazyComparo landing — papercraft 3D world with a scroll-driven camera.
@@ -972,7 +1196,11 @@
     return c.length - 1;
   }
 
-  (function () {
+  /* Called by the capability gate at the bottom of this file, once — and only
+     once — three.min.js has actually loaded. It used to be an IIFE sitting
+     under a blocking <script src>; if you go back to calling it eagerly,
+     window.THREE will be undefined and the whole page falls back to no3d. */
+  function bootStage() {
     var canvas = document.getElementById('stage');
     var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -2169,6 +2397,9 @@
 
     // Live-data hook: repaint the "FREE" tag with the actual Epic freebie's
     // title once /api/epic-free responds (see fetch at the bottom of the page).
+    // The scene no longer boots synchronously, so that fetch can land BEFORE
+    // this hook exists — it parks the title on __freeTagTitle instead, and we
+    // pick it up here. Without this the tag silently kept reading "FREE".
     window.__setFreeTag = function (title) {
       var t = String(title); if (t.length > 17) t = t.slice(0, 16) + '…';
       // repaints the tag's own canvas in place, so it inherits the sprite's
@@ -2176,6 +2407,7 @@
       tags[1].s.userData.paint('#bfe3c9', 'FREE', t);
       if (!running) renderer.render(scene, camera); // reduced-motion: scene is static, repaint once
     };
+    if (window.__freeTagTitle) window.__setFreeTag(window.__freeTagTitle);
 
     /* Webfonts land well after first paint. Everything drawn into a canvas
        before then used the system fallback, so replay every tag once Inter
@@ -2394,6 +2626,55 @@
       for (var s = 0; s < 3; s++) { curP.copy(tmpP); curT.copy(tmpT); }
       running = false;
     }
+  }
+
+  /* ---------- when to build the world at all ----------
+     The scene is 458 meshes and 80 shadow casters behind a 651 KB library.
+     That is a fair trade on a laptop and a bad one on a cheap phone — which
+     is also where it does the most damage, because the landing page IS the
+     first impression. So the library is not in the markup: this gate runs
+     first and only a device that can plausibly afford the world is asked to
+     download it. Everything else lands on body.no3d, which is a designed
+     paper-gradient fallback (see the #stage CSS), not a broken page.
+
+     Self-hosted rather than unpkg because this is the front door and a
+     third-party CDN outage should not be able to flatten it — and because
+     /three.min.js rides the same warm connection and the same Cloudflare
+     edge as the document. The version is pinned by the file itself; r158 is
+     terminal for us regardless, since r160 removed the UMD build this code
+     needs.
+
+     The gate is deliberately NOT a plain OR of every weak signal. A 4-core
+     desktop runs this fine, and Safari reports neither deviceMemory nor
+     hardwareConcurrency at all — treating "absent" as "weak" would have sent
+     every iPhone to the fallback. Only two things disqualify a device on
+     their own; the softer signals have to coincide with a small screen. */
+  (function () {
+    var nav = navigator;
+    var conn = nav.connection || nav.mozConnection || nav.webkitConnection;
+    var small = window.innerWidth < 760;
+
+    function tooWeak() {
+      // Data Saver is the user saying so out loud; 2g means it wouldn't
+      // arrive before they left anyway.
+      if (conn && conn.saveData) return true;
+      if (conn && /(^|-)2g$/.test(conn.effectiveType || '')) return true;
+      // 2 GB or less is low-end by any measure, phone or not.
+      if (nav.deviceMemory && nav.deviceMemory <= 2) return true;
+      // Below that, weak only counts on a phone-sized screen.
+      if (small && nav.deviceMemory && nav.deviceMemory <= 4) return true;
+      if (small && nav.hardwareConcurrency && nav.hardwareConcurrency <= 4) return true;
+      return false;
+    }
+
+    if (tooWeak()) { document.body.classList.add('no3d'); return; }
+
+    var s = document.createElement('script');
+    s.src = '/three.min.js';
+    // dynamically created scripts are async by default — nothing below waits
+    s.onload = function () { bootStage(); };
+    s.onerror = function () { document.body.classList.add('no3d'); };
+    document.head.appendChild(s);
   })();
 
   /* ---------- headline line masking ----------
@@ -2530,15 +2811,25 @@
         if (g.url && /^https:\/\/store\.epicgames\.com\//.test(g.url)) link.href = g.url;
         box.hidden = false;
 
+        // The 3D stage boots asynchronously now, so this may run first. Park
+        // the title either way; bootStage() replays it when the hook appears.
+        window.__freeTagTitle = g.title;
         if (window.__setFreeTag) window.__setFreeTag(g.title);
       })
       .catch(function () { /* endpoint down or offline: pill stays hidden, page unaffected */ });
   })();
 
-  /* ---------- live Steam price ticker (hero) ----------
+  /* ---------- live Steam prices: hero ticker + deal cards ----------
      Turns the hero's claim into proof: real SGD prices, straight off the same
      /api/steam edge function the games site uses (it sends
      Access-Control-Allow-Origin: *, so the landing origin may call it).
+
+     ONE fetch, two renderings of the same three games. The hero chips are the
+     teaser — "these prices are real" in 12px. The cards down in the games stop
+     are the product — the app's own card, with key art, deal heat, was-price
+     and review score. They are ranked once, here, because two fetches could
+     rank differently between them and a visitor would catch it.
+
      /api/steam returns prices keyed by AppID and no titles, so the sample
      below carries its own title + slug. MAINTENANCE: these must stay a subset
      of the catalog in games/index.html — a renamed slug just makes the chip
@@ -2547,7 +2838,15 @@
   (function () {
     var box = document.getElementById('ticker');
     var list = document.getElementById('ticker-list');
-    if (!box || !list || !window.fetch) return;
+    var dealBox = document.getElementById('deals');
+    var dealGrid = document.getElementById('deals-grid');
+    var hasTicker = !!(box && list);
+    var hasDeals = !!(dealBox && dealGrid);
+    if (!window.fetch || (!hasTicker && !hasDeals)) return;
+
+    // Steam's own CDN, keyed by AppID — the same source the games app's cards
+    // use, so there is no artwork to upload or keep in sync.
+    var ART = 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps';
 
     var SAMPLE = [
       { id: 1086940, slug: 'baldurs-gate-3', t: "Baldur's Gate 3" },
@@ -2564,6 +2863,86 @@
       { id: 2358720, slug: 'black-myth-wukong', t: 'Black Myth: Wukong' }
     ];
 
+    // deal heat — same thresholds the games app uses, so a "hot" badge here
+    // and a hot badge there mean the same thing
+    function heatClass(off) { return 'off' + (off >= 60 ? ' hot' : off >= 30 ? ' warm' : ''); }
+    function offChip(off) {
+      var o = document.createElement('span');
+      o.className = heatClass(off);
+      o.textContent = '−' + off + '%';
+      return o;
+    }
+    function gameHref(slug) { return 'https://pcgames.lazycomparo.com/game/' + slug; }
+
+    function chip(r) {
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.href = gameHref(r.slug);
+      a.style.cssText = 'display:inline-flex;align-items:baseline;gap:8px;text-decoration:none;color:inherit';
+
+      var t = document.createElement('span');
+      t.className = 't'; t.textContent = r.t;
+      var p = document.createElement('span');
+      p.className = 'p'; p.textContent = r.price;
+      a.appendChild(t); a.appendChild(p);
+      if (r.off) a.appendChild(offChip(r.off));
+
+      li.appendChild(a);
+      return li;
+    }
+
+    function card(r) {
+      var a = document.createElement('a');
+      a.className = 'deal';
+      a.href = gameHref(r.slug);
+
+      var img = document.createElement('img');
+      img.className = 'art';
+      img.src = ART + '/' + r.id + '/header.jpg';
+      // decorative: the title is right below it in text, so announcing the art
+      // as well would just read the game out twice
+      img.alt = '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      // Art comes from a third party. Dropping the src leaves the element in
+      // place, so the aspect-ratio box keeps its tinted panel and the card
+      // does not reflow — removing the node would collapse it.
+      img.onerror = function () { this.removeAttribute('src'); };
+      a.appendChild(img);
+
+      var body = document.createElement('div');
+      body.className = 'body';
+
+      var t = document.createElement('div');
+      t.className = 't'; t.textContent = r.t; t.title = r.t;
+      body.appendChild(t);
+
+      var row = document.createElement('div');
+      row.className = 'row';
+      var p = document.createElement('span');
+      p.className = 'p'; p.textContent = r.price;
+      row.appendChild(p);
+      if (r.off) {
+        if (r.was) {
+          var w = document.createElement('span');
+          w.className = 'was'; w.textContent = r.was;
+          row.appendChild(w);
+        }
+        row.appendChild(offChip(r.off));
+      }
+      body.appendChild(row);
+
+      if (r.rating != null) {
+        var rt = document.createElement('div');
+        rt.className = 'rate';
+        rt.textContent = r.rating + '% positive on Steam';
+        body.appendChild(rt);
+      }
+
+      a.appendChild(body);
+      return a;
+    }
+
     fetch('https://pcgames.lazycomparo.com/api/steam?ids=' + SAMPLE.map(function (g) { return g.id; }).join(','))
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error(r.status)); })
       .then(function (d) {
@@ -2573,8 +2952,13 @@
           var live = d.games[g.id];
           if (!live || live.error || live.price == null) return null;
           return {
-            t: g.t, slug: g.slug,
+            id: g.id, t: g.t, slug: g.slug,
             price: live.priceFormatted || ('S$' + live.price.toFixed(2)),
+            // only meaningful next to a discount, and only when Steam actually
+            // sent a higher "before" number
+            was: (live.initial != null && live.initial > live.price)
+              ? 'S$' + live.initial.toFixed(2) : null,
+            rating: (typeof live.ratingPct === 'number') ? live.ratingPct : null,
             off: live.discount > 0 ? live.discount : 0,
             sort: live.discount > 0 ? live.discount : -live.price
           };
@@ -2582,35 +2966,242 @@
         if (!rows.length) return;
 
         // best discounts first; with nothing on sale, cheapest first — either
-        // way the three chips are a genuine reason to click through
+        // way the three shown are a genuine reason to click through
         rows.sort(function (a, b) { return b.sort - a.sort; });
+        var top = rows.slice(0, 3);
 
-        rows.slice(0, 3).forEach(function (r) {
-          var li = document.createElement('li');
-          var a = document.createElement('a');
-          a.href = 'https://pcgames.lazycomparo.com/game/' + r.slug;
-          a.style.cssText = 'display:inline-flex;align-items:baseline;gap:8px;text-decoration:none;color:inherit';
-
-          var t = document.createElement('span');
-          t.className = 't'; t.textContent = r.t;
-          var p = document.createElement('span');
-          p.className = 'p'; p.textContent = r.price;
-          a.appendChild(t); a.appendChild(p);
-
-          if (r.off) {
-            var o = document.createElement('span');
-            // deal heat — same thresholds the games app uses, so a "hot" chip
-            // here and a hot badge there mean the same thing
-            o.className = 'off' + (r.off >= 60 ? ' hot' : r.off >= 30 ? ' warm' : '');
-            o.textContent = '−' + r.off + '%';
-            a.appendChild(o);
-          }
-          li.appendChild(a);
-          list.appendChild(li);
-        });
-        box.classList.add('on');
+        if (hasTicker) {
+          top.forEach(function (r) { list.appendChild(chip(r)); });
+          box.classList.add('on');
+        }
+        if (hasDeals) {
+          top.forEach(function (r) { dealGrid.appendChild(card(r)); });
+          dealBox.classList.add('on');
+        }
       })
-      .catch(function () { /* offline or endpoint down: ticker stays hidden */ });
+      .catch(function () { /* offline or endpoint down: both blocks stay hidden */ });
+  })();
+
+  /* ---------- inline phone advisor (phones stop) ----------
+     Every other control on this page is an exit door. This one is the product:
+     three questions, scored against the real catalog, answered here — and only
+     then handed to the full advisor with the answers already in the URL, so
+     nobody fills the same form twice.
+
+     THE MATHS BELOW IS A TRANSCRIPTION of scorePhone() and verdictFor() in
+     mobile/index.html: the same weighted average, the same 0 / 5 / 15
+     ecosystem penalty, the same 8 / 3 verdict thresholds, and the same
+     round-to-1dp at the same two points (rounding before the comparison is
+     load-bearing — do it after and a 7.96 becomes "Worth upgrading" here and
+     "Marginal" there). If any of those change, change both in one commit or
+     the landing will promise a verdict the advisor immediately contradicts.
+
+     The CATALOG is not duplicated: /phones-mini.json is generated from
+     mobile/phones.json by .claude/make-phones-mini.ps1, and check-sync.ps1
+     fails the pre-push if it has drifted. Do not hand-edit it.
+
+     Fetched lazily when the phones stop comes into view — a visitor who
+     bounces at the hero never pays for it. */
+  (function () {
+    var box = document.getElementById('mini');
+    var selCur = document.getElementById('ma-current');
+    var selPri = document.getElementById('ma-pri');
+    var selBud = document.getElementById('ma-budget');
+    var out = document.getElementById('ma-out');
+    var stop = document.getElementById('phones');
+    if (!box || !selCur || !selPri || !selBud || !out || !window.fetch) return;
+
+    var KEYS = ['camera', 'battery', 'performance', 'display'];
+    var BOOST = 100, BASE = 55;      // "I care most about X" as a weight vector
+    var DEFAULT_ID = 'galaxy-s24';   // === AdvisorView's own default, so the
+                                     // deep link lands on a matching state
+    var PHONES = null;
+
+    function priorities(pick) {
+      var p = {};
+      KEYS.forEach(function (k) { p[k] = (k === pick) ? BOOST : BASE; });
+      return p;
+    }
+
+    function score(phone, pri, current) {
+      var total = 0;
+      KEYS.forEach(function (k) { total += pri[k]; });
+      if (!total) return { raw: 0, adjusted: 0, penalty: 0 };
+
+      var raw = 0;
+      KEYS.forEach(function (k) { raw += (pri[k] * phone.specs[k]) / total; });
+
+      var penalty = 0;
+      if (current && current.id !== phone.id) {
+        if (current.ecosystem === phone.ecosystem) penalty = 0;
+        else if (current.ecosystemFamily === phone.ecosystemFamily) penalty = 5;
+        else penalty = 15;
+      }
+      return {
+        raw: Math.round(raw * 10) / 10,
+        adjusted: Math.round((raw - penalty) * 10) / 10,
+        penalty: penalty
+      };
+    }
+
+    function money(n) { return 'S$' + n.toLocaleString('en-SG'); }
+    // 20 of the 50 catalog entries carry the brand inside the model too
+    // ("Google Pixel 8a", "OnePlus 13"), so a plain brand + model stutters on
+    // exactly those. Same rule as phoneName() in mobile/index.html — the two
+    // screens have to name the same phone the same way.
+    function label(p) {
+      return p.model.toLowerCase().indexOf(p.brand.toLowerCase()) === 0
+        ? p.model : p.brand + ' ' + p.model;
+    }
+    // The picker groups by brand, so inside an <optgroup label="Google"> an
+    // option reading "Google Pixel 10" says it twice. This does the opposite
+    // of label() for that reason: the group heading carries the brand, the
+    // verdict sentence has no heading to lean on and needs it spelled out.
+    function optionLabel(p) {
+      return p.model.toLowerCase().indexOf(p.brand.toLowerCase()) === 0
+        ? p.model.slice(p.brand.length).replace(/^\s+/, '') : p.model;
+    }
+
+    // Advisor deep link. Priorities go as the four explicit weights rather than
+    // the chosen key, so the advisor lands on the exact vector this widget
+    // scored — a shorthand either side could interpret differently is how the
+    // two screens end up disagreeing.
+    function advisorHref() {
+      var pri = KEYS.map(function (k) { return (k === selPri.value) ? BOOST : BASE; });
+      return 'https://mobile.lazycomparo.com/?tab=advisor'
+        + '&current=' + encodeURIComponent(selCur.value)
+        + '&budget=' + encodeURIComponent(selBud.value)
+        + '&pri=' + pri.join(',');
+    }
+
+    function penaltyLine(current, best, penalty) {
+      if (penalty === 15) {
+        return 'That already carries a <b>15-point</b> penalty for crossing between iOS and Android — '
+          + 'iMessage, AirDrop and Continuity do not come with you.';
+      }
+      if (penalty === 5) {
+        return 'That already carries a <b>5-point</b> penalty for leaving ' + current.brand
+          + ' for ' + best.brand + ' — different ecosystem, same platform.';
+      }
+      return 'No switching penalty: you would stay inside ' + current.ecosystem + '.';
+    }
+
+    function render() {
+      if (!PHONES) return;
+
+      var current = PHONES.filter(function (p) { return p.id === selCur.value; })[0];
+      if (!current) return;
+      var budget = parseInt(selBud.value, 10);
+      var pri = priorities(selPri.value);
+
+      var currentRaw = score(current, pri, null).raw;
+      var ranked = PHONES
+        .filter(function (p) { return p.id !== current.id && p.price <= budget; })
+        .map(function (p) { return { phone: p, s: score(p, pri, current) }; })
+        .sort(function (a, b) { return b.s.adjusted - a.s.adjusted; });
+
+      var html;
+      if (!ranked.length) {
+        html = '<div class="verdict meh">No matches</div>'
+          + '<div>Nothing in the catalogue lands under ' + money(budget)
+          + '. Raise the budget and we will score it again.</div>';
+      } else {
+        var best = ranked[0].phone;
+        var adj = ranked[0].s.adjusted;
+        var diff = adj - currentRaw;
+        var tone, head, body;
+
+        if (diff >= 8) {
+          tone = 'good'; head = 'Worth upgrading';
+          body = '<b>' + label(best) + '</b> at ' + money(best.price) + ' scores <b>+'
+            + diff.toFixed(1) + '</b> against your ' + label(current) + ' on those priorities.';
+        } else if (diff >= 3) {
+          tone = 'meh'; head = 'Marginal upgrade';
+          body = '<b>' + label(best) + '</b> at ' + money(best.price) + ' is only <b>+'
+            + diff.toFixed(1) + '</b> over your ' + label(current)
+            + '. Worth it if you will keep it three years, otherwise wait.';
+        } else {
+          tone = 'bad'; head = 'Wait a generation';
+          body = 'The best fit under ' + money(budget) + ' — <b>' + label(best) + '</b> — comes within <b>'
+            + Math.abs(diff).toFixed(1) + '</b> of the ' + label(current)
+            + ' you already own. Save the money.';
+        }
+
+        html = '<div class="verdict ' + tone + '">' + head + '</div>'
+          + '<div>' + body + '</div>'
+          + '<div class="pen">' + penaltyLine(current, best, ranked[0].s.penalty) + '</div>';
+      }
+
+      html += '<a class="go" href="' + advisorHref() + '">See the full breakdown&nbsp;→</a>';
+      out.innerHTML = html;
+    }
+
+    function fill(phones) {
+      // Grouped by brand: a flat list of 50 devices is a scroll, not a choice.
+      var brands = [];
+      phones.forEach(function (p) { if (brands.indexOf(p.brand) < 0) brands.push(p.brand); });
+      brands.sort();
+
+      brands.forEach(function (brand) {
+        var g = document.createElement('optgroup');
+        g.label = brand;
+        phones
+          .filter(function (p) { return p.brand === brand; })
+          .sort(function (a, b) { return b.year - a.year || a.model.localeCompare(b.model); })
+          .forEach(function (p) {
+            var o = document.createElement('option');
+            o.value = p.id;
+            o.textContent = optionLabel(p) + ' (' + p.year + ')';
+            g.appendChild(o);
+          });
+        selCur.appendChild(g);
+      });
+
+      var hasDefault = phones.some(function (p) { return p.id === DEFAULT_ID; });
+      selCur.value = hasDefault ? DEFAULT_ID : phones[0].id;
+    }
+
+    var started = false;
+    function start() {
+      if (started) return;
+      started = true;
+      fetch('/phones-mini.json')
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error(r.status)); })
+        .then(function (data) {
+          if (!Array.isArray(data) || !data.length) return;
+          PHONES = data;
+          fill(PHONES);
+          render();
+          box.classList.add('on');
+        })
+        .catch(function () {
+          /* offline or the file is missing: the widget never appears and the
+             "Open the phone advisor" link below it still does the job */
+        });
+    }
+
+    /* Two triggers, because the observer alone is not a guarantee: it needs a
+       compositing render pipeline, so a backgrounded or throttled tab can
+       simply never deliver an entry and the widget would stay invisible for
+       the whole visit. The observer is the fast path (it fires 200px early, so
+       the verdict is already there when the stop arrives); `load` + idle is the
+       floor. Neither can run twice — `started` is the latch. The cost of the
+       floor is 10 KB fetched after everything else has finished loading, which
+       is the right price for "it is always there". */
+    if (stop && window.IntersectionObserver) {
+      var io = new IntersectionObserver(function (entries) {
+        if (entries.some(function (e) { return e.isIntersecting; })) { io.disconnect(); start(); }
+      }, { rootMargin: '200px 0px' });
+      io.observe(stop);
+    }
+    function floor() {
+      if (window.requestIdleCallback) requestIdleCallback(start, { timeout: 2000 });
+      else setTimeout(start, 300);
+    }
+    if (document.readyState === 'complete') floor();
+    else window.addEventListener('load', floor);
+
+    [selCur, selPri, selBud].forEach(function (s) { s.addEventListener('change', render); });
   })();
   </script>
 </body>

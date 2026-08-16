@@ -159,6 +159,73 @@
     // displayInfo holds the human-readable values for the comparison matrix.
     const PHONES = window.__LC_PHONES;
 
+    /* ---------------- Deep links from the landing page ----------------
+     * lazycomparo.com runs a three-question version of the advisor inline and
+     * links here with the answers attached, so nobody fills the same form
+     * twice:
+     *
+     *   ?tab=advisor&current=<phone id>&budget=<sgd>&pri=<cam,bat,perf,disp>
+     *
+     * Every value is validated against the REAL catalog and the REAL control
+     * ranges, and anything that fails falls back to the plain default. A stale
+     * link from an older landing build has to degrade to the normal advisor —
+     * never to a blank screen, and never to a slider position the user cannot
+     * drag back to.
+     */
+    const PARAMS = (() => {
+      try { return new URLSearchParams(window.location.search); }
+      catch (e) { return new URLSearchParams(''); }
+    })();
+
+    function paramPhoneId(fallback) {
+      const id = PARAMS.get('current');
+      return (id && PHONES.some(p => p.id === id)) ? id : fallback;
+    }
+
+    function paramBudget(fallback) {
+      const n = parseInt(PARAMS.get('budget'), 10);
+      // the budget slider is min 300 / max 2000 / step 50
+      if (!Number.isFinite(n) || n < 300 || n > 2000) return fallback;
+      return Math.round(n / 50) * 50;
+    }
+
+    function paramPriorities(fallback) {
+      const keys = ['camera', 'battery', 'performance', 'display'];
+      const raw = (PARAMS.get('pri') || '').split(',');
+      if (raw.length !== keys.length) return fallback;
+
+      const out = {};
+      for (let i = 0; i < keys.length; i++) {
+        const n = parseInt(raw[i], 10);
+        if (!Number.isFinite(n) || n < 0 || n > 100) return fallback;
+        out[keys[i]] = Math.round(n / 5) * 5;   // the priority sliders step by 5
+      }
+      // all-zero weights make scorePhone() return 0 for every phone, which
+      // renders as a verdict with no reasoning behind it
+      if (keys.every(k => out[k] === 0)) return fallback;
+      return out;
+    }
+
+    /* ---------------- Display name ----------------
+     * 20 of the 50 catalog entries write the brand into the model as well
+     * ("Google Pixel 8a", "OnePlus 13", "Oppo Find X8 Pro"), because that is
+     * genuinely how those phones are marketed. Apple's and Samsung's mostly do
+     * not ("iPhone 15", "Galaxy S24"). So `brand + ' ' + model` stutters on
+     * exactly those 20 -- "Google Google Pixel 8a" was rendering in the
+     * compare table, the resale table, the advisor's phone picker and the
+     * advisor's result card.
+     *
+     * Rewriting the DATA would misname the products, so this normalises at the
+     * point of display instead -- once, here, rather than a regex at each call
+     * site. The BrowseView card wants the opposite (brand shown separately, so
+     * it strips the prefix); that one stays local because it is a different
+     * question.
+     */
+    function phoneName(p) {
+      const m = String(p.model), b = String(p.brand);
+      return m.toLowerCase().indexOf(b.toLowerCase()) === 0 ? m : b + ' ' + m;
+    }
+
     /* ---------------- Scoring Algorithm ---------------- */
     /*
      * scorePhone(phone, priorities, currentPhone)
@@ -579,7 +646,7 @@
         <div className={cx('relative rounded-lg overflow-hidden shrink-0', className)}
              style={{ background: `${phone.accent}18`, border: `1px solid ${phone.accent}55` }}>
           <svg viewBox="-8 -6 88 168" className="w-full h-full" role="img"
-               aria-label={`${phone.brand} ${phone.model}`} preserveAspectRatio="xMidYMid meet">
+               aria-label={phoneName(phone)} preserveAspectRatio="xMidYMid meet">
             <DeviceDefs id={id} a={phone.accent} />
             <DeviceBack id={id} a={phone.accent} style={style} folds={style === 'flip'} />
           </svg>
@@ -595,7 +662,7 @@
       return (
         <div className={cx('relative aspect-[460/215] overflow-hidden bg-ink-900', className)}>
           <svg viewBox="0 0 460 215" className="w-full h-full" role="img"
-               aria-label={`${phone.brand} ${phone.model}`} preserveAspectRatio="xMidYMid slice">
+               aria-label={phoneName(phone)} preserveAspectRatio="xMidYMid slice">
             <DeviceDefs id={id} a={a} />
 
             <rect width="460" height="215" fill={`url(#bg-${id})`} />
@@ -912,7 +979,7 @@
                   <tr>
                     <th className="w-40 text-left px-4 py-3 font-medium">Spec</th>
                     {picked.map(p => (
-                      <th key={p.id} className="text-left px-4 py-3 font-medium text-zinc-200">{p.brand} {p.model}</th>
+                      <th key={p.id} className="text-left px-4 py-3 font-medium text-zinc-200">{phoneName(p)}</th>
                     ))}
                   </tr>
                 </thead>
@@ -953,7 +1020,7 @@
           <div className={cx('grid gap-3 mt-6', picked.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3')}>
             {picked.map(p => (
               <Card key={p.id} className="p-4">
-                <div className="text-zinc-200 font-semibold mb-3">{p.brand} {p.model}</div>
+                <div className="text-zinc-200 font-semibold mb-3">{phoneName(p)}</div>
                 <div className="mb-3">
                   <div className="text-xs uppercase tracking-wider text-emerald-400/80 mb-2 flex items-center gap-1"><Check className="w-3 h-3" /> Pros</div>
                   <ul className="space-y-1.5">
@@ -1022,9 +1089,12 @@
     );
 
     const AdvisorView = () => {
-      const [currentId, setCurrentId] = useState('galaxy-s24');
-      const [budget, setBudget] = useState(1400);
-      const [priorities, setPriorities] = useState(DEFAULT_PRIORITIES);
+      // Lazy initialisers: the URL is read once, on mount. resetForm() below
+      // deliberately goes back to the plain defaults rather than the deep-link
+      // values — "reset" has to mean the same thing however you arrived.
+      const [currentId, setCurrentId] = useState(() => paramPhoneId('galaxy-s24'));
+      const [budget, setBudget] = useState(() => paramBudget(1400));
+      const [priorities, setPriorities] = useState(() => paramPriorities(DEFAULT_PRIORITIES));
       const [submitted, setSubmitted] = useState(false);
 
       const currentPhone = PHONES.find(p => p.id === currentId);
@@ -1075,7 +1145,7 @@
                 <div className="relative">
                   <select value={currentId} onChange={e=>setCurrentId(e.target.value)}
                           className="w-full bg-ink-900 ring-1 ring-ink-700 focus:ring-accent focus:outline-none rounded-lg pl-3 pr-8 py-2 text-sm text-zinc-100 appearance-none">
-                    {PHONES.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} ({p.year})</option>)}
+                    {PHONES.map(p => <option key={p.id} value={p.id}>{phoneName(p)} ({p.year})</option>)}
                   </select>
                   <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -1165,7 +1235,7 @@
                         <div className="flex items-start justify-between gap-2 flex-wrap">
                           <div>
                             <div className="flex items-center gap-2">
-                              <div className="text-lg font-semibold text-zinc-100">{phone.brand} {phone.model}</div>
+                              <div className="text-lg font-semibold text-zinc-100">{phoneName(phone)}</div>
                               {idx === 0 && <Pill tone="accent"><Award className="w-3 h-3" /> Top pick</Pill>}
                             </div>
                             <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -1298,7 +1368,7 @@
                 <tbody>
                   {rows.map(({ phone: p, rate, retained, age }, i) => (
                     <tr key={p.id} className={cx(i % 2 === 0 ? 'bg-ink-850' : 'bg-ink-900/60')}>
-                      <td className="px-4 py-3 text-zinc-200 whitespace-nowrap">{p.brand} {p.model} <span className="text-zinc-500">· {p.year}</span></td>
+                      <td className="px-4 py-3 text-zinc-200 whitespace-nowrap">{phoneName(p)} <span className="text-zinc-500">· {p.year}</span></td>
                       <td className="px-4 py-3 text-zinc-400">S${p.launchPrice}</td>
                       <td className="px-4 py-3 text-zinc-200">S${p.price}</td>
                       <td className="px-4 py-3">
@@ -1327,7 +1397,12 @@
     ];
 
     const App = () => {
-      const [tab, setTab] = useState('browse');
+      // ?tab=advisor is how the landing page's inline advisor hands over. An
+      // unknown tab id falls through to browse rather than rendering nothing.
+      const [tab, setTab] = useState(() => {
+        const t = PARAMS.get('tab');
+        return TABS.some(x => x.id === t) ? t : 'browse';
+      });
       const [shortlist, setShortlist] = useState(['iphone-17-pro-max', 'galaxy-s26-ultra']);
 
       const toggleShortlist = (id) => {

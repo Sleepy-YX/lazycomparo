@@ -1,6 +1,6 @@
 # LazyComparo — Project State
 
-_Last updated: 2026-08-10. Update this file whenever state changes materially._
+_Last updated: 2026-08-16. Update this file whenever state changes materially._
 
 > **How to resume in a new Claude session:** paste this whole file into your first
 > message, or say "read `PROJECT_STATE.md`". Everything Claude needs is here.
@@ -37,10 +37,13 @@ so `lazycomparo.sg` is not registered and not planned. Don't re-open it as a
   3.4.17, `@babel/standalone` 8.0.4) — unpinned, `@babel/standalone` had already
   moved the live site onto Babel 8 with no commit here. See "App boot" below for
   how Babel is loaded. Landing:
-  vanilla JS + **three.js r158 UMD pinned via unpkg — do NOT bump; r160+ removed
-  UMD builds.**
+  vanilla JS + **three.js r158 UMD, now SELF-HOSTED at `landing/three.min.js`
+  — do NOT bump; r160+ removed UMD builds.** It is no longer in the markup at
+  all: a capability gate injects it (see "Landing 3D gate" below).
   - Exception: the phone catalog is **data, not markup** — `mobile/phones.json`,
     fetched at boot (see "Phone catalog" below). Games are still inline.
+    `landing/phones-mini.json` is a **generated** trim of it — see "Landing
+    inline advisor".
 - Cloudflare Pages Functions live under `games/functions/` (that project's root).
 - Local preview: PowerShell `.claude/serve.ps1` (no Node/Python on this PC).
   Ports in CWD-level `.claude/launch.json`: mobile 5173, games 5174 (alt 5184),
@@ -441,6 +444,67 @@ before the reader could ask it anything, with the only control (genre) sitting
   best of the picked games is the only one in colour.
 - `useState` for `diffOnly` sits above the "fewer than 2 games" early return.
 
+## Landing 3D gate (added 2026-08-16)
+
+`three.min.js` is **self-hosted** (`landing/three.min.js`, 651 KB) and **not in
+the markup**. The last IIFE on the page runs a capability gate; only if it
+passes is the script injected, and `bootStage()` is called from its `onload`.
+
+- Disqualifies on its own: `connection.saveData`, `effectiveType` 2g/slow-2g,
+  `deviceMemory <= 2`.
+- Disqualifies only on a phone-sized screen (`innerWidth < 760`):
+  `deviceMemory <= 4`, `hardwareConcurrency <= 4`.
+- **Absent hints are NOT weak.** Safari reports neither `deviceMemory` nor
+  `hardwareConcurrency`; ORing every signal naively sent every iPhone to the
+  fallback. Verified against 11 device profiles before shipping.
+- Everything else lands on `body.no3d` — the existing paper-gradient fallback.
+- **The scene no longer boots synchronously**, so `/api/epic-free` can resolve
+  before `window.__setFreeTag` exists. The fetch parks the title on
+  `window.__freeTagTitle` and `bootStage()` replays it. Without that the
+  floating 3D tag silently kept reading "FREE".
+- Self-hosted, not unpkg: the front door should not be flattened by a
+  third-party CDN outage, and the file rides the same warm connection and
+  Cloudflare edge as the document. The unpkg `preconnect` is gone.
+
+## Landing inline advisor + deal cards (added 2026-08-16)
+
+The landing used to be all outbound links — it *described* the ecosystem-friction
+penalty and demonstrated it nowhere. Two blocks fix that; both fail soft (hidden
+until real data lands) exactly like the ticker and freebie pill.
+
+- **Phones stop — a real 3-question advisor.** Current phone / what matters most
+  / budget, scored inline, verdict rendered on the landing, then deep-linked
+  into the full advisor with the answers in the URL.
+  - The maths in the landing IIFE is a **transcription** of `scorePhone()` /
+    `verdictFor()` — same weights, same 0/5/15 penalty, same 8/3 thresholds,
+    and the **same round-to-1dp at the same two points** (rounding before the
+    comparison is load-bearing). Change one, change both in the same commit.
+  - "I care most about X" maps to weights **100 for X, 55 for the rest**, sent
+    as the four explicit numbers rather than a shorthand either side could
+    interpret differently.
+  - The catalog is **not** duplicated: `landing/phones-mini.json` is generated
+    from `mobile/phones.json` by `.claude/make-phones-mini.ps1` (id, brand,
+    model, year, price, ecosystem, ecosystemFamily, the 4 specs — 9.8 KB vs
+    53 KB). `check-sync.ps1` fails the push if it has drifted. **Never
+    hand-edit it.** Same-origin, so no CORS on the mobile project.
+  - Loaded on TWO triggers: an IntersectionObserver 200px early (fast path) and
+    `load` + idle (floor). The observer needs a compositing pipeline, so a
+    backgrounded tab can never deliver an entry — the floor is what makes the
+    widget guaranteed rather than likely. `started` is the latch.
+- **Games stop — real deal cards.** Steam key art, deal heat, was-price, review
+  score. Fed by the **same single `/api/steam` fetch** as the hero ticker: the
+  chips are the teaser, the cards are the product, and ranking them twice could
+  make them disagree. Mobile shows 2 of 3 cards (the smallest discount hides).
+- The deal-heat chip CSS is now **unscoped `.off`**, shared by the ticker and
+  the cards — a hot chip has to mean the same thing at both sizes.
+- The games and phones stops are now **taller than the viewport on mobile**
+  (~1059 / ~1180 px at 375×812). That is fine and was verified:
+  `stopProgress()` measures section *centres*, so all five camera stops still
+  land exactly on `p === i`.
+- `#games` / `#phones` ids exist so the reveal ladder can be **per-stop** — both
+  grew rungs between the tag list and the CTA, so their `.actions` can no longer
+  share the generic `.54s` or the link arrives before the thing it refers to.
+
 ## Landing page notes
 
 - Papercraft three.js world; 5 camera stops map to the 5 `<section>`s. WebGL /
@@ -546,7 +610,11 @@ before the reader could ask it anything, with the only control (genre) sitting
   sat at stop 3.77 when the finale copy was already centred and only reached
   4.0 once you'd scrolled the last 172 px of footer.
 - **Hero proof strip + live ticker.** Hard-coded counts (100 games / 50 phones /
-  3 stores — update them when either catalog grows) plus a live `/api/steam`
+  3 stores). They stay markup on purpose — deriving them would mean a
+  cross-origin fetch on the critical path and numbers that pop in after paint —
+  so **`check-sync.ps1` now fails the push if the games/phones counts drift**
+  from the real catalogs. The "3 stores" figure is copy, not checked.
+  Plus a live `/api/steam`
   call showing the 3 best current SGD
   discounts, each linking to `pcgames…/game/<slug>`. The endpoint returns no
   titles, so `SAMPLE` in the ticker IIFE carries its own `{id, slug, title}` —
@@ -592,6 +660,17 @@ Verdict: top − current ≥ 8 "Worth upgrading" · 3–8 "Marginal" · < 3 "Wai
 
 The 5/15 penalty is the product differentiator (captures iMessage/DeX/AirDrop
 friction no spec-ranking site counts) — keep it in future iterations.
+
+**This algorithm now exists twice**: here, and transcribed into the landing's
+inline advisor (see "Landing inline advisor"). They must be changed together.
+Note the penalty only *shows* on the landing when a cross-ecosystem phone wins
+anyway — across all 800 current combinations that is 120 of them (117 at −5,
+3 at −15), which is the algorithm working, not a bug.
+
+`AdvisorView` also hydrates from `?current=`/`?budget=`/`?pri=` (and `App` from
+`?tab=`) so the landing can hand over mid-flow. Every value is validated
+against the real catalog and the real control ranges; anything invalid falls
+back to the plain default, so a stale link degrades to the normal advisor.
 
 ## Git identity
 
@@ -659,9 +738,13 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 ## Quick reference
 
 - **Add a phone:** append an object to `mobile/phones.json` (copy the shape of
-  an existing entry — every phone must carry the same keys), push.
+  an existing entry — every phone must carry the same keys), then run
+  `.claude\make-phones-mini.ps1` to regenerate `landing/phones-mini.json`, then
+  update the "Phones scored" count in the landing hero. `check-sync.ps1`
+  enforces both.
 - **Add a game:** edit the catalog in `games/index.html` AND the `GAMES` list in
-  `games/functions/_middleware.js` (+ sitemap), push. Also: map the new `genre`
+  `games/functions/_middleware.js` (+ sitemap), and update the "Games tracked"
+  count in the landing hero (`check-sync.ps1` enforces it), push. Also: map the new `genre`
   string in `GENRE_BUCKETS` (unmapped genres fall into an "Other" bucket), and
   add cross-store availability to `EXTRA_STORES` — read the real answer off
   `/api/deals?ids=<appId>` rather than guessing. Verify the AppID first via
@@ -674,9 +757,32 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
   `README.md`; regenerate `og-image.png`. For the mark, see "Brand mark" —
   seven copies of the same geometry, plus `.claude/make-icons.ps1`.
 - **Change a weight or threshold:** update `landing/how-we-rank.html` in the
-  same commit, and bump its "Last reviewed" date.
+  same commit, bump its "Last reviewed" date, **and update the transcription of
+  `scorePhone()`/`verdictFor()` in the landing's inline-advisor IIFE** — the two
+  screens must not disagree about the same phone.
 
 ## Changelog
+
+- **2026-08-16** Three changes aimed at the landing page's actual job.
+  **(1) It now does the product instead of describing it.** Every control on
+  lazycomparo.com was an exit door, and the ecosystem-friction penalty — the
+  one thing no rival counts — was a sentence with nothing behind it. The phones
+  stop now runs a real 3-question advisor inline and hands the answers to the
+  full advisor via query params (which `mobile/index.html` now reads and
+  validates against the real catalog and the real slider ranges). The games
+  stop gets real deal cards off the same single `/api/steam` fetch the hero
+  ticker already made. **(2) The 3D is no longer unconditional.** three.js is
+  self-hosted and injected only after a capability gate, so a cheap phone gets
+  the paper-gradient fallback instead of 651 KB and 458 meshes. **(3) The trust
+  claim moved up.** "No ads, no affiliate links, no paid placement" was 12px
+  text in the footer's third column and `/how-we-rank` was linked from nowhere
+  in the main scroll; both now sit in the finale panel above the CTAs.
+  **A real bug found on the way:** 20 of the 50 phones write the brand into the
+  model too ("Google Pixel 8a", "OnePlus 13"), so the five places rendering
+  `brand + ' ' + model` — the compare table, the resale table, the advisor's own
+  phone picker, the advisor's result card, and two `aria-label`s — had been
+  shipping "Google Google Pixel 8a". Fixed once via `phoneName()` rather than a
+  regex per call site; the data is right, the display was not.
 
 - **2026-08-10** Realism pass on the landing world + the mobile site brought up
   to the games site's card standard. **(1) The 3D village.** Six changes, all
