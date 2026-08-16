@@ -994,8 +994,11 @@
               <button type="button" onClick={() => setPlaying(true)}
                       aria-label={`Play: ${video.title}`}
                       className="group relative w-full sm:w-[180px] shrink-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                {/* eager, not lazy: this card is the first thing in Browse, so
+                    the poster is in the initial viewport and deferring it just
+                    leaves a hole where the play button should be. 50 KB. */}
                 <img src={video.poster || '/video-poster.jpg'} alt=""
-                     loading="lazy" decoding="async"
+                     width="540" height="960" loading="eager" decoding="async"
                      className="w-full h-40 sm:h-full object-cover object-top opacity-90 group-hover:opacity-100 transition" />
                 <span className="absolute inset-0 flex items-center justify-center">
                   <span className="w-14 h-14 rounded-full bg-ember/90 group-hover:bg-ember flex items-center justify-center shadow-lg shadow-black/50 transition">
