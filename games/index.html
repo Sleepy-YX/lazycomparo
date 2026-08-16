@@ -161,6 +161,27 @@
       #boot-splash .wordmark { animation: none; }
       #boot-splash { transition: none; }
     }
+
+    /* ---- Sticky compare bar ----
+       Lives in real CSS rather than Tailwind classes because it has to clear
+       the fixed mobile tab bar, and Tailwind arbitrary values cannot express
+       env() inside calc() reliably. The tab bar is ~52px plus the safe area;
+       on md+ there is no tab bar, so the compare bar sits on the floor.
+       z-index stays UNDER the tab bar (z-30) so navigation always wins. */
+    .compare-bar {
+      position: fixed; left: 0; right: 0; z-index: 25;
+      bottom: calc(52px + env(safe-area-inset-bottom));
+    }
+    @media (min-width: 768px) {
+      .compare-bar { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
+    }
+    /* Slides up the first time it appears. Keyed on the count in React, so it
+       replays when you go 0 -> 1 but not on every add. */
+    .compare-bar-in { animation: cbarIn .3s cubic-bezier(.16, 1, .3, 1) both; }
+    @keyframes cbarIn { from { transform: translateY(115%); } to { transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .compare-bar-in { animation: none; }
+    }
   </style>
   <noscript>
     <style>
@@ -1748,6 +1769,75 @@
       );
     };
 
+    /* ---------------- Sticky compare bar ----------------
+       Browse had no bridge to Compare. After picking games the only signal was
+       a small count badge in the header you had already scrolled past, so the
+       selection went nowhere and the shortlist was invisible while you were
+       still choosing. This is that bridge, and it doubles as the one place the
+       shortlist can be seen and edited without leaving the grid.
+
+       It renders NOTHING at zero picks, so a visitor who is only browsing pays
+       nothing for it — no bar, no spacer, no layout shift. */
+    const CompareBar = ({ picked, max, notice, onRemove, onClear, onCompare }) => {
+      if (!picked.length) return null;
+      const ready = picked.length >= 2;
+      return (
+        <div className="compare-bar compare-bar-in" role="region" aria-label="Comparison shortlist">
+          <div className="bg-ink-950/95 backdrop-blur-md border-t border-ink-700 shadow-2xl shadow-black/60">
+            {/* The "compare is full" message from toggleShortlist. aria-live so
+                a screen reader hears the refusal instead of silence. */}
+            {notice && (
+              <div role="status" aria-live="polite"
+                   className="bg-amber-500/10 border-b border-amber-500/25 text-amber-200 text-xs px-4 md:px-6 py-2 text-center">
+                {notice}
+              </div>
+            )}
+            <div className="max-w-7xl mx-auto px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center gap-2.5 md:gap-4">
+
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="hidden lg:block text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">
+                  Comparing
+                </span>
+                <div className="flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar py-1">
+                  {picked.map(g => (
+                    <div key={g.id} className="relative shrink-0">
+                      <div className="w-[74px] md:w-[88px] rounded-md overflow-hidden ring-1 ring-ink-700">
+                        <GameArt game={g} />
+                      </div>
+                      <button onClick={() => onRemove(g.id)}
+                              aria-label={`Remove ${g.title} from the comparison`}
+                              title={`Remove ${g.title}`}
+                              className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-ink-900 ring-1 ring-ink-700 text-zinc-400 hover:text-rose-400 transition">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <span className="shrink-0 text-[11px] text-zinc-500 tabular-nums">{picked.length}/{max}</span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={onClear}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition px-2 py-2 shrink-0">
+                  Clear
+                </button>
+                {/* Disabled at one pick rather than hidden: the label is what
+                    tells you what is missing, so removing it removes the
+                    instruction too. */}
+                <button onClick={onCompare} disabled={!ready}
+                        className={cx('flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap',
+                          ready ? 'bg-ember hover:bg-ember-soft text-white'
+                                : 'bg-ink-800 text-zinc-500 cursor-not-allowed')}>
+                  {ready ? `Compare ${picked.length} games` : 'Pick 1 more to compare'}
+                  {ready && <ArrowRight className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     /* ---------------- Browse view ---------------- */
     const BrowseView = ({ shortlist, onToggle, initialQuery = '' }) => {
       const { games: GAMES } = useGames();
@@ -1935,7 +2025,10 @@
       const { games: GAMES } = useGames();
       const { deals } = useDealsCtx();
       const picked = shortlist.map(id => GAMES.find(g => g.id === id)).filter(Boolean);
-      const canAddMore = picked.length < 3;
+      const canAddMore = picked.length < MAX_COMPARE;
+      // Filtered against the live catalog so a renamed or dropped sample game
+      // yields a shorter demo, never an empty column.
+      const sampleIds = SAMPLE_COMPARE.filter(id => GAMES.some(g => g.id === id));
       const [copied, setCopied] = useState(false);
       // declared above the "fewer than 2 games" early return — hooks can't
       // live behind a conditional
@@ -1962,11 +2055,28 @@
               title="Side-by-side game matrix"
               subtitle="Pick 2 or 3 games from the catalog to compare price, rating, hours-to-beat, and co-op support." />
             <Card className="p-8 text-center">
-              <div className="text-zinc-400 mb-4">You have {picked.length} game{picked.length === 1 ? '' : 's'} selected. Add {2 - picked.length} more to start comparing.</div>
-              <button onClick={onGoBrowse}
-                className="inline-flex items-center gap-2 bg-ember hover:bg-ember-soft text-white font-semibold rounded-lg px-4 py-2 transition">
-                Browse games <ArrowRight className="w-4 h-4" />
-              </button>
+              <div className="text-zinc-400 mb-4">
+                {picked.length === 0
+                  ? 'Nothing selected yet. Pick two or three games in the catalog and they will show up here.'
+                  : 'One game selected. Add one more to start comparing.'}
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button onClick={onGoBrowse}
+                  className="inline-flex items-center gap-2 bg-ember hover:bg-ember-soft text-white font-semibold rounded-lg px-4 py-2 transition">
+                  Browse games <ArrowRight className="w-4 h-4" />
+                </button>
+                {/* Replaces the old pre-seeded shortlist: same instant demo of
+                    what this view does, but the visitor asks for it, so it
+                    never sits in their shortlist uninvited. Hidden once they
+                    have picks of their own — offering to overwrite them would
+                    be the same mistake in a different place. */}
+                {picked.length === 0 && sampleIds.length >= 2 && (
+                  <button onClick={() => setShortlist(sampleIds)}
+                    className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm ring-1 ring-ink-700 bg-ink-900 text-zinc-300 hover:text-zinc-100 hover:ring-ink-600 transition">
+                    <Sparkles className="w-4 h-4" /> See a sample comparison
+                  </button>
+                )}
+              </div>
             </Card>
           </div>
         );
@@ -2824,6 +2934,16 @@
     /* ---------------- App shell ---------------- */
     // `short` is the label used on the mobile bottom tab bar, where six
     // columns leave ~60px each.
+    /* The comparison matrix is built for 2-3 columns; beyond that the rows
+       stop being scannable, which is the whole point of the view. */
+    const MAX_COMPARE = 3;
+    /* Compare's empty state offers this as a one-click demo. These three used
+       to be the DEFAULT shortlist, which meant every first-time visitor had
+       them silently pre-picked — see the usePersistedState call below. Ids are
+       filtered against the live catalog before use, so a renamed game degrades
+       to a shorter sample rather than a blank column. */
+    const SAMPLE_COMPARE = ['balatro', 'hades-2', 'remnant2'];
+
     const TABS = [
       { id: 'browse',  label: 'Browse',  icon: Layers },
       { id: 'compare', label: 'Compare', icon: Package },
@@ -2860,8 +2980,17 @@
 
     const App = () => {
       const [tab, setTabState] = useState(initialHash ? initialHash.tab : 'browse');
-      const [shortlist, setShortlist] = usePersistedState('lc-games-shortlist',
-        ['balatro', 'hades-2', 'remnant2']);
+      /* Starts EMPTY. It used to seed ['balatro','hades-2','remnant2'], which
+         combined badly with the old eviction rule: a first-time visitor
+         arrived with three games they had never chosen, and their first real
+         pick silently deleted one of them. The demo those seeds provided now
+         lives in Compare's empty state as an explicit "see a sample" button,
+         which gives the same discovery without hijacking the shortlist.
+         Returning visitors keep whatever they actually picked. */
+      const [shortlist, setShortlist] = usePersistedState('lc-games-shortlist', []);
+      // Set when an add is refused because the shortlist is full; the compare
+      // bar renders it and it clears itself.
+      const [shortlistNotice, setShortlistNotice] = useState('');
       const live = useSteamLive(GAMES);
       const dealsLive = useDeals(GAMES);
       const freebies = useFreebies();
@@ -2895,13 +3024,33 @@
         });
       }, []);
 
+      /* Adding a 4th game used to do `[...prev.slice(1), id]` — it silently
+         deleted the FIRST pick, with no message anywhere. You only found out
+         on the Compare tab, where a game you had chosen was simply missing and
+         nothing said why. Refusing the add and saying so is the honest
+         behaviour: nothing the visitor picked disappears without them doing
+         it. Removal is always allowed, so the shortlist is never stuck. */
       const toggleShortlist = (id) => {
-        setShortlist(prev => {
-          if (prev.includes(id)) return prev.filter(x => x !== id);
-          if (prev.length >= 3) return [...prev.slice(1), id];
-          return [...prev, id];
-        });
+        if (shortlist.includes(id)) {
+          setShortlist(shortlist.filter(x => x !== id));
+          setShortlistNotice('');
+          return;
+        }
+        if (shortlist.length >= MAX_COMPARE) {
+          setShortlistNotice(`Compare holds ${MAX_COMPARE} games — remove one to add another.`);
+          return;
+        }
+        setShortlist([...shortlist, id]);
+        setShortlistNotice('');
       };
+
+      // The notice is a nudge, not a modal: it clears itself so it cannot
+      // linger over an unrelated action. Re-arms on every new refusal.
+      useEffect(() => {
+        if (!shortlistNotice) return;
+        const t = setTimeout(() => setShortlistNotice(''), 4000);
+        return () => clearTimeout(t);
+      }, [shortlistNotice]);
 
       // Mount the ambient 3D canvas background (engine defined in a plain
       // <script> at the bottom of the page, outside the Babel transform).
@@ -3001,6 +3150,24 @@
               </nav>
             </div>
           </footer>
+
+          {/* Sticky compare bar. Not shown on the Compare tab itself, where the
+              same chips already sit at the top of the view and a second copy
+              would just cover the matrix it is pointing at. The spacer keeps
+              the footer clear of it; both appear and disappear together, so an
+              empty shortlist costs no layout at all. */}
+          {tab !== 'compare' && shortlist.length > 0 && (
+            <React.Fragment>
+              <div aria-hidden="true" className="h-24 md:h-20" />
+              <CompareBar
+                picked={shortlist.map(id => live.games.find(g => g.id === id)).filter(Boolean)}
+                max={MAX_COMPARE}
+                notice={shortlistNotice}
+                onRemove={(id) => { setShortlist(shortlist.filter(x => x !== id)); setShortlistNotice(''); }}
+                onClear={() => { setShortlist([]); setShortlistNotice(''); }}
+                onCompare={() => { setTab('compare'); window.scrollTo({ top: 0 }); }} />
+            </React.Fragment>
+          )}
 
           {/* Mobile bottom tab bar — the header nav is desktop-only */}
           <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-ink-950/90 backdrop-blur-md border-t border-ink-800"

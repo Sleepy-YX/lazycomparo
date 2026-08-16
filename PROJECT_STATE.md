@@ -423,6 +423,39 @@ before the reader could ask it anything, with the only control (genre) sitting
   the catalog max the ten best games were all sub-pixel stubs, so the chart
   spent its full width repeating what the heading already said.
 
+## Shortlist & compare bar (games site, reworked 2026-08-16)
+
+Browsing → picking → comparing had three faults that compounded each other.
+
+- **The shortlist starts empty.** It used to seed `['balatro','hades-2','remnant2']`,
+  so a first-time visitor arrived with three games they had never chosen.
+  The demo that provided now lives in Compare's empty state as an explicit
+  **"See a sample comparison"** button (`SAMPLE_COMPARE`, filtered against the
+  live catalog, offered only at zero picks — offering to overwrite real picks
+  would be the same mistake again). Returning visitors keep what they picked.
+- **A 4th pick no longer deletes the 1st.** `toggleShortlist` used to do
+  `[...prev.slice(1), id]` — silent data loss you only discovered on the
+  Compare tab, where a game you chose was simply absent. It now refuses the add
+  and says so via `shortlistNotice`, which the compare bar renders with
+  `role="status"` and which clears itself after 4s. Removal is always allowed,
+  so the list can never get stuck. `MAX_COMPARE` is the single source of the
+  cap (the matrix is built for 2–3 columns).
+- **`CompareBar` is the bridge from Browse to Compare.** Before it, selecting
+  did nothing visible except a count badge in the header you had already
+  scrolled past. It shows the picked thumbnails with per-game remove, an n/3
+  counter, Clear, and a primary CTA that reads "Pick 1 more to compare"
+  (disabled) at one pick and "Compare N games" at two or three.
+  - Renders `null` at zero picks, so a browsing visitor pays no bar, no spacer
+    and no layout shift.
+  - Hidden on the Compare tab itself — the same chips are already at the top of
+    that view and a second copy would cover the matrix it points at.
+  - **Positioning lives in real CSS (`.compare-bar`), not Tailwind**, because it
+    must clear the fixed mobile tab bar and Tailwind arbitrary values cannot
+    express `env()` inside `calc()` reliably. `bottom: calc(52px + safe-area)`
+    on phones, `bottom: 0` on md+. `z-index: 25` keeps it UNDER the tab bar
+    (z-30) so navigation always wins. Verified at 375×812: bar bottom 760 ==
+    tab bar top 760, no overlap, footer still scrolls clear by 22px.
+
 ## Compare view (games site)
 
 - **Verdict first.** `buildVerdict()` (above `CompareView`) picks a winner from
@@ -763,6 +796,17 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-08-16 (b)** Fixed the browse → pick → compare flow on the games site.
+  Three faults that compounded: the shortlist came pre-seeded with three games
+  the visitor never chose, adding a 4th silently deleted the 1st, and nothing
+  led from Browse to Compare except a count badge in the header. Now: starts
+  empty (with an opt-in sample comparison in Compare's empty state), a full
+  shortlist refuses the add and says so instead of evicting, and a sticky
+  `CompareBar` carries the picked games, per-game remove, and the CTA. See
+  "Shortlist & compare bar". Still outstanding from the same review: the game
+  card is a `<div>` with no role and `tabIndex -1`, so the 100-card grid is
+  unreachable by keyboard, and the only "tap a card to add it" instruction is
+  in a `hidden sm:block` element — invisible on phones.
 - **2026-08-16** Three changes aimed at the landing page's actual job.
   **(1) It now does the product instead of describing it.** Every control on
   lazycomparo.com was an exit door, and the ecosystem-friction penalty — the
