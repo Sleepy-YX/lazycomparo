@@ -1,5 +1,5 @@
 /**
- * GET /api/deals?ids=892970,1145360,...   (Steam AppIDs)
+ * GET /api/deals?ids=892970,1145360,...[&cc=US]   (Steam AppIDs)
  *
  * Cloudflare Pages Function. Looks games up on IsThereAnyDeal (ITAD) and
  * returns current Steam / Epic / GOG prices plus the all-time historical low,
@@ -10,10 +10,15 @@
  * Without the key this returns 503 and the front-end silently falls back to
  * Steam-only pricing + the editorial EXTRA_STORES availability lists.
  *
- * ITAD quotes several SG-region stores (Epic, GOG, sometimes Steam) in USD,
- * which clashed with the Steam feed's SGD prices in the UI. So any non-SGD
- * amount is converted to SGD here using a live FX rate (open.er-api.com, no
- * key) and flagged `approx: true` so the front-end can show it as "~S$…".
+ * PRICES ARE PER VISITOR, like /api/steam: the country comes from Cloudflare's
+ * geolocation (overridable with ?cc=) and is passed to ITAD, so a US visitor
+ * is quoted US storefronts and a Singapore one SG storefronts.
+ *
+ * ITAD still quotes some stores in a currency other than the region's own
+ * (Epic and GOG bill plenty of countries in USD), which clashes with the Steam
+ * feed's regional prices in the UI. So any amount not already in the region's
+ * currency is converted here using a live FX rate (open.er-api.com, no key)
+ * and flagged `approx: true` so the front-end can show it as "~US$…".
  * If the FX fetch fails, prices pass through unconverted in their original
  * currency — the front-end still labels those honestly.
  *
@@ -22,7 +27,8 @@
  * 50-cap.
  */
 
-const COUNTRY = 'SG'; // Singapore -> SGD pricing, matching /api/steam
+import { resolveCountry, regionFor, ratesFor, round2, forVisitor } from '../../lib/region.js';
+
 const TTL_SECONDS = 1800; // 30 min edge cache
 // Requests longer than this are TRUNCATED, not rejected — the front-end chunks
 // to DEALS_CHUNK (30) to stay under it. Raise both together if the catalog grows.
@@ -38,30 +44,17 @@ function storeName(shop) {
   return null;
 }
 
-// FX rates relative to SGD (e.g. rates.USD = 0.74 means US$1 = S$1/0.74).
-// Returns null on any failure so callers can skip conversion gracefully.
-async function fxRatesFromSGD() {
-  try {
-    const res = await fetch('https://open.er-api.com/v6/latest/SGD');
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data && data.result === 'success' && data.rates ? data.rates : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-const round2 = (n) => Math.round(n * 100) / 100;
-
-// Mutates a price-bearing object ({ price, currency, regular? }) to SGD.
-function toSGD(obj, rates) {
+// Mutates a price-bearing object ({ price, currency, regular? }) into `target`.
+// ratesFor(target) gives rates[X] = how many X per 1 target, so dividing by
+// that rate converts an amount in X back into the target currency.
+function toRegion(obj, target, rates) {
   if (!obj || typeof obj.price !== 'number') return;
-  if (!obj.currency || obj.currency === 'SGD') { obj.currency = obj.currency || null; return; }
+  if (!obj.currency || obj.currency === target) { obj.currency = obj.currency || target; return; }
   const rate = rates && rates[obj.currency];
   if (!rate || rate <= 0) return; // unknown currency — leave as-is, honestly labeled
   obj.price = round2(obj.price / rate);
   if (typeof obj.regular === 'number') obj.regular = round2(obj.regular / rate);
-  obj.currency = 'SGD';
+  obj.currency = target;
   obj.approx = true;
 }
 
@@ -95,13 +88,18 @@ export async function onRequestGet(context) {
     return json({ error: 'ITAD_API_KEY not configured on this Pages project' }, 503);
   }
 
-  // Edge cache (same normalization trick as /api/steam)
+  const region = regionFor(resolveCountry(request, url));
+
+  // Edge cache (same normalization trick as /api/steam, and the country is
+  // part of the key for the same reason: caches.default is per-colo and one
+  // colo serves several countries).
   const cacheUrl = new URL(url.origin + url.pathname);
   cacheUrl.searchParams.set('ids', ids.join(','));
+  cacheUrl.searchParams.set('cc', region.country);
   const cache = caches.default;
   const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
   const hit = await cache.match(cacheKey);
-  if (hit) return hit;
+  if (hit) return forVisitor(hit, url, TTL_SECONDS);
 
   try {
     // 1) Steam appids -> ITAD game UUIDs, one batched call
@@ -119,7 +117,7 @@ export async function onRequestGet(context) {
       //    are included too — that's how we learn store AVAILABILITY, not
       //    just active discounts.
       const prices = await itad('/games/prices/v3', key, {
-        country: COUNTRY, nondeals: 'true', vouchers: 'false',
+        country: region.country, nondeals: 'true', vouchers: 'false',
       }, uuids);
       const list = Array.isArray(prices) ? prices : (prices && prices.prices) || [];
 
@@ -149,7 +147,7 @@ export async function onRequestGet(context) {
 
       // 3) All-time historical lows (best price ever recorded, any store)
       try {
-        const lows = await itad('/games/historylow/v1', key, { country: COUNTRY }, uuids);
+        const lows = await itad('/games/historylow/v1', key, { country: region.country }, uuids);
         for (const entry of Array.isArray(lows) ? lows : []) {
           const appId = uuidToApp[entry.id];
           const low = entry.low;
@@ -166,25 +164,31 @@ export async function onRequestGet(context) {
         // history lows are a bonus — don't fail the whole response over them
       }
 
-      // 4) Normalize every price to SGD so the UI never mixes currencies.
+      // 4) Normalize every price to the visitor's own currency, so one
+      //    comparison never mixes two.
       const needsFx = Object.values(games).some((g) =>
-        (g.stores || []).some((s) => s.currency && s.currency !== 'SGD') ||
-        (g.historyLow && g.historyLow.currency && g.historyLow.currency !== 'SGD'));
+        (g.stores || []).some((s) => s.currency && s.currency !== region.currency) ||
+        (g.historyLow && g.historyLow.currency && g.historyLow.currency !== region.currency));
       if (needsFx) {
-        const rates = await fxRatesFromSGD();
+        const rates = await ratesFor(region.currency);
         if (rates) {
           for (const g of Object.values(games)) {
-            (g.stores || []).forEach((s) => toSGD(s, rates));
-            toSGD(g.historyLow, rates);
+            (g.stores || []).forEach((s) => toRegion(s, region.currency, rates));
+            toRegion(g.historyLow, region.currency, rates);
           }
         }
       }
     }
 
-    const res = json({ updated: new Date().toISOString(), games });
+    const res = json({
+      updated: new Date().toISOString(),
+      country: region.country,
+      currency: region.currency,
+      games,
+    });
     res.headers.set('Cache-Control', `public, max-age=${TTL_SECONDS}`);
     waitUntil(cache.put(cacheKey, res.clone()));
-    return res;
+    return forVisitor(res, url, TTL_SECONDS);
   } catch (e) {
     return json({ error: String((e && e.message) || e) }, 502);
   }

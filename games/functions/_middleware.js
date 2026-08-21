@@ -24,10 +24,27 @@
 // ../games.json, so adding a game is one edit to that file (plus the sitemap,
 // which .claude/make-games-sitemap.ps1 generates from it).
 //
-// Prices in the catalog are the USD reference MSRP; the live site localizes to
-// SGD at runtime and the pre-render below uses live SGD prices when /api/deals
-// answers in time.
+// PRICES ARE PER VISITOR. Steam and ITAD price by country, so this file
+// renders whatever the visitor's own storefront charges — US$ for a US
+// crawler or reader, S$ for a Singaporean one — and injects that region into
+// the page as window.__LC_REGION so the React app agrees with the pre-render
+// instead of flashing one currency and settling on another.
+//
+// The region is threaded through the render functions as an argument rather
+// than parked in module scope: module scope is shared by every request the
+// isolate is handling, and there is an `await` between resolving the region
+// and rendering with it, so a US request could otherwise finish rendering
+// with a Singaporean one's currency.
+//
+// Prices in games.json are the SGD reference (BASE_CURRENCY); they are only a
+// fallback for when the live feed is unavailable, and are FX-converted and
+// marked "about" when the visitor's currency is not SGD.
 // ---------------------------------------------------------------------------
+
+import {
+  BASE_CURRENCY, resolveCountry, regionFor, countryName, fxRate,
+  formatMoney, symbolFor, decimalsFor, round2,
+} from '../lib/region.js';
 
 const SITE = 'https://pcgames.lazycomparo.com';
 
@@ -162,7 +179,11 @@ const DEALS_CHUNK = 40; // must not exceed MAX_IDS in api/deals.js
 // for 30 min, so this is usually a cache read rather than an ITAD round-trip.
 // Returns {} — never throws — so the render path has exactly one shape to
 // handle whether or not live data arrived.
-async function fetchDeals(origin, appIds, budgetMs) {
+//
+// `country` is passed explicitly rather than left to /api/deals' own
+// geolocation: this is a Worker-to-Worker subrequest, and the visitor's
+// country is something we already know for certain here.
+async function fetchDeals(origin, appIds, budgetMs, country) {
   const ids = [...new Set(appIds.filter(Boolean).map(String))];
   if (!ids.length) return {};
 
@@ -173,7 +194,7 @@ async function fetchDeals(origin, appIds, budgetMs) {
     for (let i = 0; i < ids.length; i += DEALS_CHUNK) chunks.push(ids.slice(i, i + DEALS_CHUNK));
 
     const parts = await Promise.all(chunks.map(async (chunk) => {
-      const res = await fetch(`${origin}/api/deals?ids=${chunk.join(',')}`, { signal: controller.signal });
+      const res = await fetch(`${origin}/api/deals?ids=${chunk.join(',')}&cc=${country}`, { signal: controller.signal });
       if (!res.ok) return {};
       const data = await res.json();
       return (data && data.games) || {};
@@ -188,24 +209,48 @@ async function fetchDeals(origin, appIds, budgetMs) {
 
 /* --------------------------- PRICE PRESENTATION --------------------------- */
 
-const round2 = (n) => Math.round(n * 100) / 100;
-const symbolFor = (currency) => (!currency || currency === 'SGD' ? 'S$' : `${currency} `);
+/* Everything here takes the visitor's `region` — see the note at the top of
+   the file about why it is an argument and not a module-scope global. */
 
-// `approx` marks an FX-converted amount (see the toSGD note in api/deals.js).
-// It renders as "~S$12.34" so the page never presents an estimate as exact.
-function money(store) {
-  return `${store.approx ? '~' : ''}${symbolFor(store.currency)}${Number(store.price).toFixed(2)}`;
+// `approx` marks an FX-converted amount (see the toRegion note in
+// api/deals.js). It renders as "~US$12.34" so the page never presents an
+// estimate as exact. A listing with no currency of its own is the region's.
+function money(store, region) {
+  return formatMoney(Number(store.price), store.currency || region.currency, store.approx);
 }
+
+// A bare symbol, for the deltas ("US$4.20 less than Steam") that are not a
+// price in their own right.
+const sym = (currency, region) => symbolFor(currency || region.currency);
+
+// A difference between two amounts in the same currency, formatted like one.
+const diffAmount = (n, currency, region) =>
+  `${sym(currency, region)}${Math.abs(n).toFixed(decimalsFor(currency || region.currency))}`;
+
+/* The catalog's own price (games.json, in SGD) rendered for this visitor. It
+   is only ever the fallback for a missing live feed, so it is converted at the
+   live FX rate and marked approximate — a reference figure, never quoted as
+   what the store will charge. When there was no rate to convert with,
+   resolveRegion() has already fallen the display back to SGD, so this stays
+   an honest Singapore price rather than a relabelled one. */
+function refAmount(g, region) {
+  return region.rate && region.rate !== 1
+    ? { price: round2(g.price * region.rate), currency: region.currency, approx: true }
+    : { price: g.price, currency: BASE_CURRENCY, approx: false };
+}
+const refPrice = (g, region) => money(refAmount(g, region), region);
 
 const dealFor = (deal, g) => (deal && g.appId && deal[String(g.appId)]) || null;
 
-// /api/deals normalises everything to SGD, but if its FX step fails prices can
-// arrive in mixed currencies — and picking a "cheapest" across currencies would
-// be plainly wrong. So compare only within the currency most stores quote.
+// /api/deals normalises everything to the visitor's currency, but if its FX
+// step fails prices can arrive in mixed currencies — and picking a "cheapest"
+// across currencies would be plainly wrong. So compare only within the
+// currency most stores quote. Unpriced-currency listings group together rather
+// than being assumed into anyone's currency.
 function comparableStores(entry) {
   const stores = (entry && entry.stores) || [];
   if (stores.length < 2) return stores;
-  const currencyOf = (s) => s.currency || 'SGD';
+  const currencyOf = (s) => s.currency || '';
   const tally = {};
   stores.forEach((s) => { tally[currencyOf(s)] = (tally[currencyOf(s)] || 0) + 1; });
   const dominant = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
@@ -224,7 +269,7 @@ function atAllTimeLow(entry) {
   const low = entry && entry.historyLow;
   const best = cheapestStore(entry);
   if (!low || !best || typeof low.price !== 'number') return false;
-  if ((low.currency || 'SGD') !== (best.currency || 'SGD')) return false;
+  if ((low.currency || '') !== (best.currency || '')) return false;
   return best.price <= low.price + 0.005;
 }
 
@@ -252,13 +297,13 @@ function videoHtml() {
       }${(e.picks || []).length ? `: ${esc((e.picks || []).join(', '))}` : ''}</li>`).join('')}</ul>` : ''}`;
 }
 
-function homeHtml() {
+function homeHtml(region) {
   const cards = GAMES.map((g) => `
     <article>
       <h2><a href="${gamePath(g.id)}">${esc(g.title)}</a></h2>
       <p>${esc(g.genre)} by ${esc(g.studio)} (${g.year}). ${esc(g.players)}.
       ${g.rating}% positive Steam reviews, about ${g.hours} hours to beat.
-      Reference price from US$${g.price.toFixed(2)} — compare live Steam, Epic and GOG prices and the all-time-low.</p>
+      Reference price from ${refPrice(g, region)} — compare live Steam, Epic and GOG prices and the all-time-low.</p>
       <p>${esc(g.pro)}</p>
       <p><a href="${gamePath(g.id)}">Compare ${esc(g.title)} prices &rarr;</a></p>
     </article>`).join('');
@@ -290,7 +335,7 @@ function homeHtml() {
     </footer>`;
 }
 
-function homeJsonLd() {
+function homeJsonLd(region) {
   const items = GAMES.map((g, i) => ({
     '@type': 'ListItem',
     position: i + 1,
@@ -303,13 +348,18 @@ function homeJsonLd() {
       operatingSystem: 'Windows',
       datePublished: String(g.year),
       author: { '@type': 'Organization', name: g.studio },
-      offers: {
-        '@type': 'Offer',
-        price: g.price.toFixed(2),
-        priceCurrency: 'USD',
-        availability: 'https://schema.org/InStock',
-        url: gamePath(g.id),
-      },
+      // Amount and currency come from one place, so the markup cannot claim
+      // an SGD number is USD — which is exactly what it used to do.
+      offers: (() => {
+        const ref = refAmount(g, region);
+        return {
+          '@type': 'Offer',
+          price: ref.price.toFixed(decimalsFor(ref.currency)),
+          priceCurrency: ref.currency,
+          availability: 'https://schema.org/InStock',
+          url: gamePath(g.id),
+        };
+      })(),
     },
   }));
   const list = {
@@ -344,24 +394,24 @@ function homeJsonLd() {
 // us actually ranking for ("<game> gog", "gog <game>"). Answer it outright
 // rather than making the reader hunt for it — with live numbers when we have
 // them, and availability-only phrasing when we don't.
-function gogAnswer(g, entry) {
+function gogAnswer(g, entry, region) {
   const stores = comparableStores(entry);
   const gog = stores.find((s) => s.store === 'GOG');
   const steam = stores.find((s) => s.store === 'Steam');
 
   if (gog) {
-    const price = money(gog);
+    const price = money(gog, region);
     const cut = gog.cut ? ` (${gog.cut}% off)` : '';
     if (steam && typeof steam.price === 'number') {
       const diff = round2(steam.price - gog.price);
       if (diff > 0) {
         return `<strong>Yes — ${esc(g.title)} is on GOG, and right now GOG is the cheaper option at ${price}${cut},
-          ${symbolFor(gog.currency)}${diff.toFixed(2)} less than Steam.</strong> GOG sells it DRM-free.`;
+          ${diffAmount(diff, gog.currency, region)} less than Steam.</strong> GOG sells it DRM-free.`;
       }
       if (diff < 0) {
         return `<strong>Yes — ${esc(g.title)} is on GOG at ${price}${cut}, but Steam is cheaper today at
-          ${money(steam)}.</strong> GOG's copy is DRM-free, which may still be worth
-          ${symbolFor(gog.currency)}${Math.abs(diff).toFixed(2)} to you.`;
+          ${money(steam, region)}.</strong> GOG's copy is DRM-free, which may still be worth
+          ${diffAmount(diff, gog.currency, region)} to you.`;
       }
       return `<strong>Yes — ${esc(g.title)} is on GOG at ${price}${cut}, exactly matching Steam.</strong>
         GOG's copy is DRM-free, so at an identical price it is the better buy.`;
@@ -382,27 +432,30 @@ function gogAnswer(g, entry) {
 }
 
 // One-line buying verdict. This is the sentence a reader actually came for.
-function verdictHtml(g, entry) {
+function verdictHtml(g, entry, region) {
   const best = cheapestStore(entry);
   if (!best) return '';
   const low = entry.historyLow;
-  const lowSame = low && typeof low.price === 'number' && (low.currency || 'SGD') === (best.currency || 'SGD');
+  const lowSame = low && typeof low.price === 'number' && (low.currency || '') === (best.currency || '');
 
   if (atAllTimeLow(entry)) {
-    return `<p><strong>Buy now:</strong> at ${money(best)} on ${esc(best.store)}, ${esc(g.title)} is at its
+    return `<p><strong>Buy now:</strong> at ${money(best, region)} on ${esc(best.store)}, ${esc(g.title)} is at its
       lowest price ever recorded. It has never been cheaper than this.</p>`;
   }
   if (lowSame) {
     const gap = round2(best.price - low.price);
-    return `<p><strong>Verdict:</strong> cheapest right now is ${money(best)} on ${esc(best.store)} —
-      ${symbolFor(best.currency)}${gap.toFixed(2)} above its all-time low of
-      ${money({ price: low.price, currency: low.currency })}${low.shop ? ` on ${esc(low.shop)}` : ''}.
-      ${gap <= 2 ? 'That is close enough to the record that waiting rarely pays.' : 'Deeper discounts have happened before, so there is room to wait.'}</p>`;
+    // "Close enough to the record" is a judgement about money, so the
+    // threshold moves with the currency instead of reading 2 yen as 2 dollars.
+    const near = region.rate ? 2 * region.rate : 2;
+    return `<p><strong>Verdict:</strong> cheapest right now is ${money(best, region)} on ${esc(best.store)} —
+      ${diffAmount(gap, best.currency, region)} above its all-time low of
+      ${money({ price: low.price, currency: low.currency }, region)}${low.shop ? ` on ${esc(low.shop)}` : ''}.
+      ${gap <= near ? 'That is close enough to the record that waiting rarely pays.' : 'Deeper discounts have happened before, so there is room to wait.'}</p>`;
   }
-  return `<p><strong>Verdict:</strong> cheapest right now is ${money(best)} on ${esc(best.store)}.</p>`;
+  return `<p><strong>Verdict:</strong> cheapest right now is ${money(best, region)} on ${esc(best.store)}.</p>`;
 }
 
-function priceTableHtml(g, entry) {
+function priceTableHtml(g, entry, region) {
   // Deliberately the comparable subset, not entry.stores: the verdict and the
   // JSON-LD offers are both built from this same list, so a listing we can't
   // price-compare is omitted everywhere rather than shown in one place and
@@ -411,8 +464,8 @@ function priceTableHtml(g, entry) {
   if (!stores.length) {
     // No live feed. Say what we do know rather than inventing a number.
     const list = ['Steam', ...g.stores];
-    return `<p>${esc(g.title)} is sold on ${list.join(', ')}. Live Singapore pricing for each store loads on this
-      page; the publisher reference price is US$${g.price.toFixed(2)}.</p>`;
+    return `<p>${esc(g.title)} is sold on ${list.join(', ')}. Live ${esc(region.name)} pricing for each store loads on
+      this page; the reference price is about ${refPrice(g, region)}.</p>`;
   }
 
   const best = cheapestStore(entry);
@@ -420,26 +473,26 @@ function priceTableHtml(g, entry) {
     const isBest = best && s.store === best.store && s.price === best.price;
     return `<tr>
         <th scope="row">${esc(s.store)}${isBest ? ' — cheapest' : ''}</th>
-        <td>${money(s)}</td>
+        <td>${money(s, region)}</td>
         <td>${s.cut ? `${s.cut}% off` : 'full price'}</td>
-        <td>${s.regular ? `was ${symbolFor(s.currency)}${Number(s.regular).toFixed(2)}` : ''}</td>
+        <td>${s.regular ? `was ${money({ price: s.regular, currency: s.currency, approx: s.approx }, region)}` : ''}</td>
       </tr>`;
   }).join('');
 
   return `
     <table>
-      <caption>Live ${esc(g.title)} prices, Singapore store pricing</caption>
+      <caption>Live ${esc(g.title)} prices, ${esc(region.name)} store pricing</caption>
       <thead><tr><th scope="col">Store</th><th scope="col">Price now</th><th scope="col">Discount</th><th scope="col">Was</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
 
-function gameMeta(g, entry) {
+function gameMeta(g, entry, region) {
   const best = cheapestStore(entry);
   const low = entry && entry.historyLow;
   const priceBit = best
-    ? `Cheapest now ${money(best)} on ${best.store}${best.cut ? ` (${best.cut}% off)` : ''}.` +
-      (low && typeof low.price === 'number' ? ` All-time low ${money({ price: low.price, currency: low.currency })}.` : '')
+    ? `Cheapest now ${money(best, region)} on ${best.store}${best.cut ? ` (${best.cut}% off)` : ''}.` +
+      (low && typeof low.price === 'number' ? ` All-time low ${money({ price: low.price, currency: low.currency }, region)}.` : '')
     : 'Compare live prices and see the all-time-low.';
 
   return {
@@ -449,7 +502,7 @@ function gameMeta(g, entry) {
   };
 }
 
-function gameHtml(g, entry) {
+function gameHtml(g, entry, region) {
   const related = relatedGames(g).map((r) =>
     `<li><a href="${gamePath(r.id)}">${esc(r.title)}</a> — ${esc(r.genre)}</li>`).join('');
 
@@ -457,11 +510,11 @@ function gameHtml(g, entry) {
     <nav aria-label="Breadcrumb"><a href="${SITE}/">All games</a> &rsaquo; <span>${esc(g.title)}</span></nav>
     <main>
       <h1>Cheapest price for ${esc(g.title)} on PC</h1>
-      <p>${gogAnswer(g, entry)}</p>
+      <p>${gogAnswer(g, entry, region)}</p>
 
       <h2>Where to buy ${esc(g.title)} cheapest</h2>
-      ${priceTableHtml(g, entry)}
-      ${verdictHtml(g, entry)}
+      ${priceTableHtml(g, entry, region)}
+      ${verdictHtml(g, entry, region)}
       <p><a href="${steamUrl(g.appId)}" rel="nofollow">View ${esc(g.title)} on Steam</a></p>
 
       <h2>About ${esc(g.title)}</h2>
@@ -477,8 +530,9 @@ function gameHtml(g, entry) {
          <a href="${SITE}/">Browse all ${GAMES.length} PC games</a></p>
 
       <h2>How this comparison is made</h2>
-      <p>Prices come straight from the stores' own feeds in SGD and are cached for
-      about 30 minutes; hours-to-beat and the pros/cons are our editorial estimates.
+      <p>Prices come straight from the stores' own feeds, in ${esc(region.currency)} for
+      ${esc(region.name)}, and are cached for about 30 minutes;
+      hours-to-beat and the pros/cons are our editorial estimates.
       No ads, no affiliate links and no paid placement &mdash; a store link earns us nothing.
       <a href="https://lazycomparo.com/how-we-rank">Every weight and threshold we use is published</a>.</p>
     </main>`;
@@ -494,33 +548,35 @@ function priceValidUntil() {
 // Live cross-store pricing as AggregateOffer — this is what makes the page
 // eligible for price-rich results, and it is built from the SAME numbers
 // rendered in priceTableHtml() so the markup can never contradict the page.
-// Falls back to the static USD reference MSRP only when no live data arrived.
-function offersFor(g, entry) {
+// Falls back to the catalog reference price only when no live data arrived.
+function offersFor(g, entry, region) {
   const stores = comparableStores(entry).filter((s) => typeof s.price === 'number');
   if (!stores.length) {
+    const ref = refAmount(g, region);
     return {
       '@type': 'Offer',
-      price: g.price.toFixed(2),
-      priceCurrency: 'USD',
+      price: ref.price.toFixed(decimalsFor(ref.currency)),
+      priceCurrency: ref.currency,
       availability: 'https://schema.org/InStock',
       url: steamUrl(g.appId),
     };
   }
 
-  const currency = stores[0].currency || 'SGD';
+  const currency = stores[0].currency || region.currency;
+  const d = decimalsFor(currency);
   const amounts = stores.map((s) => s.price);
   const until = priceValidUntil();
 
   return {
     '@type': 'AggregateOffer',
     priceCurrency: currency,
-    lowPrice: Math.min(...amounts).toFixed(2),
-    highPrice: Math.max(...amounts).toFixed(2),
+    lowPrice: Math.min(...amounts).toFixed(d),
+    highPrice: Math.max(...amounts).toFixed(d),
     offerCount: stores.length,
     offers: stores.map((s) => ({
       '@type': 'Offer',
-      price: s.price.toFixed(2),
-      priceCurrency: s.currency || 'SGD',
+      price: s.price.toFixed(d),
+      priceCurrency: s.currency || region.currency,
       availability: 'https://schema.org/InStock',
       priceValidUntil: until,
       url: s.url || (s.store === 'Steam' ? steamUrl(g.appId) : gamePath(g.id)),
@@ -529,7 +585,7 @@ function offersFor(g, entry) {
   };
 }
 
-function gameJsonLd(g, entry) {
+function gameJsonLd(g, entry, region) {
   const graph = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -546,7 +602,7 @@ function gameJsonLd(g, entry) {
         publisher: { '@type': 'Organization', name: g.studio },
         brand: { '@type': 'Organization', name: g.studio },
         url: gamePath(g.id),
-        offers: offersFor(g, entry),
+        offers: offersFor(g, entry, region),
       },
       {
         '@type': 'BreadcrumbList',
@@ -602,7 +658,7 @@ function atlRows(deals) {
   return rows.sort((a, b) => (b.best.cut || 0) - (a.best.cut || 0));
 }
 
-function hubMeta(kind) {
+function hubMeta(kind, region) {
   if (kind === 'gog') {
     return {
       title: 'PC games on GOG — live GOG vs Steam vs Epic prices | LazyComparo',
@@ -610,7 +666,7 @@ function hubMeta(kind) {
       canonical: `${SITE}/gog`,
       crumb: 'GOG prices',
       h1: 'PC games on GOG, and when GOG is the cheaper buy',
-      intro: 'Every game we track that sells DRM-free on GOG, sorted by how much you save against Steam right now. Prices are Singapore store pricing and refresh every 30 minutes.',
+      intro: `Every game we track that sells DRM-free on GOG, sorted by how much you save against Steam right now. Prices are ${region.name} store pricing and refresh every 30 minutes.`,
     };
   }
   return {
@@ -623,8 +679,8 @@ function hubMeta(kind) {
   };
 }
 
-function hubHtml(kind, deals) {
-  const meta = hubMeta(kind);
+function hubHtml(kind, deals, region) {
+  const meta = hubMeta(kind, region);
   const rows = kind === 'gog' ? gogRows(deals) : atlRows(deals);
 
   let body;
@@ -647,11 +703,11 @@ function hubHtml(kind, deals) {
         <tbody>${rows.map(({ g, gog, steam, saving }) => `
           <tr>
             <th scope="row"><a href="${gamePath(g.id)}">${esc(g.title)}</a></th>
-            <td>${money(gog)}${gog.cut ? ` <span class="cut">${gog.cut}% off</span>` : ''}</td>
-            <td>${steam ? money(steam) : 'not on Steam'}</td>
+            <td>${money(gog, region)}${gog.cut ? ` <span class="cut">${gog.cut}% off</span>` : ''}</td>
+            <td>${steam ? money(steam, region) : 'not on Steam'}</td>
             <td>${saving === null ? '—' : saving > 0
-              ? `<strong class="win">${symbolFor(gog.currency)}${saving.toFixed(2)}</strong>`
-              : saving === 0 ? 'same price' : `<span class="lose">Steam is ${symbolFor(gog.currency)}${Math.abs(saving).toFixed(2)} cheaper</span>`}</td>
+              ? `<strong class="win">${diffAmount(saving, gog.currency, region)}</strong>`
+              : saving === 0 ? 'same price' : `<span class="lose">Steam is ${diffAmount(saving, gog.currency, region)} cheaper</span>`}</td>
           </tr>`).join('')}</tbody>
       </table></div>`;
   } else {
@@ -661,7 +717,7 @@ function hubHtml(kind, deals) {
         <tbody>${rows.map(({ g, best }) => `
           <tr>
             <th scope="row"><a href="${gamePath(g.id)}">${esc(g.title)}</a></th>
-            <td><strong class="win">${money(best)}</strong></td>
+            <td><strong class="win">${money(best, region)}</strong></td>
             <td>${esc(best.store)}</td>
             <td>${best.cut ? `${best.cut}% off` : 'full price'}</td>
           </tr>`).join('')}</tbody>
@@ -684,8 +740,8 @@ function hubHtml(kind, deals) {
     </main>`;
 }
 
-function hubJsonLd(kind, deals) {
-  const meta = hubMeta(kind);
+function hubJsonLd(kind, deals, region) {
+  const meta = hubMeta(kind, region);
   const rows = kind === 'gog' ? gogRows(deals) : atlRows(deals);
   const graph = {
     '@context': 'https://schema.org',
@@ -706,6 +762,43 @@ function hubJsonLd(kind, deals) {
 
 /* -------------------------------- ROUTING --------------------------------- */
 
+/* The visitor's region, plus the SGD -> their-currency rate the catalog
+   fallback needs.
+
+   If the FX lookup fails we do NOT ship their currency with an unconverted
+   rate: that would print a Singapore number under a US dollar sign, which is
+   the one mistake this whole change exists to stop. Instead the DISPLAY falls
+   back to SGD while the COUNTRY stays theirs — so the live store prices that
+   land a moment later are still their own region's, each labeled with the
+   currency it actually arrived in. */
+async function resolveRegion(request, url) {
+  const country = resolveCountry(request, url);
+  const local = regionFor(country);
+  const name = countryName(country);
+  if (local.currency === BASE_CURRENCY) return { ...local, name, rate: 1 };
+
+  const rate = await fxRate(BASE_CURRENCY, local.currency);
+  if (!rate) return { ...regionFor('SG'), country, name, rate: 1 };
+  return { ...local, name, rate };
+}
+
+/* Handed to the app before any of its own scripts run, so the first paint is
+   already in the right currency instead of flashing SGD and settling on USD.
+   The app treats a missing blob as "SGD, rate 1" — which is exactly what local
+   dev (no Functions) should show. */
+function regionScript(region) {
+  const blob = JSON.stringify({
+    country: region.country,
+    currency: region.currency,
+    symbol: region.symbol,
+    decimals: region.decimals,
+    // Multiplier from the catalog's SGD prices, so the fallback numbers the
+    // app shows before the live feed lands are in the visitor's money too.
+    rate: region.rate,
+  }).replace(/</g, '\\u003c');
+  return `<script>window.__LC_REGION=${blob};</script>`;
+}
+
 export async function onRequest(context) {
   const response = await context.next();
 
@@ -715,9 +808,19 @@ export async function onRequest(context) {
   if (!type.includes('text/html')) return response;
 
   const url = new URL(context.request.url);
-  // Catalog first: every branch below needs it, and without it there is nothing
-  // to inject, so the page goes out exactly as it would have pre-middleware.
-  if (!(await loadCatalog(context, url)).length) return response;
+  const region = await resolveRegion(context.request, url);
+
+  // The region goes in first and unconditionally: the React app needs it on
+  // every page, including the ones this middleware does not pre-render, and
+  // including the case where the catalog fails to load below.
+  const injectRegion = (res) =>
+    new HTMLRewriter()
+      .on('head', { element(el) { el.prepend(regionScript(region), { html: true }); } })
+      .transform(res);
+
+  // Catalog next: every branch below needs it, and without it there is nothing
+  // to inject, so the page goes out as it would have pre-middleware.
+  if (!(await loadCatalog(context, url)).length) return injectRegion(response);
   // Cheap and cached after the first request; only the homepage renders it,
   // but the check is here so the flag is set before any branch reads VIDEO.
   await loadVideo(context, url);
@@ -733,9 +836,9 @@ export async function onRequest(context) {
   // the page or stalling the response.
   let deals = {};
   if (game) {
-    deals = await fetchDeals(url.origin, [game.appId], DEALS_TIMEOUT_MS.game);
+    deals = await fetchDeals(url.origin, [game.appId], DEALS_TIMEOUT_MS.game, region.country);
   } else if (hub) {
-    deals = await fetchDeals(url.origin, GAMES.map((g) => g.appId), DEALS_TIMEOUT_MS.hub);
+    deals = await fetchDeals(url.origin, GAMES.map((g) => g.appId), DEALS_TIMEOUT_MS.hub, region.country);
   }
 
   let rootHtml;
@@ -744,20 +847,21 @@ export async function onRequest(context) {
 
   if (game) {
     const entry = dealFor(deals, game);
-    rootHtml = gameHtml(game, entry);
-    jsonLd = gameJsonLd(game, entry);
-    meta = gameMeta(game, entry);
+    rootHtml = gameHtml(game, entry, region);
+    jsonLd = gameJsonLd(game, entry, region);
+    meta = gameMeta(game, entry, region);
   } else if (hub) {
-    rootHtml = hubHtml(hub, deals);
-    jsonLd = hubJsonLd(hub, deals);
-    meta = hubMeta(hub);
+    rootHtml = hubHtml(hub, deals, region);
+    jsonLd = hubJsonLd(hub, deals, region);
+    meta = hubMeta(hub, region);
   } else {
     // Includes unknown /game/<slug> -> homepage content (harmless).
-    rootHtml = homeHtml();
-    jsonLd = homeJsonLd();
+    rootHtml = homeHtml(region);
+    jsonLd = homeJsonLd(region);
   }
 
   const rewriter = new HTMLRewriter()
+    .on('head', { element(el) { el.prepend(regionScript(region), { html: true }); } })
     .on('head', { element(el) { el.append(jsonLd, { html: true }); } })
     .on('#root', { element(el) { el.setInnerContent(rootHtml, { html: true }); } });
 

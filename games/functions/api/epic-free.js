@@ -1,13 +1,18 @@
 /**
- * GET /api/epic-free
+ * GET /api/epic-free[?cc=US]
  *
  * Cloudflare Pages Function. Proxies Epic's own free-games promotion feed
  * (store-site-backend-static.ak.epicgames.com — blocked by CORS in browsers)
  * and returns a normalized list of what's free RIGHT NOW plus what's coming
- * next, for the Singapore region.
+ * next, for the visitor's own region.
+ *
+ * The region matters for more than the `worth` figure: Epic's giveaway line-up
+ * genuinely differs by country (publisher rights), so asking for the wrong
+ * country can advertise a game the visitor cannot claim. `worth` comes back as
+ * Epic's own formatted string, already in that country's currency.
  *
  * Response shape:
- *   { updated: ISOString,
+ *   { updated: ISOString, country,
  *     current:  [{ id, title, url, image, worth, start, end }],
  *     upcoming: [{ id, title, url, image, worth, start, end }] }
  *
@@ -17,8 +22,10 @@
  * price.totalPrice.discountPrice === 0 for active offers.
  */
 
-const FEED =
-  'https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=SG&allowCountries=SG';
+import { resolveCountry, forVisitor } from '../../lib/region.js';
+
+const feedUrl = (country) =>
+  `https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=${country}&allowCountries=${country}`;
 const TTL_SECONDS = 900; // 15 min edge cache
 
 function pageUrl(el) {
@@ -62,13 +69,16 @@ export async function onRequestGet(context) {
   const { request, waitUntil } = context;
   const url = new URL(request.url);
 
+  const country = resolveCountry(request, url);
+
   const cache = caches.default;
-  const cacheKey = new Request(url.origin + url.pathname, { method: 'GET' });
+  // Country in the key: the line-up and the prices both vary by it.
+  const cacheKey = new Request(`${url.origin}${url.pathname}?cc=${country}`, { method: 'GET' });
   const hit = await cache.match(cacheKey);
-  if (hit) return hit;
+  if (hit) return forVisitor(hit, url, TTL_SECONDS);
 
   try {
-    const res = await fetch(FEED, { headers: { Accept: 'application/json' } });
+    const res = await fetch(feedUrl(country), { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error('feed -> ' + res.status);
     const data = await res.json();
     const elements =
@@ -105,10 +115,10 @@ export async function onRequestGet(context) {
 
     upcoming.sort((a, b) => new Date(a.start) - new Date(b.start));
 
-    const out = json({ updated: new Date().toISOString(), current, upcoming });
+    const out = json({ updated: new Date().toISOString(), country, current, upcoming });
     out.headers.set('Cache-Control', `public, max-age=${TTL_SECONDS}`);
     waitUntil(cache.put(cacheKey, out.clone()));
-    return out;
+    return forVisitor(out, url, TTL_SECONDS);
   } catch (e) {
     return json({ error: String((e && e.message) || e) }, 502);
   }

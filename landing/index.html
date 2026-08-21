@@ -85,7 +85,7 @@
         "url": "https://pcgames.lazycomparo.com/",
         "applicationCategory": "ShoppingApplication",
         "operatingSystem": "Any",
-        "description": "Live PC game prices across Steam, Epic and GOG in SGD, with all-time-low flags, dollars-per-hour value scores and this week's free games.",
+        "description": "Live PC game prices across Steam, Epic and GOG in your own currency, with all-time-low flags, dollars-per-hour value scores and this week's free games.",
         "publisher": { "@id": "https://lazycomparo.com/#org" },
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "SGD" }
       },
@@ -427,7 +427,7 @@
 
     /* ---------- hero proof strip ---------- */
     /* Claims are cheap; the hero earns trust by showing the actual catalogue
-       size and, once /api/steam answers, real SGD prices pulled live. */
+       size and, once /api/steam answers, real prices in the reader's own currency. */
     .proof {
       margin-top: 38px; padding-top: 22px;
       border-top: 1px solid rgba(var(--hair),.14);
@@ -982,10 +982,13 @@
           <div class="stat"><div class="n">100</div><div class="l">Games tracked</div></div>
           <div class="stat"><div class="n">50</div><div class="l">Phones scored</div></div>
           <div class="stat"><div class="n">3</div><div class="l">Stores compared</div></div>
-          <div class="stat"><div class="n">S$0</div><div class="l">To use, forever</div></div>
+          <div class="stat"><div class="n">$0</div><div class="l">To use, forever</div></div>
         </div>
         <div class="ticker" id="ticker" aria-live="polite">
-          <div class="head"><span class="dot" aria-hidden="true"></span><span>Live from the Steam SG store</span></div>
+          <!-- "your store" until the live call tells us which one that is —
+               see the live-prices IIFE, which rewrites this with the country
+               /api/steam actually priced for. -->
+          <div class="head"><span class="dot" aria-hidden="true"></span><span id="ticker-src">Live from your Steam store</span></div>
           <ul id="ticker-list"></ul>
         </div>
       </div>
@@ -1133,7 +1136,7 @@
         <a href="https://github.com/Sleepy-YX/lazycomparo">GitHub</a>
       </nav>
       <div style="max-width:340px;">
-        Game prices live from the Steam SG store, Epic &amp; GOG via IsThereAnyDeal. Editorial specs and verdict math are ours — <a href="/how-we-rank">every weight is published</a>.
+        Game prices live from your own regional Steam store, Epic &amp; GOG via IsThereAnyDeal. Editorial specs and verdict math are ours — <a href="/how-we-rank">every weight is published</a>.
         <br/><strong style="font-weight:600">No ads, no affiliate links, no paid placement.</strong>
         <!-- the year was hard-coded to 2026 and would have quietly gone stale -->
         <br/>© <span id="yr">2026</span> LazyComparo.
@@ -2390,7 +2393,7 @@
     var tags = [
       { s: tagSprite('-70%', '#f3d9a4'), x: 19.2, y: 5.2, z: -4.8, ph: 0 },
       { s: tagSprite('FREE', '#bfe3c9'), x: 19.5, y: 8.8, z: -7.5, ph: 2.1 },
-      { s: tagSprite('S$4.90', '#f3c4b4'), x: 19, y: 6.9, z: -6, ph: 4.2 },
+      { s: tagSprite('$4.90', '#f3c4b4'), x: 19, y: 6.9, z: -6, ph: 4.2 },
       { s: tagSprite('98%', '#bfe3c9'), x: 3.6, y: 8.1, z: -5.2, ph: 1.2 }
     ];
     tags.forEach(function (t) { t.s.position.set(t.x, t.y, t.z); });
@@ -2820,7 +2823,7 @@
   })();
 
   /* ---------- live Steam prices: hero ticker + deal cards ----------
-     Turns the hero's claim into proof: real SGD prices, straight off the same
+     Turns the hero's claim into proof: real prices from the reader's own regional store, off the same
      /api/steam edge function the games site uses (it sends
      Access-Control-Allow-Origin: *, so the landing origin may call it).
 
@@ -2948,16 +2951,28 @@
       .then(function (d) {
         if (!d || !d.games) return;
 
+        // /api/steam prices in the VISITOR's region — this page is served from
+        // a different host, but the browser makes the call, so Cloudflare
+        // geolocates the reader either way. Steam's own formatted string is
+        // the currency-correct one; the fallback below only has to name the
+        // currency the response tells us it is in.
+        var cur = (d.currency || 'SGD') + ' ';
+        var amount = function (n) { return cur + n.toFixed(2); };
+
+        // Name the store these prices came from, now that we know it.
+        var src = document.getElementById('ticker-src');
+        if (src && d.country) src.textContent = 'Live from the Steam ' + d.country + ' store';
+
         var rows = SAMPLE.map(function (g) {
           var live = d.games[g.id];
           if (!live || live.error || live.price == null) return null;
           return {
             id: g.id, t: g.t, slug: g.slug,
-            price: live.priceFormatted || ('S$' + live.price.toFixed(2)),
+            price: live.priceFormatted || amount(live.price),
             // only meaningful next to a discount, and only when Steam actually
             // sent a higher "before" number
             was: (live.initial != null && live.initial > live.price)
-              ? 'S$' + live.initial.toFixed(2) : null,
+              ? amount(live.initial) : null,
             rating: (typeof live.ratingPct === 'number') ? live.ratingPct : null,
             off: live.discount > 0 ? live.discount : 0,
             sort: live.discount > 0 ? live.discount : -live.price

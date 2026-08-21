@@ -280,7 +280,98 @@
        (e.g. local dev, which has no Pages Functions). specs are normalized
        0-100 and drive the Advisor's weighted scoring. `stores` lists the
        non-Steam stores a game is sold on. Ordered newest-first. */
-    const GAMES = window.__LC_GAMES;
+    /* ---------------- Where the visitor shops ----------------
+       Steam, Epic and GOG all price by country, so "the price" of a game is a
+       different number and a different currency depending on who is asking.
+       The edge middleware works out the visitor's region from Cloudflare's
+       geolocation and hands it to us here, BEFORE any of our scripts run — so
+       the first paint is already in the right money rather than flashing S$
+       and settling into US$ a moment later.
+
+       No blob means no middleware, which in practice means local dev: fall
+       back to the currency games.json is written in and change nothing.
+       `rate` is that fallback catalog's SGD -> local multiplier; anything it
+       touches is marked approximate, because a converted reference price is
+       not what a store will charge. Live prices overwrite it and are exact. */
+    const REGION = (() => {
+      const r = window.__LC_REGION || {};
+      const rate = typeof r.rate === 'number' && r.rate > 0 ? r.rate : 1;
+      return {
+        country: r.country || 'SG',
+        currency: r.currency || 'SGD',
+        symbol: r.symbol || 'S$',
+        decimals: typeof r.decimals === 'number' ? r.decimals : 2,
+        rate,
+        converted: rate !== 1,
+      };
+    })();
+
+    const round2 = (n) => Math.round(n * 100) / 100;
+
+    /* A readable number in this currency, from one written in SGD. Thresholds
+       and slider stops are editorial round numbers (S$0.50/hr, a S$5 budget
+       step); converted literally they become US$0.39 and US$3.90, which read
+       as noise. These snap the converted value back onto a round number and
+       then USE that number, so the label and the behaviour never disagree. */
+    function niceAmount(n) {
+      if (n >= 100) return Math.round(n / 10) * 10;
+      if (n >= 10) return Math.round(n);
+      if (n >= 1) return Math.round(n * 10) / 10;
+      return Math.round(n * 20) / 20; // nearest 0.05
+    }
+    // Same idea for a slider step: the nearest 1/2/5 x 10^n.
+    function niceStep(n) {
+      const pow = Math.pow(10, Math.floor(Math.log10(n)));
+      const s = n / pow;
+      return (s < 1.5 ? 1 : s < 3.5 ? 2 : s < 7.5 ? 5 : 10) * pow;
+    }
+    const localAmount = (sgd) => (REGION.rate === 1 ? sgd : niceAmount(sgd * REGION.rate));
+
+    /* ---------------- Money on screen ----------------
+       Up here rather than down with the other view helpers because the value
+       bands and the budget slider are built at load time and need it.
+
+       An amount in the visitor's own currency. Whole numbers stay clean
+       (US$14, not US$14.00) and `approx` prefixes the "~" that marks anything
+       we converted rather than read off a store. */
+    const fmtPrice = (n, approx) =>
+      `${approx ? '~' : ''}${REGION.symbol}${Number.isInteger(n) ? n : n.toFixed(REGION.decimals)}`;
+
+    /* An amount in SOME currency, which is usually but not always the
+       visitor's: /api/deals converts what it can into their currency, and
+       leaves anything it could not convert in the original — labeled with the
+       currency it is actually in rather than passed off as local money. */
+    const CURRENCY_PREFIX = {
+      SGD: 'S$', USD: 'US$', EUR: '€', GBP: '£', JPY: '¥', CNY: 'CN¥', KRW: '₩',
+      INR: '₹', AUD: 'A$', CAD: 'C$', NZD: 'NZ$', HKD: 'HK$', TWD: 'NT$',
+      BRL: 'R$', MXN: 'MX$', THB: '฿', VND: '₫', IDR: 'Rp', PHP: '₱',
+      MYR: 'RM', TRY: '₺', ZAR: 'R', RUB: '₽', UAH: '₴', PLN: 'zł',
+      CHF: 'CHF ', NOK: 'kr ', ILS: '₪',
+    };
+    // Currencies nobody quotes in cents. Mirrors the table in lib/region.js —
+    // that one is the server's, this one is what the browser needs to render.
+    const ZERO_DECIMAL = ['JPY', 'KRW', 'VND', 'IDR', 'CLP', 'COP', 'KZT', 'TWD'];
+    const fmtStorePrice = (p, currency, approx) => {
+      if (p === 0) return 'Free';
+      const cur = currency || REGION.currency;
+      const dp = ZERO_DECIMAL.indexOf(cur) >= 0 ? 0 : 2;
+      const prefix = CURRENCY_PREFIX[cur] || (cur === REGION.currency ? REGION.symbol : `${cur} `);
+      return `${approx ? '~' : ''}${prefix}${p.toFixed(dp)}`;
+    };
+    // "$ / hour" with the right sign in front of it. Currencies with no cents
+    // have no half-yen per hour either.
+    const fmtPerHour = (v) => `${REGION.symbol}${REGION.decimals ? v.toFixed(2) : Math.round(v)}`;
+    // A difference between two prices, always positive — the sentence around
+    // it says which way ("cheaper", "more").
+    const fmtDelta = (v) => `${REGION.symbol}${Math.abs(v).toFixed(REGION.decimals)}`;
+
+    /* The catalog ships SGD prices (see games.json). Convert them once, here,
+       so every screen downstream is already thinking in the visitor's money;
+       `approxPrice` keeps the "~" on until the live feed replaces the number
+       with a real one. */
+    const GAMES = REGION.rate === 1
+      ? window.__LC_GAMES
+      : window.__LC_GAMES.map((g) => ({ ...g, price: round2(g.price * REGION.rate), approxPrice: true }));
 
     /* ---------------- Genre buckets ----------------
        `genre` on each game stays specific ("Roguelike Deckbuilder", "Metroidvania")
@@ -361,23 +452,24 @@
 
     // Store list for a game: live deals data (with prices/links) when we have
     // it, otherwise Steam + the editorial extras above (names only). The Steam
-    // entry prefers the exact SGD price from our own Steam feed over ITAD's
+    // entry prefers the exact price from our own Steam feed — the visitor's
+    // regional store price, in the currency Steam itself quoted — over ITAD's
     // FX-converted approximation whenever the live feed has landed.
     function gameStores(game, deals) {
       const d = deals && game.appId && deals[String(game.appId)];
       if (d && d.stores && d.stores.length) {
         return d.stores.map(s =>
           s.store === 'Steam' && game.live && typeof game.price === 'number'
-            ? { ...s, price: game.price, currency: 'SGD', approx: false, url: s.url || steamStoreUrl(game) }
+            ? { ...s, price: game.price, currency: game.currency || REGION.currency, approx: false, url: s.url || steamStoreUrl(game) }
             : s);
       }
       return ['Steam', ...extraStores(game)].map(s => ({ store: s }));
     }
 
     // Is the game's cheapest CURRENT store price at (or below) its all-time
-    // low? Compared strictly within ITAD data (/api/deals now converts
-    // everything to SGD server-side, but if the FX step ever fails prices can
-    // arrive in mixed currencies — so only stores sharing the low's currency
+    // low? Compared strictly within ITAD data (/api/deals converts everything
+    // into the visitor's currency server-side, but if the FX step ever fails
+    // prices can arrive mixed — so only stores sharing the low's currency
     // count, and the Steam feed's game.price stays out of this comparison).
     function atHistoryLow(deals, game) {
       const d = deals && game.appId && deals[String(game.appId)];
@@ -437,12 +529,18 @@
        Class strings spelled out in full, per the note on HEAT below: the
        Tailwind Play CDN scans the document for literal class names, so
        anything concatenated never gets a rule. */
+    /* The two boundaries are editorial and written in SGD; localAmount() moves
+       them into the visitor's currency and rounds them to something worth
+       printing, so a US reader gets "Under US$0.40/hr" rather than either a
+       Singapore dollar figure or a converted US$0.39. */
+    const BAND_CHEAP = localAmount(0.5);
+    const BAND_FAIR = localAmount(1.5);
     const VALUE_BANDS = [
-      { id: 'best', max: 0.5, label: 'Under S$0.50/hr', hint: 'exceptional value',
+      { id: 'best', max: BAND_CHEAP, label: `Under ${fmtPrice(BAND_CHEAP)}/hr`, hint: 'exceptional value',
         text: 'text-emerald-300', bar: 'bg-emerald-400', ring: 'ring-emerald-500/40', tint: 'bg-emerald-500/10' },
-      { id: 'good', max: 1.5, label: 'S$0.50 – S$1.50/hr', hint: 'solid value',
+      { id: 'good', max: BAND_FAIR, label: `${fmtPrice(BAND_CHEAP)} – ${fmtPrice(BAND_FAIR)}/hr`, hint: 'solid value',
         text: 'text-amber-300', bar: 'bg-amber-400', ring: 'ring-amber-500/40', tint: 'bg-amber-500/10' },
-      { id: 'rich', max: Infinity, label: 'Over S$1.50/hr', hint: 'short, or priced as a premium',
+      { id: 'rich', max: Infinity, label: `Over ${fmtPrice(BAND_FAIR)}/hr`, hint: 'short, or priced as a premium',
         text: 'text-rose-300', bar: 'bg-rose-400', ring: 'ring-rose-500/40', tint: 'bg-rose-500/10' },
     ];
     function valueBand(perHour) {
@@ -496,8 +594,11 @@
     }
 
     /* ---------------- Live Steam data ---------------- */
-    // Pulls real SGD prices (incl. current sale) + review scores from our own
-    // /api/steam Pages Function, which proxies Steam server-side. Ids are sent in
+    // Pulls the visitor's own regional prices (incl. current sale) + review
+    // scores from our own /api/steam Pages Function, which proxies Steam
+    // server-side — a Singaporean gets S$ off the SG store and an American
+    // US$ off the US one, from the store itself rather than an FX guess.
+    // Ids are sent in
     // chunks of 15 so each function call stays under Cloudflare's 50-subrequest
     // cap (2 subrequests per game). Falls back silently to the static data above
     // when the endpoint is unreachable — e.g. local dev, which has no Functions.
@@ -532,7 +633,7 @@
         (async () => {
           try {
             const parts = await Promise.all(chunks.map(async (c) => {
-              const res = await fetch(`${STEAM_ENDPOINT}?ids=${c.join(',')}`);
+              const res = await fetch(`${STEAM_ENDPOINT}?ids=${c.join(',')}&cc=${REGION.country}`);
               if (!res.ok) throw new Error('bad status ' + res.status);
               return res.json();
             }));
@@ -558,8 +659,11 @@
           const d = g.appId && live[String(g.appId)];
           if (!d || d.error) return g;
           const merged = { ...g, displayInfo: { ...g.displayInfo } };
-          if (d.isFree) { merged.price = 0; merged.isFree = true; }
-          else if (typeof d.price === 'number') merged.price = d.price;
+          // A live number is exact and in the visitor's own currency, so the
+          // "~" the converted catalog price carried comes off here.
+          if (d.isFree) { merged.price = 0; merged.isFree = true; merged.approxPrice = false; }
+          else if (typeof d.price === 'number') { merged.price = d.price; merged.approxPrice = false; }
+          if (d.currency) merged.currency = d.currency;
           if (typeof d.initial === 'number') merged.initialPrice = d.initial;
           if (typeof d.discount === 'number') merged.discount = d.discount;
           if (d.priceFormatted) merged.priceFormatted = d.priceFormatted;
@@ -648,7 +752,7 @@
             // timeout) shouldn't throw away the games the others resolved.
             const parts = await Promise.all(chunks.map(async (c) => {
               try {
-                const res = await fetch(`${DEALS_ENDPOINT}?ids=${c.join(',')}`);
+                const res = await fetch(`${DEALS_ENDPOINT}?ids=${c.join(',')}&cc=${REGION.country}`);
                 if (!res.ok) throw new Error('bad status ' + res.status);
                 const data = await res.json();
                 return (data && data.games) || {};
@@ -735,7 +839,7 @@
         // 1) Epic's own feed via our Pages Function
         (async () => {
           try {
-            const res = await fetch(EPICFREE_ENDPOINT);
+            const res = await fetch(`${EPICFREE_ENDPOINT}?cc=${REGION.country}`);
             if (!res.ok) throw new Error();
             const data = await res.json();
             const current = (data && data.current) || [];
@@ -851,10 +955,13 @@
       return <span className={cx('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ring-1', tones[tone])}>{children}</span>;
     };
 
-    // Formats a price string from either live data (priceFormatted, e.g. "S$44.90")
-    // or the static fallback integer. Whole numbers stay clean (S$14, not S$14.00).
-    const fmtPrice = (n) => `S$${Number.isInteger(n) ? n : n.toFixed(2)}`;
-    const priceLabel = (g) => (g.isFree || g.price === 0) ? 'Free' : (g.priceFormatted || fmtPrice(g.price));
+    // The price to print for a game. Steam's own localized string wins when we
+    // have it — it is correct for currencies our symbol table has never heard
+    // of — then our formatting of the live number, then the converted catalog
+    // fallback, which carries a "~". See fmtPrice up in the REGION block.
+    const priceLabel = (g) => (g.isFree || g.price === 0)
+      ? 'Free'
+      : (g.priceFormatted || fmtPrice(g.price, g.approxPrice));
 
     // Price with an on-sale treatment: -X% badge + struck original when discounted.
     // The badge is coloured by deal heat, so the size of the cut is readable
@@ -878,7 +985,7 @@
             <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded ring-1 bg-ember/25 text-orange-200 ring-ember/60"
                   title="Cheapest this game has ever been, across tracked stores">Low</span>
           )}
-          {onSale && <s className="text-[11px] text-zinc-500">{fmtPrice(g.initialPrice)}</s>}
+          {onSale && <s className="text-[11px] text-zinc-500">{fmtPrice(g.initialPrice, g.approxPrice)}</s>}
           <span className={main}>{priceLabel(g)}</span>
         </span>
       );
@@ -891,18 +998,10 @@
       GOG:   'bg-purple-500/15 text-purple-300 ring-purple-500/30',
     };
 
-    // /api/deals converts ITAD's prices (USD for several SG stores) to SGD
-    // server-side, flagging converted amounts `approx` — shown with a "~".
-    // If the FX step fails upstream, prices arrive in their original currency
-    // and are labeled honestly instead of being passed off as SGD.
-    const CURRENCY_PREFIX = { SGD: 'S$', USD: 'US$', EUR: '€', GBP: '£' };
-    const fmtStorePrice = (p, currency, approx) => {
-      if (p === 0) return 'Free';
-      const tilde = approx ? '~' : '';
-      const pre = CURRENCY_PREFIX[currency];
-      if (pre) return `${tilde}${pre}${p.toFixed(2)}`;
-      return currency ? `${tilde}${currency} ${p.toFixed(2)}` : `${tilde}S$${p.toFixed(2)}`;
-    };
+    // Store prices are formatted by fmtStorePrice in the REGION block:
+    // /api/deals converts ITAD's quotes into the visitor's currency where it
+    // can, flagging those `approx` (shown with a "~"), and leaves the rest in
+    // whatever currency they arrived in, labeled as such.
 
     // Which stores sell this game. With live /api/deals data each badge shows
     // that store's current price and links to it; the cheapest store gets an
@@ -1319,7 +1418,7 @@
         <div className="animate-fade-in">
           <SectionTitle eyebrow="Catalog" icon={Layers}
             title="Browse games"
-            subtitle={`${GAMES.length} PC games, newest first. Steam prices and ratings are live from the Singapore store — with Epic and GOG prices on the store badges when the cross-store feed is up.`} />
+            subtitle={`${GAMES.length} PC games, newest first. Steam prices and ratings are live from your own regional store in ${REGION.currency} — with Epic and GOG prices on the store badges when the cross-store feed is up.`} />
 
           {/* The old "tap a card to add it" instruction lived inside the
               subtitle above, which is `hidden sm:block` — so on a phone the
@@ -1443,14 +1542,17 @@
       const reasons = [];
       if (atHistoryLow(deals, top)) reasons.push('it is at its all-time low right now');
       const dTop = dollarsPerHour(top), dNext = dollarsPerHour(next);
-      if (dTop < dNext) reasons.push(`S$${dTop.toFixed(2)} an hour against S$${dNext.toFixed(2)}`);
+      if (dTop < dNext) reasons.push(`${fmtPerHour(dTop)} an hour against ${fmtPerHour(dNext)}`);
       const rd = top.displayInfo.rating - next.displayInfo.rating;
       if (rd >= 3) reasons.push(`${rd} points better reviewed on Steam`);
-      const pd = Math.round((next.price - top.price) * 100) / 100;
+      const pd = round2(next.price - top.price);
       const hourRatio = next.displayInfo.hoursToBeat
         ? top.displayInfo.hoursToBeat / next.displayInfo.hoursToBeat : 1;
-      if (pd >= 3) reasons.push(`S$${pd.toFixed(2)} cheaper`);
-      else if (pd <= -3 && hourRatio >= 1.3) reasons.push(`S$${Math.abs(pd).toFixed(2)} more for ${hourRatio.toFixed(1)}× the playtime`);
+      // "Worth mentioning" is a sum of money, so the bar moves with the
+      // currency — 3 yen is not the gap that 3 dollars is.
+      const notable = localAmount(3);
+      if (pd >= notable) reasons.push(`${fmtDelta(pd)} cheaper`);
+      else if (pd <= -notable && hourRatio >= 1.3) reasons.push(`${fmtDelta(pd)} more for ${hourRatio.toFixed(1)}× the playtime`);
       const hd = top.displayInfo.hoursToBeat - next.displayInfo.hoursToBeat;
       if (hd >= 5 && reasons.length < 3) reasons.push(`${hd} more hours in it`);
 
@@ -1478,7 +1580,7 @@
       return (
         <span className="block w-full min-w-[92px]">
           <span className={cx('block text-sm font-semibold tabular-nums', isBest ? 'text-emerald-300' : 'text-zinc-200')}>
-            S${v.toFixed(2)}<span className="text-[10px] font-normal text-zinc-500"> /hr</span>
+            {fmtPerHour(v)}<span className="text-[10px] font-normal text-zinc-500"> /hr</span>
           </span>
           <span className="mt-1 block h-1.5 rounded-full bg-ink-800 overflow-hidden">
             <span className={cx('block h-full rounded-full transition-all duration-500', isBest ? 'bg-emerald-400' : 'bg-zinc-600')}
@@ -1822,12 +1924,27 @@
     const PRIORITY_ICONS = { combat: Skull, story: BookOpen, coop: Users, replay: Repeat };
     const DEFAULT_PRIORITIES = { combat: 60, story: 60, coop: 60, replay: 60 };
 
+    /* The budget slider ran S$10–S$70 in fives. Those stops are a statement
+       about money, so they move with the currency — and they snap to a round
+       step first, because a slider that clicks through US$7.80, US$11.70 is a
+       worse slider than one that clicks through US$10, US$15. */
+    const BUDGET = (() => {
+      if (REGION.rate === 1) return { min: 10, max: 70, step: 5, initial: 50 };
+      const step = niceStep(5 * REGION.rate);
+      const snap = (sgd) => Math.max(step, Math.round((sgd * REGION.rate) / step) * step);
+      return { min: snap(10), max: snap(70), step, initial: snap(50) };
+    })();
+
     const AdvisorView = () => {
       const { games: GAMES } = useGames();
       // Sliders survive reloads; merging with the defaults keeps a stored
       // object valid if priority keys are ever added or renamed.
       const [storedPriorities, setPriorities] = usePersistedState('lc-games-priorities', DEFAULT_PRIORITIES);
-      const [budget, setBudget] = usePersistedState('lc-games-budget', 50);
+      const [storedBudget, setBudget] = usePersistedState('lc-games-budget', BUDGET.initial);
+      // A budget saved in another currency (someone who set it at home and
+      // came back abroad) would sit off the end of the slider, so it is
+      // clamped into range rather than silently filtering everything out.
+      const budget = Math.min(BUDGET.max, Math.max(BUDGET.min, storedBudget));
       const priorities = { ...DEFAULT_PRIORITIES, ...storedPriorities };
 
       const results = useMemo(() => {
@@ -1870,9 +1987,9 @@
               <div className="mt-6 pt-5 border-t border-ink-700">
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="text-zinc-300 inline-flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5 text-accent-soft" /> Budget</span>
-                  <span className="text-zinc-400">S${budget}</span>
+                  <span className="text-zinc-400">{fmtPrice(budget)}</span>
                 </div>
-                <input type="range" min="10" max="70" step="5" value={budget}
+                <input type="range" min={BUDGET.min} max={BUDGET.max} step={BUDGET.step} value={budget}
                   onChange={e => setBudget(Number(e.target.value))} className="w-full" />
               </div>
             </Card>
@@ -1904,7 +2021,7 @@
               ))}
               {results.candidates.length === 0 && (
                 <Card className="p-8 text-center text-zinc-400">
-                  No games fit under S${budget}. Try raising your budget.
+                  No games fit under {fmtPrice(budget)}. Try raising your budget.
                 </Card>
               )}
             </div>
@@ -2050,8 +2167,8 @@
               <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
                 <div className="text-sm text-zinc-300 font-medium">
                   {showAllBars || rows.length <= VALUE_TOP_N
-                    ? 'S$ per hour of playtime (lower = better value)'
-                    : `Top ${VALUE_TOP_N} by S$ per hour of playtime`}
+                    ? `${REGION.symbol} per hour of playtime (lower = better value)`
+                    : `Top ${VALUE_TOP_N} by ${REGION.symbol} per hour of playtime`}
                 </div>
                 {rows.length > VALUE_TOP_N && (
                   <button type="button" onClick={() => setShowAllBars(v => !v)}
@@ -2068,7 +2185,7 @@
                       <span className="text-zinc-300 font-medium truncate">
                         <span className="text-zinc-600 tabular-nums mr-1.5">#{rank}</span>{g.title}
                       </span>
-                      <span className={cx('shrink-0 tabular-nums', valueBand(perHour).text)}>S${perHour}/hr</span>
+                      <span className={cx('shrink-0 tabular-nums', valueBand(perHour).text)}>{fmtPerHour(perHour)}/hr</span>
                     </div>
                     <div className="h-2.5 rounded-full bg-ink-800 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-500"
@@ -2106,7 +2223,7 @@
                       <td className="px-4 py-3 text-zinc-400"><PriceTag g={g} /></td>
                       <td className="px-4 py-3 text-zinc-200">{g.displayInfo.hoursToBeat}h</td>
                       <td className="px-4 py-3">
-                        <span className={cx('tabular-nums', valueBand(perHour).text)}>S${perHour}</span>
+                        <span className={cx('tabular-nums', valueBand(perHour).text)}>{fmtPerHour(perHour)}</span>
                       </td>
                       <td className="px-4 py-3 text-zinc-300">{g.displayInfo.rating}%</td>
                     </tr>
@@ -2208,7 +2325,7 @@
         <div className="animate-fade-in">
           <SectionTitle eyebrow="Free games" icon={Gift}
             title="Free right now on Epic & Steam"
-            subtitle="Epic gives away 1–2 PC games every Thursday (~11pm Singapore time) — claim them once and they're yours forever, even if you never install them. Steam giveaways are rarer but show up here too." />
+            subtitle="Epic gives away 1–2 PC games every Thursday (11am US Eastern, wherever you are) — claim them once and they're yours forever, even if you never install them. Steam giveaways are rarer but show up here too." />
 
           {/* Epic — free now */}
           <div className="mb-8">
@@ -2332,7 +2449,7 @@
       { label: 'Client features', win: 'Steam',
         steam: 'Remote Play, cloud saves, Steam Deck, controller remapping', epic: 'Lightweight launcher, cloud saves', gog: 'GOG Galaxy can import all your other libraries' },
       { label: 'Achievements', steam: 'Yes', epic: 'Yes', gog: 'Yes, via Galaxy' },
-      { label: 'SGD regional pricing', steam: 'Yes', epic: 'Yes', gog: 'Mostly USD with regional discounts' },
+      { label: `Local pricing (${REGION.currency})`, steam: 'Yes', epic: 'Yes', gog: 'Mostly USD with regional discounts' },
     ];
 
     const StoresView = () => (
@@ -2640,7 +2757,7 @@
           <footer className="relative border-t border-ink-800 mt-16">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 text-xs text-zinc-500 flex flex-wrap items-center justify-between gap-2">
               <div className="max-w-3xl">
-                LazyComparo · we do the boring comparison work · Steam prices &amp; ratings live from the Singapore store (cached ~30 min) · Epic/GOG prices &amp; historical lows via <a className="hover:text-zinc-300 underline" href="https://isthereanydeal.com" target="_blank" rel="noopener noreferrer">IsThereAnyDeal</a> · free-game feed from Epic Games &amp; GamerPower · specs, pros/cons and hours-to-beat are editorial estimates.
+                LazyComparo · we do the boring comparison work · Steam prices &amp; ratings live from your regional store, {REGION.country} / {REGION.currency} (cached ~30 min) · Epic/GOG prices &amp; historical lows via <a className="hover:text-zinc-300 underline" href="https://isthereanydeal.com" target="_blank" rel="noopener noreferrer">IsThereAnyDeal</a> · free-game feed from Epic Games &amp; GamerPower · specs, pros/cons and hours-to-beat are editorial estimates.
                 <div className="mt-1.5 text-zinc-400">No ads, no affiliate links, no paid placement — a store link earns us nothing.</div>
               </div>
               {/* Trust pages live on the apex domain, so these are absolute. */}

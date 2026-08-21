@@ -19,7 +19,8 @@ Each product is a single HTML file plus its catalog as JSON — `games/games.jso
 - **Value-focused** — built for the "what's actually worth buying on sale" question, with pros/cons per title, $/hour ranking, all-time-low price flags, and a cheapest-store row in Compare.
 - **Free Games tab** — Epic's weekly freebies (current + upcoming, via Epic's own feed) plus Steam giveaways, with claim links and countdowns.
 - **Stores tab** — editorial Steam vs Epic vs GOG comparison (refunds, DRM, mods, family sharing, free-game cadence).
-- **Live data** — three Cloudflare Pages Functions: `/api/steam` (SGD prices + review scores), `/api/deals` (cross-store prices + historical lows via IsThereAnyDeal; needs an `ITAD_API_KEY` env var), and `/api/epic-free` (Epic free-games promo feed). Everything degrades gracefully to built-in reference data when offline.
+- **Live data** — three Cloudflare Pages Functions: `/api/steam` (prices + review scores), `/api/deals` (cross-store prices + historical lows via IsThereAnyDeal; needs an `ITAD_API_KEY` env var), and `/api/epic-free` (Epic free-games promo feed). Everything degrades gracefully to built-in reference data when offline.
+- **Prices follow the visitor** — Steam, Epic and GOG all price by country, so the site asks each store what it charges *where you are*: Singapore gets S$14.50 for Balatro, the US gets US$14.99, from the store you'd actually buy on rather than a converted guess. The country comes from Cloudflare's geolocation (add `?cc=US` to any page to see another region), and the editorial thresholds — the value bands, the budget slider — convert and round into local money with it. Shared logic lives in [games/lib/region.js](games/lib/region.js).
 
 ### mobile — phone comparison & switching advisor (secondary)
 

@@ -1,6 +1,6 @@
 # LazyComparo — Project State
 
-_Last updated: 2026-08-21. Update this file whenever state changes materially._
+_Last updated: 2026-08-22. Update this file whenever state changes materially._
 
 > **How to resume in a new Claude session:** paste this whole file into your first
 > message, or say "read `PROJECT_STATE.md`". Everything Claude needs is here.
@@ -276,24 +276,43 @@ arrives it lands behind `dealHeat()` and nothing above it changes.
 
 ## Live-data contracts (games site)
 
-- **`/api/steam?ids=…`** — real SGD prices (incl. sale %) + review scores from
-  Steam's store API (server-side; Steam blocks browser CORS). Requested in
-  chunks of 15 (2 subrequests/game vs Cloudflare's 50/invocation cap), 30-min
-  edge cache; front-end falls back to built-in reference data when unreachable.
-- **`/api/deals`** — IsThereAnyDeal proxy (per-store prices + all-time lows).
+**All three endpoints price per visitor** — see "Regional pricing" below. Each
+takes an optional `?cc=XX`, defaults to Cloudflare's `request.cf.country`, and
+carries the country in its `caches.default` key (one colo serves several
+countries, so leaving it out would hand a German visitor Swiss francs).
+
+- **`/api/steam?ids=…[&cc=]`** — real prices from the visitor's own regional
+  Steam store (incl. sale %) + review scores, server-side (Steam blocks browser
+  CORS). Requested in chunks of 15 (2 subrequests/game vs Cloudflare's
+  50/invocation cap), 30-min edge cache; front-end falls back to built-in
+  reference data when unreachable. Response carries `country` + `currency` at
+  the top level, and each game's own `currency` / `priceFormatted` (Steam's
+  localized string — correct even for currencies our symbol table lacks).
+- **`/api/deals[&cc=]`** — IsThereAnyDeal proxy (per-store prices + all-time lows).
   **Caps at `MAX_IDS` (40) by TRUNCATING, not erroring** — the front-end chunks
   requests at `DEALS_CHUNK` (30) so the 100-game catalog doesn't silently lose
   the tail (4 requests). Chunking scales, so growth costs requests, not data;
   only raise the pair if you want fewer, fatter calls.
   **Requires `ITAD_API_KEY` env var on the Pages project** (free key from
   isthereanydeal.com/apps/; returns 503 without it, UI silently falls back).
-  Converts non-SGD prices to SGD via open.er-api.com (keyless), flagged
-  `approx: true` → shown as `~S$…`; live `/api/steam` price overrides the Steam
-  badge with the exact figure. FX failure → prices pass through labeled US$/€/£.
-- **`/api/epic-free`** — Epic's official free-games promo feed, SG region, no
-  key, sends `Access-Control-Allow-Origin: *`. **The landing page also consumes
-  this** (freebie pill + 3D tag) — keep the response shape stable:
-  `{ updated, current: [{id,title,url,image,worth,start,end}], upcoming: […] }`.
+  Passes the country to ITAD, then converts anything ITAD still quotes in
+  another currency into the visitor's own via open.er-api.com (keyless),
+  flagged `approx: true` → shown as `~US$…`; live `/api/steam` price overrides
+  the Steam badge with the exact figure. FX failure → prices pass through
+  labeled with the currency they actually arrived in.
+- **`/api/epic-free[?cc=]`** — Epic's official free-games promo feed for the
+  visitor's country (the giveaway line-up itself differs by country, not just
+  the `worth` figure), no key, sends `Access-Control-Allow-Origin: *`. **The
+  landing page also consumes this** (freebie pill + 3D tag) — keep the response
+  shape stable:
+  `{ updated, country, current: [{id,title,url,image,worth,start,end}], upcoming: […] }`.
+- **Cache-Control depends on who asked.** With an explicit `?cc=` the URL
+  describes its own answer and the response is `public`; without one the same
+  URL means a different answer per visitor (the landing page calls
+  cross-origin with no `cc`), so the copy returned to the browser is `private`
+  — see `forVisitor()` in `games/lib/region.js`. The copy put into
+  `caches.default` stays `public`, because the Cache API refuses to store a
+  private response and its key already names the country.
 - **SEO middleware** `games/functions/_middleware.js` injects crawlable HTML
   into `#root` before React boots (React clears it on mount — progressive
   enhancement, not cloaking) + JSON-LD. Per-game pages at `/game/<slug>` get
@@ -321,6 +340,55 @@ arrives it lands behind `dealHeat()` and nothing above it changes.
   `<name>/index.html`** — Pages 308-redirects `/gog` to `/gog/` for a directory
   index, which would make the sitemap entries and the canonical the middleware
   emits both point at a redirect.
+
+## Regional pricing (games site, added 2026-08-22)
+
+**A visitor sees their own store's prices in their own currency.** Steam, Epic
+and GOG all run regional pricing, so a Singaporean gets S$14.50 for Balatro and
+an American US$14.99 — from the store each would actually buy on, not an FX
+guess. The site was hardcoded to `cc=sg` / SGD everywhere until this change.
+
+- **One source of truth: `games/lib/region.js`.** Country → currency (Steam's
+  actual currency regions; anything unlisted is USD, which is also what Steam
+  does), currency → symbol and decimal places, `resolveCountry()`, FX rates
+  with a 6-hour module-scope cache, `forVisitor()`. It lives **outside
+  `functions/`** on purpose — everything under `functions/` is a route, and
+  this is a library; Pages bundles it into the Worker at build time. It also
+  ships as a static asset at `/lib/region.js`, which is harmless (and handy:
+  you can `import('/lib/region.js')` in the browser console to test it).
+- **Detection**: `request.cf.country`, overridable with `?cc=XX` (how you test
+  another region without a VPN). Cloudflare's `T1` (Tor) and `XX` (unknown)
+  are not countries Steam would accept, so both fall back to `US`. There is
+  **no region-picker UI** — deliberate, decided 2026-08-22.
+- **The middleware injects `window.__LC_REGION`** (`{country, currency, symbol,
+  decimals, rate}`) into `<head>` on every HTML response, before any app
+  script runs — so the first paint is already in the right money instead of
+  flashing S$ and settling into US$. **No blob = local dev**, and the app
+  falls back to SGD / rate 1, which is exactly the old behaviour.
+- **`rate`** is the SGD → local multiplier for the *catalog fallback* prices
+  (games.json is written in SGD). Converted numbers carry a `~` and are
+  replaced by exact ones the moment the live feed lands. **If the FX lookup
+  fails, the display currency falls back to SGD while the country stays
+  theirs** — printing a Singapore number under a US dollar sign is the one
+  mistake this whole feature exists to prevent.
+- **Region is threaded as an argument through `_middleware.js`**, never parked
+  in module scope: module scope is shared across concurrent requests and there
+  is an `await` between resolving the region and rendering with it, so a US
+  request could otherwise finish rendering in a Singaporean one's currency.
+- **Editorial thresholds written in SGD move with the currency and then round**
+  — the Best Value bands (S$0.50 / S$1.50 per hour → US$0.40 / US$1.20) and the
+  Advisor budget slider (S$10–S$70 in fives → US$10–US$55 in fives, ¥1,000–
+  ¥8,000 in 500s). See `localAmount()` / `niceStep()` in `games/index.html`. A
+  budget saved in another currency is clamped into range, not silently applied.
+- **Zero-decimal currencies** (JPY, KRW, VND, IDR, CLP, COP, KZT, TWD) render
+  whole: `¥1668`, not `¥1668.00`.
+- **The landing page follows for free** — its ticker and deal cards call
+  `pcgames.lazycomparo.com/api/steam` from the *browser*, so Cloudflare
+  geolocates the reader, and it now reads `currency`/`country` off that
+  response instead of assuming SGD.
+- **Out of scope, decided 2026-08-22: the phone site.** `mobile/phones.json`
+  holds static SGD launch prices with no live per-country feed behind them;
+  FX-converting them would be inventing a US MSRP. Phones stay SGD.
 
 ## Featured video + episode archive (games site, list since 2026-08-21)
 
@@ -971,6 +1039,18 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-08-22** **Prices follow the visitor.** The games site was hardcoded to
+  the Singapore store in SGD — every API call sent `cc=sg`, and `S$` was
+  written into seventeen places in `games/index.html` plus the pre-render. Now
+  `/api/steam`, `/api/deals` and `/api/epic-free` all price for
+  `request.cf.country` (override with `?cc=XX`), the middleware injects
+  `window.__LC_REGION` so the first paint is already in the right currency, and
+  the editorial thresholds written in SGD (value bands, budget slider) convert
+  and round into local money. New shared module `games/lib/region.js`. Fixed in
+  passing: the homepage JSON-LD had been labelling SGD catalog prices
+  `priceCurrency: "USD"`. Phones stay SGD — no live per-country feed exists for
+  them, and converting a launch price would be inventing an MSRP. No
+  region-picker UI: auto-detect only. See "Regional pricing".
 - **2026-08-21** Weekly video #3, and the site change the weekly cadence
   demanded. **(1) EP03 is built and verified** —
   `LazyComparoVideo/ep03-short-cheap-hours/`, a 57 s Short off live

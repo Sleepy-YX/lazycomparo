@@ -1,12 +1,20 @@
 /**
- * GET /api/steam?ids=892970,1145360,...
+ * GET /api/steam?ids=892970,1145360,...[&cc=US]
  *
  * Cloudflare Pages Function. Fetches LIVE price + review data from Steam
  * server-side (Steam's store API blocks browser CORS, so this proxy is the
  * whole point) and edge-caches the result for 30 minutes.
  *
+ * PRICES ARE PER VISITOR. Steam runs regional pricing, so the country we ask
+ * for decides both the number and the currency: a Singapore visitor gets
+ * S$14.50 and a US one US$14.99 for the same game, straight from the store
+ * they would actually buy on — no FX guessing anywhere in this path. The
+ * country comes from Cloudflare's geolocation, overridable with ?cc=.
+ * `priceFormatted` is Steam's own localized string, so it is correct even for
+ * currencies our own symbol table has never heard of.
+ *
  * Response shape:
- *   { updated: ISOString, games: { [appId]: {
+ *   { updated: ISOString, country, currency, games: { [appId]: {
  *       price, initial, discount, priceFormatted, currency, isFree,
  *       ratingPct, ratingDesc, totalReviews
  *   } } }
@@ -16,15 +24,17 @@
  * ids into batches of <=15 (30 subrequests) before calling this.
  */
 
-const COUNTRY = 'sg'; // Singapore Steam store -> SGD pricing
+import { resolveCountry, regionFor, forVisitor } from '../../lib/region.js';
+
 const TTL_SECONDS = 1800; // 30 min
 const MAX_IDS = 20; // hard cap: 20 * 2 = 40 subrequests, safely under 50
 
-async function fetchGame(id) {
+async function fetchGame(id, country) {
   const out = { id };
+  const cc = country.toLowerCase();
   try {
     const [priceRes, reviewRes] = await Promise.all([
-      fetch(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=${COUNTRY}&filters=price_overview`, {
+      fetch(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=${cc}&filters=price_overview`, {
         headers: { 'Accept': 'application/json' },
       }),
       fetch(`https://store.steampowered.com/appreviews/${id}?json=1&language=all&purchase_type=all&num_per_page=0`, {
@@ -47,7 +57,7 @@ async function fetchGame(id) {
           out.price = po.final / 100;
           out.initial = po.initial / 100;
           out.discount = po.discount_percent;
-          out.priceFormatted = po.final_formatted || `S$${(po.final / 100).toFixed(2)}`;
+          out.priceFormatted = po.final_formatted || null;
           out.currency = po.currency;
           out.isFree = po.final === 0;
         }
@@ -85,23 +95,34 @@ export async function onRequestGet(context) {
     return json({ error: 'pass ?ids=appid1,appid2,...' }, 400);
   }
 
-  // Edge cache: normalize the key so ?ids=a,b and ?ids=a, b hit the same entry.
+  const region = regionFor(resolveCountry(request, url));
+
+  // Edge cache: normalize the key so ?ids=a,b and ?ids=a, b hit the same
+  // entry. The country is PART OF THE KEY — caches.default is per-colo and a
+  // single colo serves several countries, so without it a German visitor
+  // could be handed the Swiss visitor's francs.
   const cacheUrl = new URL(url.origin + url.pathname);
   cacheUrl.searchParams.set('ids', ids.join(','));
+  cacheUrl.searchParams.set('cc', region.country);
   const cache = caches.default;
   const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
 
   const hit = await cache.match(cacheKey);
-  if (hit) return hit;
+  if (hit) return forVisitor(hit, url, TTL_SECONDS);
 
-  const results = await Promise.all(ids.map(fetchGame));
+  const results = await Promise.all(ids.map((id) => fetchGame(id, region.country)));
   const games = {};
   for (const r of results) games[r.id] = r;
 
-  const res = json({ updated: new Date().toISOString(), games });
+  const res = json({
+    updated: new Date().toISOString(),
+    country: region.country,
+    currency: region.currency,
+    games,
+  });
   res.headers.set('Cache-Control', `public, max-age=${TTL_SECONDS}`);
   waitUntil(cache.put(cacheKey, res.clone()));
-  return res;
+  return forVisitor(res, url, TTL_SECONDS);
 }
 
 function json(obj, status = 200) {
