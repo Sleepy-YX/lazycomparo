@@ -258,6 +258,84 @@ foreach ($e in $expected) {
 Report -Label 'landing hero proof strip matches the real catalog sizes' -Failures $fails `
        -Hint 'update the .proof stat in landing/index.html to the real count'
 
+# ------------------------------------------------- 8. games/video.json episodes
+# The video card and the VideoObject markup both read this file, so a typo here
+# ships a broken player or a rich result pointing at nothing. An empty id is
+# LEGAL and means "finished but not uploaded yet" -- it is skipped everywhere.
+# What is checked is that every PUBLISHED episode is complete and that its
+# poster is a file that actually exists, because a missing thumbnail is the one
+# error that looks fine locally and fails only in Search Console.
+$fails = @()
+$videoPath = Join-Path $root 'games\video.json'
+
+# Every read goes through this: Set-StrictMode makes $e.title THROW when the
+# property is absent, and a missing key is exactly what this section is here to
+# report -- so it must not take the script out on the way.
+function Get-Prop {
+    param($Object, [string]$Name)
+    if ($null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name) { return $Object.$Name }
+    return $null
+}
+
+$vj = $null
+if (-not (Test-Path $videoPath)) {
+    $fails += 'games/video.json is missing'
+} else {
+    try { $vj = Read-SourceText -Path $videoPath | ConvertFrom-Json }
+    catch { $fails += "games/video.json is not valid JSON: $($_.Exception.Message)" }
+}
+if ($null -ne $vj) {
+    $eps = @()
+    if ($null -ne (Get-Prop $vj 'episodes')) { $eps = @($vj.episodes) }
+    elseif ($null -ne (Get-Prop $vj 'id'))   { $eps = @($vj) }
+    else { $fails += 'games/video.json has neither an episodes array nor a legacy id' }
+
+    $seen = @{}
+    $dates = @()
+    foreach ($e in $eps) {
+        $id    = [string](Get-Prop $e 'id')
+        $title = Get-Prop $e 'title'
+        $pub   = Get-Prop $e 'published'
+        $dur   = Get-Prop $e 'durationSeconds'
+        $label = if ($id) { $id } else { "(unpublished) $title" }
+
+        # -notcontains, not `-not ... -contains`: the latter binds as
+        # (-not $names) -contains $k, which is always $false.
+        foreach ($k in 'title','published','durationSeconds') {
+            if ($e.PSObject.Properties.Name -notcontains $k) { $fails += "episode $label has no $k" }
+        }
+        if ($null -ne $title -and "$title".Trim() -eq '') { $fails += "episode $label has an empty title" }
+        if ($null -ne $pub) {
+            if ("$pub" -notmatch '^\d{4}-\d{2}-\d{2}$') {
+                $fails += "episode $label published '$pub' is not YYYY-MM-DD"
+            } else { $dates += [datetime]"$pub" }
+        }
+        if ($null -ne $dur -and [int]$dur -le 0) { $fails += "episode $label has durationSeconds $dur" }
+
+        if ($id) {
+            if ($seen.ContainsKey($id)) { $fails += "episode id '$id' appears twice" }
+            $seen[$id] = $true
+            # Only a published episode's poster is ever requested.
+            $poster = Get-Prop $e 'poster'
+            if (-not $poster) { $poster = '/video-poster.jpg' }
+            if ("$poster" -notmatch '^/') { $fails += "episode $label poster '$poster' must start with /" }
+            else {
+                $pf = Join-Path $root ('games' + ("$poster" -replace '/', '\'))
+                if (-not (Test-Path $pf)) { $fails += "episode $label poster '$poster' does not exist in games/" }
+            }
+        }
+    }
+    # Newest first is what makes episodes[0] the featured card.
+    for ($i = 1; $i -lt $dates.Count; $i++) {
+        if ($dates[$i] -gt $dates[$i - 1]) {
+            $fails += 'episodes are not newest-first -- episodes[0] must be the newest'
+            break
+        }
+    }
+}
+Report -Label 'games/video.json episodes are well-formed and posters exist' -Failures $fails `
+       -Hint 'see LazyComparoVideo/<ep>/script.md, section "After it is live"'
+
 # ---------------------------------------------------------------------- result
 Write-Host ''
 if ($script:Problems -eq 0) {

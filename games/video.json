@@ -1,10 +1,24 @@
 {
-  "id": "NiRQYo8jRSc",
-  "title": "Top 3 PC Games Deals 16Aug2026",
-  "blurb": "This week's three best Steam deals in Singapore, with the catch on each one stated out loud.",
-  "picks": ["XCOM 2", "Disco Elysium: The Final Cut", "Cult of the Lamb"],
-  "published": "2026-08-16",
-  "durationSeconds": 58,
   "channelUrl": "https://www.youtube.com/@LazyComparo",
-  "poster": "/video-poster.jpg"
+  "_comment": "Newest first. episodes[0] with a non-empty id becomes the featured card; the rest become the archive list under it. An episode with an empty id renders nowhere -- that is the safe way to land a finished video before it is uploaded. Each episode owns its poster (our own rendered still, never i.ytimg.com); see LazyComparoVideo/<ep>/script.md.",
+  "episodes": [
+    {
+      "id": "jEeIljpVG7Q",
+      "title": "3 PC games under 40 cents an hour (live SG prices)",
+      "blurb": "This week's three best-value Steam deals in Singapore, ranked by cost per hour, with the catch on each one stated out loud.",
+      "picks": ["Metaphor: ReFantazio", "Crusader Kings III", "Risk of Rain 2"],
+      "published": "2026-08-21",
+      "durationSeconds": 58,
+      "poster": "/video-poster-ep03.jpg"
+    },
+    {
+      "id": "NiRQYo8jRSc",
+      "title": "Top 3 PC Games Deals 16Aug2026",
+      "blurb": "This week's three best Steam deals in Singapore, with the catch on each one stated out loud.",
+      "picks": ["XCOM 2", "Disco Elysium: The Final Cut", "Cult of the Lamb"],
+      "published": "2026-08-16",
+      "durationSeconds": 58,
+      "poster": "/video-poster.jpg"
+    }
+  ]
 }

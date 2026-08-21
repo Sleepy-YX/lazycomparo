@@ -81,11 +81,19 @@ async function loadCatalog(context, url) {
   }
 }
 
-/* The featured YouTube Short, from ../video.json — the same file the app
-   reads, so the page and the VideoObject markup cannot advertise different
-   videos. No id (or no file) means no video block and no markup: an unpublished
-   video simply does not exist as far as this page is concerned. */
+/* The YouTube Shorts, from ../video.json — the same file the app reads, so the
+   page and the VideoObject markup cannot advertise different videos. An episode
+   with no id (or no file at all) means no block and no markup: an unpublished
+   video simply does not exist as far as this page is concerned.
+
+   `episodes` is newest-first. VIDEO is the newest published one (the featured
+   card); ARCHIVE is the rest, which get a text link each and their own
+   VideoObject — the reason the file became a list on 2026-08-21 is that every
+   week used to overwrite the previous episode off the site entirely.
+   The old flat single-episode shape is still read, so rolling back only
+   video.json cannot blank the section. */
 let VIDEO = null;
+let ARCHIVE = [];
 let videoChecked = false;
 
 async function loadVideo(context, url) {
@@ -98,9 +106,15 @@ async function loadVideo(context, url) {
       : await fetch(req);
     if (!res.ok) return null;
     const v = await res.json();
-    VIDEO = v && v.id ? v : null;
+    const list = Array.isArray(v && v.episodes) ? v.episodes : (v && v.id ? [v] : []);
+    const live = list
+      .filter((e) => e && e.id)
+      .map((e) => ({ ...e, channelUrl: e.channelUrl || (v && v.channelUrl) }));
+    VIDEO = live[0] || null;
+    ARCHIVE = live.slice(1);
   } catch (e) {
     VIDEO = null;
+    ARCHIVE = [];
   }
   return VIDEO;
 }
@@ -231,7 +245,11 @@ function videoHtml() {
       }. ${esc(VIDEO.blurb || '')}</p>
       ${picks ? `<ul>${picks}</ul>` : ''}
       <p>Prices quoted in the video are a snapshot of that day; the comparison on this page is live.
-      <a href="${esc(VIDEO.channelUrl || 'https://www.youtube.com/@LazyComparo')}">More on the LazyComparo channel</a>.</p>`;
+      <a href="${esc(VIDEO.channelUrl || 'https://www.youtube.com/@LazyComparo')}">More on the LazyComparo channel</a>.</p>
+      ${ARCHIVE.length ? `<h3>Earlier episodes</h3><ul>${ARCHIVE.map((e) => `
+      <li><a href="https://www.youtube.com/watch?v=${esc(e.id)}">${esc(e.title)}</a>${
+        e.published ? ` — ${esc(e.published)}` : ''
+      }${(e.picks || []).length ? `: ${esc((e.picks || []).join(', '))}` : ''}</li>`).join('')}</ul>` : ''}`;
 }
 
 function homeHtml() {
@@ -299,20 +317,23 @@ function homeJsonLd() {
     name: 'PC games compared on LazyComparo',
     itemListElement: items,
   };
-  // VideoObject only when a video is actually published. contentUrl is
+  // VideoObject only for episodes that are actually published. contentUrl is
   // deliberately absent — we host no video file; embedUrl is the -nocookie
-  // host the page itself uses.
-  const video = VIDEO ? [{
+  // host the page itself uses. Every episode in the graph is also named in the
+  // markup above, archive included, so nothing here asserts content the page
+  // does not show.
+  const videoObject = (v) => ({
     '@type': 'VideoObject',
-    name: VIDEO.title,
-    description: VIDEO.blurb || VIDEO.title,
-    uploadDate: VIDEO.published,
-    duration: isoDuration(VIDEO.durationSeconds),
-    thumbnailUrl: `${SITE}${VIDEO.poster || '/video-poster.jpg'}`,
-    embedUrl: `https://www.youtube-nocookie.com/embed/${VIDEO.id}`,
-    url: `https://www.youtube.com/watch?v=${VIDEO.id}`,
+    name: v.title,
+    description: v.blurb || v.title,
+    uploadDate: v.published,
+    duration: isoDuration(v.durationSeconds),
+    thumbnailUrl: `${SITE}${v.poster || '/video-poster.jpg'}`,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${v.id}`,
+    url: `https://www.youtube.com/watch?v=${v.id}`,
     publisher: { '@type': 'Organization', name: 'LazyComparo', url: 'https://lazycomparo.com' },
-  }] : [];
+  });
+  const video = VIDEO ? [VIDEO, ...ARCHIVE].map(videoObject) : [];
   const graph = { '@context': 'https://schema.org', '@graph': [list, ...video] };
   return `<script type="application/ld+json">${JSON.stringify(graph)}</script>`;
 }

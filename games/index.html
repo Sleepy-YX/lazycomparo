@@ -691,13 +691,22 @@
     // Title normalizer for matching freebies against the catalog / dedupe.
     const normTitle = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-    /* The featured Short, from games/video.json — the same file the SEO
-       middleware reads, so the page and the VideoObject markup can never
-       advertise different videos. Absolute path: a relative one resolves to
+    /* The Shorts, from games/video.json — the same file the SEO middleware
+       reads, so the page and the VideoObject markup can never advertise
+       different videos. Absolute path: a relative one resolves to
        /game/video.json on a per-game page. A missing or empty file is not an
-       error, it just means no video is featured this week. */
+       error, it just means nothing is featured this week.
+
+       `episodes` is newest-first and an entry with an empty id is skipped
+       everywhere, so a finished-but-unuploaded video can sit in the file
+       harmlessly until its id is pasted in. The first published entry is the
+       featured card; the rest become the archive list under it, which is why
+       an episode is never overwritten — publishing is append-only now.
+
+       The pre-2026-08-21 file was a single flat episode object; that shape is
+       still accepted so a rollback of this file alone cannot blank the card. */
     function useFeaturedVideo() {
-      const [video, setVideo] = useState(null);
+      const [eps, setEps] = useState([]);
       useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -705,12 +714,15 @@
             const res = await fetch('/video.json');
             if (!res.ok) return;
             const v = await res.json();
-            if (!cancelled && v && v.id) setVideo(v);
+            const list = Array.isArray(v && v.episodes) ? v.episodes : (v && v.id ? [v] : []);
+            const live = list.filter(e => e && e.id).map(e => ({
+              ...e, channelUrl: e.channelUrl || (v && v.channelUrl) }));
+            if (!cancelled) setEps(live);
           } catch (e) { /* no video section, site is unaffected */ }
         })();
         return () => { cancelled = true; };
       }, []);
-      return video;
+      return eps;
     }
 
     function useFreebies() {
@@ -970,10 +982,16 @@
        rendered from the video itself) and not i.ytimg.com. Nothing goes to
        YouTube until the visitor clicks; then it is the -nocookie host.
 
-       The whole block renders NOTHING when video.json has no id, so an empty
+       The whole block renders NOTHING when no episode has an id, so an empty
        config is the safe state: publish the Short, paste the id, done. */
-    const FeaturedVideo = ({ video }) => {
+    const FeaturedVideo = ({ episodes }) => {
       const [playing, setPlaying] = useState(false);
+      const list = Array.isArray(episodes) ? episodes : [];
+      const video = list[0];
+      const archive = list.slice(1);
+      /* Hooks must run unconditionally, so the empty check comes after
+         useState — not before it, which is what an early `if (!video)` above
+         the hook would have done. */
       if (!video || !video.id) return null;
       const watchUrl = `https://www.youtube.com/watch?v=${video.id}`;
       return (
@@ -1043,6 +1061,37 @@
               </div>
             </div>
           </div>
+
+          {/* Earlier episodes. Deliberately text-only: a row of posters would
+              cost another image per episode for a link people rarely take, and
+              pulling those posters from i.ytimg.com — the cheap way to do it —
+              is exactly what /privacy says this page does not do. Each row is
+              a plain outbound link, so nothing here contacts YouTube either. */}
+          {archive.length > 0 && (
+            <div className="border-t border-ink-700 px-4 md:px-5 py-3">
+              <div className="text-[11px] uppercase tracking-widest text-zinc-500 mb-2">
+                Earlier episodes
+              </div>
+              <ul className="space-y-1.5">
+                {archive.map(ep => (
+                  <li key={ep.id} className="text-sm min-w-0">
+                    <a href={`https://www.youtube.com/watch?v=${ep.id}`}
+                       target="_blank" rel="noopener noreferrer"
+                       className="text-zinc-300 hover:text-accent-soft transition inline-flex items-center gap-1.5">
+                      <span className="truncate">{ep.title}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </a>
+                    {ep.picks && ep.picks.length > 0 && (
+                      <span className="text-zinc-600"> — {ep.picks.join(' · ')}</span>
+                    )}
+                    {ep.published && (
+                      <span className="text-zinc-600 whitespace-nowrap"> · {ep.published}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
       );
     };
@@ -1237,7 +1286,7 @@
     /* ---------------- Browse view ---------------- */
     const BrowseView = ({ shortlist, onToggle, initialQuery = '' }) => {
       const { games: GAMES } = useGames();
-      const featuredVideo = useFeaturedVideo();
+      const videoEpisodes = useFeaturedVideo();
       const [query, setQuery] = useState(initialQuery);
       const [genre, setGenre] = useState('All');
       const [coop, setCoop] = useState('All');
@@ -1320,7 +1369,7 @@
           {/* Below the filters, above the grid: the product stays the first
               thing you can act on, and the video is the first thing you see
               before the catalog itself. Renders nothing when unconfigured. */}
-          <FeaturedVideo video={featuredVideo} />
+          <FeaturedVideo episodes={videoEpisodes} />
 
           <div className="mb-4 flex items-center justify-between gap-3 text-xs text-zinc-500">
             <span>Showing {list.length} of {GAMES.length} games</span>

@@ -1,6 +1,6 @@
 # LazyComparo — Project State
 
-_Last updated: 2026-08-16. Update this file whenever state changes materially._
+_Last updated: 2026-08-21. Update this file whenever state changes materially._
 
 > **How to resume in a new Claude session:** paste this whole file into your first
 > message, or say "read `PROJECT_STATE.md`". Everything Claude needs is here.
@@ -322,26 +322,42 @@ arrives it lands behind `dealHeat()` and nothing above it changes.
   index, which would make the sitemap entries and the canonical the middleware
   emits both point at a redirect.
 
-## Featured video (games site, added 2026-08-16)
+## Featured video + episode archive (games site, list since 2026-08-21)
 
 `games/video.json` is the one source: the app's **"This week on YouTube"** card
 (Browse tab, above the grid) and the middleware's `VideoObject` JSON-LD both
-read it, and **both render nothing while `id` is empty** — so an unpublished
-video is simply absent rather than a broken embed. Publishing is a one-field
-edit plus a push.
+read it, so the card and the markup cannot advertise different videos.
 
+**It holds a newest-first `episodes` array, not one video.** `episodes[0]` with
+a non-empty id is the featured card; the rest become a text-only **"Earlier
+episodes"** list inside the same card, and each gets its own `VideoObject`.
+It became a list because the weekly cadence was *deleting* the back catalogue:
+every new Short overwrote the previous one off the site and out of the markup.
+Publishing is now **append-only**.
+
+- **An empty `id` renders nowhere** — not the card, not the archive, not the
+  JSON-LD. That is the intended way to land a finished-but-unuploaded episode:
+  commit it with `"id": ""`, then publishing is pasting one field.
+- **The legacy flat shape (a bare `{id, title, …}`) is still parsed** by both
+  consumers, so rolling back this file alone cannot blank the section.
+- **Each episode owns its poster** (`poster`, defaulting to `/video-poster.jpg`)
+  — `video-poster.jpg` is EP02's still, `video-poster-ep03.jpg` is EP03's. Do
+  not overwrite one episode's poster with another's; add a new file.
 - **Click-to-load facade, not an iframe.** Nothing is requested from YouTube
   until the visitor presses play; then it loads from `youtube-nocookie.com`.
-  The poster is **our own** `games/video-poster.jpg`, rendered from the video —
-  using `i.ytimg.com` would have YouTube seeing every visitor on page load,
-  which `/privacy` says does not happen. That page now documents the player,
-  and its "no embedded players" line was corrected in the same commit. **If the
-  facade is ever replaced with a plain embed, `/privacy` changes with it.**
-- The pre-render carries a real link, the three picks as text and the "prices in
-  the video are a snapshot, the page is live" caveat, so the markup describes
-  content the page actually shows.
-- Video kit (stage, canvas renderer, voiceover, the MP4 itself) lives outside
-  this repo in `Claude/LazyComparoVideo/ep02-short-top3-deals/`.
+  Posters are **our own** rendered stills — using `i.ytimg.com` would have
+  YouTube seeing every visitor on page load, which `/privacy` says does not
+  happen. **The archive rows are deliberately text-only for the same reason**:
+  a poster per row is the obvious design, and the cheap way to build it is
+  `i.ytimg.com`, which would quietly break that promise. **If the facade is
+  ever replaced with a plain embed, `/privacy` changes with it.**
+- The pre-render carries a real link, the picks as text, the archive links and
+  the "prices in the video are a snapshot, the page is live" caveat, so the
+  markup describes content the page actually shows.
+- `check-sync.ps1` validates this file: dates are `YYYY-MM-DD`, ids are unique,
+  episodes are newest-first, and every **published** episode's poster exists.
+- Video kits (stage, canvas renderer, voiceover, the MP4 itself) live outside
+  this repo in `Claude/LazyComparoVideo/ep0N-*/`, one folder per episode.
 
 ## Phone SEO pages (mobile site, added 2026-08-16)
 
@@ -459,7 +475,11 @@ ids and Steam AppIDs are unique, no inline `GAMES`/`EXTRA_STORES`/`PHONES`
 declaration has crept back into an app or middleware, every genre maps to a
 `GENRE_BUCKETS` entry (unmapped falls into "Other"), and the three **generated**
 files match their source — `games/sitemap.xml`, `mobile/sitemap.xml` and
-`landing/phones-mini.json`. It also checks the hand-typed landing hero counts.
+`landing/phones-mini.json`. It also checks the hand-typed landing hero counts,
+and (since 2026-08-21) `games/video.json` — see "Featured video + episode
+archive". Every property read there goes through a `Get-Prop` helper because
+`Set-StrictMode` turns a missing key into a **throw**, and a missing key is
+precisely what that section exists to report.
 
 It still reads `GENRE_BUCKETS` out of the markup with `.claude/JsLiteral.ps1`,
 a small JS-literal parser (no Node on this PC) — which is also what converted
@@ -933,6 +953,17 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 - **Rebrand:** grep for `LazyComparo` across `mobile/`, `games/`, `landing/`,
   `README.md`; regenerate `og-image.png`. For the mark, see "Brand mark" —
   seven copies of the same geometry, plus `.claude/make-icons.ps1`.
+- **Publish this week's video:** the episode is normally already committed with
+  `"id": ""` (renders nowhere). Paste the YouTube id into that field in
+  `games/video.json`, run `check-sync.ps1`, push. It becomes the featured card
+  and the previous one drops into "Earlier episodes" — nothing is overwritten.
+- **Build next week's video:** copy the newest `LazyComparoVideo/ep0N-*/`
+  folder, pull fresh numbers off `/api/steam` + `/api/deals`, rewrite `PICKS`
+  and the hook in `render.html`, re-run `make-vo.ps1` (it prints each block's
+  measured duration and flags overruns — set the scene boundaries from those
+  numbers, not from estimates), render, then add an episode to `video.json`
+  with a new `video-poster-epNN.jpg`. Full instructions in that folder's
+  `script.md`, including the headless-Chrome flags and the black-video trap.
 - **Change a weight or threshold:** update `landing/how-we-rank.html` in the
   same commit, bump its "Last reviewed" date, **and update the transcription of
   `scorePhone()`/`verdictFor()` in the landing's inline-advisor IIFE** — the two
@@ -940,6 +971,34 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-08-21** Weekly video #3, and the site change the weekly cadence
+  demanded. **(1) EP03 is built and verified** —
+  `LazyComparoVideo/ep03-short-cheap-hours/`, a 57 s Short off live
+  `/api/steam` + `/api/deals` data pulled that morning. Its angle is the site's
+  own metric, **cost per hour**: Metaphor: ReFantazio, Crusader Kings III and
+  Risk of Rain 2, all 90%+ positive and under S$0.40/hour. **Deliberately none
+  of EP02's picks** — Disco Elysium's sale ended and the other two are on the
+  same sale, so re-running them would be a repeat. XCOM 2 is still the cheapest
+  hour on the board though, so rather than omit it from a cost-per-hour video,
+  the outro carries a "still live from last week" card naming it.
+  **Published as `jEeIljpVG7Q`** and live on the games site.
+  **(2) `games/video.json` became an episode list.** The weekly cadence had a
+  hole in it: one video per file meant every Short *deleted* the previous one
+  from the card, the pre-render and the JSON-LD. Now `episodes` is newest-first,
+  `episodes[0]` is featured, the rest are a text-only "Earlier episodes" list,
+  and each published episode gets its own `VideoObject`. Empty ids render
+  nowhere — which is how EP03 was committed and verified *before* it was
+  uploaded — and the old flat shape is still parsed. The archive rows carry no thumbnails on purpose —
+  the cheap way to build that row is `i.ytimg.com`, which would break the
+  `/privacy` promise the facade exists to keep. **(3) `check-sync.ps1` now
+  polices the file** — dates, duplicate ids, newest-first ordering, and that
+  every published episode's poster exists.
+  **Two real bugs found on the way:** EP02's `script.md` documents frame
+  capture as `?shot=PORT`, but `saveBlob()` routes on `post` — `shot` alone
+  silently falls through to a blocked download, so **both** flags are needed.
+  And the first version of the new check used `-not $names -contains $k`, which
+  PowerShell binds as `(-not $names) -contains $k` and is therefore *always*
+  false — the missing-key branch could never fire.
 - **2026-08-16 (d)** The games site started carrying the YouTube channel. A
   **"This week on YouTube"** card sits above the Browse grid, driven by
   `games/video.json`, which the SEO middleware reads too — so the card and the
