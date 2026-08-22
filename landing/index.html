@@ -99,6 +99,44 @@
         "publisher": { "@id": "https://lazycomparo.com/#org" },
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "SGD" }
       }
+      ,
+      {
+        "@type": "FAQPage",
+        "@id": "https://lazycomparo.com/#faq",
+        "isPartOf": { "@id": "https://lazycomparo.com/#site" },
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is LazyComparo really free?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. No account, no sign-up, no trial and no paywall — every comparison, verdict and live price is open to anyone who loads the page." }
+          },
+          {
+            "@type": "Question",
+            "name": "Then how does it make money?",
+            "acceptedAnswer": { "@type": "Answer", "text": "It doesn't. No ads, no affiliate links, no sponsored placement and no way to pay for a better position, so nothing is ranked, boosted or hidden because of money. Running costs are about S$3 a month, paid out of pocket. If that ever changes it will be disclosed on About and marked where it appears, before it ships." }
+          },
+          {
+            "@type": "Question",
+            "name": "Where do the prices come from?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Steam's own store endpoint for prices and review scores, Epic's promotions feed for the weekly free games, and IsThereAnyDeal for cross-store prices and historical lows. They are fetched at request time and cached at the edge for up to about 30 minutes — never hand-typed. The store's own page is always the authority before you pay." }
+          },
+          {
+            "@type": "Question",
+            "name": "Which country's prices am I seeing?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Your own. Steam, Epic and GOG each price by region, so the site asks the store what it charges where you are instead of converting a US figure — and the value bands and budget sliders convert with it. Add ?cc=US to any page to look at another region." }
+          },
+          {
+            "@type": "Question",
+            "name": "How do you decide what's worth buying?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Games are ranked on price against review score and hours to beat, which gives a dollars-per-hour figure. Phones are scored on the priorities you set, minus a penalty for the friction of leaving iMessage, DeX or Samsung Cloud behind. Every weight and threshold is published — see how we rank." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I have to hand over any data?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. There are no accounts, no cookies and no analytics; your shortlist and slider settings stay in your own browser and are never sent to us. The price lookups run on our server rather than in your browser, so the stores see us asking about a game, not you. Privacy & terms." }
+          }
+        ]
+      }
     ]
   }
   </script>
@@ -797,6 +835,119 @@
     .pcard p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
     .pcard .num { font-size: 10px; letter-spacing: .3em; color: var(--accent); font-weight: 700; margin-bottom: 14px; }
 
+    /* ---------- closing band: head-to-heads + FAQ ----------
+       Deliberately NOT a .stop. stopProgress() maps camera positions onto
+       .stop centres, so a sixth one would have parked the camera somewhere
+       the scene has nothing to show. This is an opaque paper band instead:
+       the world ends at the finale, and the page lands on a plain reading
+       surface before the slab footer.
+
+       It is also the only long-form copy on the front door, and that is the
+       point. The live ticker, the deal cards and the working advisor already
+       answer "does this thing work"; nothing above answers "who is telling me
+       this and what are they selling" — which is the question a comparison
+       site has to answer before its ranking is worth anything. The answers
+       here are the short form of /about, /how-we-rank and /privacy, and link
+       to each.
+
+       No .reveal on this block on purpose: every other copy block starts at
+       opacity 0 and depends on the IntersectionObserver to exist at all. For
+       a scroll-choreographed stop that is the right trade; for the page's
+       plain-text answers it is not. */
+    .closer {
+      position: relative; z-index: 2;
+      background: var(--paper-deep);
+      border-top: 1px solid rgba(var(--hair),.08);
+      padding: 88px 4vw 80px;
+    }
+    .closer-in {
+      max-width: 1180px; margin: 0 auto;
+      display: grid; grid-template-columns: minmax(0,.82fr) minmax(0,1fr);
+      gap: 56px 76px;
+    }
+    /* h1/h2 above are display type (clamp up to 96px). These are section
+       labels on a text band and have to come back down to reading scale. */
+    .closer h2 { font-size: clamp(25px, 2.7vw, 34px); line-height: 1.12; }
+    .closer .lede {
+      margin-top: 12px; max-width: 46ch;
+      font-size: 13px; line-height: 1.6; color: var(--ink-soft);
+      text-wrap: pretty;
+    }
+
+    /* ---------- popular head-to-heads ----------
+       The front door used to link only to the two app roots. Every one of
+       these is a real crawlable page with a verdict, live prices for both
+       titles and a cost-per-hour line — the deepest thing the site makes, and
+       previously reachable from here only by landing in the app and building
+       the comparison by hand. Pairs are the strongest matches out of the same
+       similarity scoring the games site ranks its own head-to-head list with
+       (see comparePairs() in games/functions/_middleware.js), so this list and
+       that one cannot recommend different things. Slugs are canonical —
+       ids sorted — or the app 301s to the sorted form. */
+    .pairs { list-style: none; margin-top: 24px; }
+    .pairs li { border-top: 1px solid rgba(var(--hair),.11); }
+    .pairs li:last-child { border-bottom: 1px solid rgba(var(--hair),.11); }
+    .pairs a {
+      display: flex; align-items: baseline; gap: 14px;
+      padding: 13px 2px; text-decoration: none; color: var(--ink);
+      font-size: 14px; font-weight: 600; line-height: 1.35;
+      transition: color .2s var(--ease), padding-left .2s var(--ease);
+    }
+    /* --accent-strong, not --accent: the resting row is 13.7:1 and the hover
+       state should not drop below AA. Same token the trust-line link uses. */
+    .pairs a:hover { color: var(--accent-strong); padding-left: 7px; }
+    /* The title pair is its own flex item so it can WRAP and the genre tag
+       cannot be pushed out of the row. Two of these pairs ("Clair Obscur:
+       Expedition 33 vs Metaphor: ReFantazio") are long enough to need two
+       lines in a ~360px column, which is exactly what the two-column layout
+       gives them between 900px and ~1150px. min-width:0 is the load-bearing
+       half — a flex item's default min-width:auto refuses to shrink below its
+       longest unbreakable run, which is what let the tag overflow. */
+    .pairs .t { flex: 1 1 auto; min-width: 0; }
+    .pairs .vs {
+      font-family: var(--serif); font-weight: 480; font-style: italic;
+      color: var(--ink-soft); padding: 0 1px;
+    }
+    .pairs .genre {
+      flex: none;
+      font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+      color: var(--ink-soft); white-space: nowrap;
+    }
+    .closer .actions { margin-top: 26px; }
+
+    /* ---------- FAQ ----------
+       A <dl>, not <details>: these are six short answers a first-time visitor
+       should be able to read without clicking anything, and an accordion here
+       would hide the trust copy behind an interaction. */
+    .faq { margin-top: 24px; max-width: 60ch; }
+    .faq dt {
+      font-family: var(--serif); font-size: 18px; font-weight: 560;
+      line-height: 1.25; color: var(--ink); margin-top: 24px;
+    }
+    .faq dt:first-of-type { margin-top: 0; }
+    .faq dd { margin-top: 7px; font-size: 13.5px; line-height: 1.66; color: var(--ink-soft); text-wrap: pretty; }
+    .faq a {
+      color: var(--ink); text-decoration: none;
+      border-bottom: 1.5px solid var(--accent); padding-bottom: 1px;
+      transition: color .2s, border-color .2s;
+    }
+    .faq a:hover { color: var(--accent-strong); border-bottom-color: var(--accent-strong); }
+    .faq code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em;
+      background: rgba(var(--hair),.07); border-radius: 3px; padding: 1px 5px;
+    }
+
+    @media (max-width: 900px) {
+      .closer-in { grid-template-columns: 1fr; gap: 52px; }
+    }
+    @media (max-width: 760px) {
+      .closer { padding: 62px 6vw 58px; }
+      /* the genre tag is the first thing to go — a two-title link plus a tag
+         on one flex row wraps into a ragged three-line block on a phone */
+      .pairs .genre { display: none; }
+      .pairs a { font-size: 13.5px; }
+    }
+
     /* ---------- footer ---------- */
     footer {
       position: relative; z-index: 2;
@@ -1110,6 +1261,54 @@
       </div>
     </section>
   </main>
+
+  <!-- Everything above is a camera stop; this is not one. See the .closer
+       block in the stylesheet for why, and for where the pair list comes
+       from. The FAQ answers are mirrored verbatim into the FAQPage JSON-LD
+       in <head> — Google requires the two to match, so edit both or neither. -->
+  <section class="closer" aria-labelledby="h-faq">
+    <div class="closer-in">
+      <div>
+        <h2 id="h-pairs">Popular head-to-heads</h2>
+        <p class="lede">Every comparison is a real page: a verdict, live prices at all three stores for both games, and what each one costs per hour you'll actually play.</p>
+        <ul class="pairs">
+          <li><a href="https://pcgames.lazycomparo.com/compare/street-fighter-6-vs-tekken-8"><span class="t">Street Fighter 6 <span class="vs">vs</span> Tekken 8</span><span class="genre">Fighting</span></a></li>
+          <li><a href="https://pcgames.lazycomparo.com/compare/balatro-vs-slay-the-spire"><span class="t">Balatro <span class="vs">vs</span> Slay the Spire</span><span class="genre">Deckbuilder</span></a></li>
+          <li><a href="https://pcgames.lazycomparo.com/compare/content-warning-vs-lethal-company"><span class="t">Content Warning <span class="vs">vs</span> Lethal Company</span><span class="genre">Co-op horror</span></a></li>
+          <li><a href="https://pcgames.lazycomparo.com/compare/civilization-6-vs-civilization-7"><span class="t">Civilization VI <span class="vs">vs</span> Civilization VII</span><span class="genre">4X strategy</span></a></li>
+          <li><a href="https://pcgames.lazycomparo.com/compare/clair-obscur-expedition-33-vs-metaphor-refantazio"><span class="t">Clair Obscur: Expedition 33 <span class="vs">vs</span> Metaphor: ReFantazio</span><span class="genre">Turn-based RPG</span></a></li>
+          <li><a href="https://pcgames.lazycomparo.com/compare/palworld-vs-valheim"><span class="t">Palworld <span class="vs">vs</span> Valheim</span><span class="genre">Survival craft</span></a></li>
+        </ul>
+        <div class="actions">
+          <a class="arrowlink" href="https://pcgames.lazycomparo.com/deals/all-time-low">Games at their all-time low&nbsp;&nbsp;→</a>
+        </div>
+      </div>
+
+      <div>
+        <h2 id="h-faq">Questions, answered</h2>
+        <p class="lede">The short version. The long version lives on <a href="/about">About</a> and <a href="/how-we-rank">How we rank</a>.</p>
+        <dl class="faq">
+          <dt>Is LazyComparo really free?</dt>
+          <dd>Yes. No account, no sign-up, no trial and no paywall — every comparison, verdict and live price is open to anyone who loads the page.</dd>
+
+          <dt>Then how does it make money?</dt>
+          <dd>It doesn't. No ads, no affiliate links, no sponsored placement and no way to pay for a better position, so nothing is ranked, boosted or hidden because of money. Running costs are about S$3 a month, paid out of pocket. If that ever changes it will be disclosed on <a href="/about">About</a> and marked where it appears, before it ships.</dd>
+
+          <dt>Where do the prices come from?</dt>
+          <dd>Steam's own store endpoint for prices and review scores, Epic's promotions feed for the weekly free games, and IsThereAnyDeal for cross-store prices and historical lows. They are fetched at request time and cached at the edge for up to about 30 minutes — never hand-typed. The store's own page is always the authority before you pay.</dd>
+
+          <dt>Which country's prices am I seeing?</dt>
+          <dd>Your own. Steam, Epic and GOG each price by region, so the site asks the store what it charges where you are instead of converting a US figure — and the value bands and budget sliders convert with it. Add <code>?cc=US</code> to any page to look at another region.</dd>
+
+          <dt>How do you decide what's worth buying?</dt>
+          <dd>Games are ranked on price against review score and hours to beat, which gives a dollars-per-hour figure. Phones are scored on the priorities you set, minus a penalty for the friction of leaving iMessage, DeX or Samsung Cloud behind. Every weight and threshold is published — <a href="/how-we-rank">see how we rank</a>.</dd>
+
+          <dt>Do I have to hand over any data?</dt>
+          <dd>No. There are no accounts, no cookies and no analytics; your shortlist and slider settings stay in your own browser and are never sent to us. The price lookups run on our server rather than in your browser, so the stores see us asking about a game, not you. <a href="/privacy">Privacy &amp; terms</a>.</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
 
   <footer>
     <div class="cols">

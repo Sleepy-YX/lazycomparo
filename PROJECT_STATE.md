@@ -845,6 +845,49 @@ until real data lands) exactly like the ticker and freebie pill.
   grew rungs between the tag list and the CTA, so their `.actions` can no longer
   share the generic `.54s` or the link arrives before the thing it refers to.
 
+## Landing closing band — FAQ + head-to-heads (added 2026-08-22)
+
+`<section class="closer">` sits between `</main>` and `<footer>`. It is the
+only long-form copy on the front door, and it is deliberately the plainest
+thing on the page.
+
+- **It is NOT a `.stop`, and must not become one.** `stopProgress()` maps the
+  five camera positions onto `.stop` *centres*; a sixth section would have
+  demanded a sixth camera position the scene has nothing to point at. Because
+  it measures centres rather than `scrollY / scrollHeight`, appending content
+  after the finale is free — same property that already lets the footer exist.
+  Verified after adding: all five stops still return exactly `p === i` when
+  centred, and max scroll still clamps at 4.0.
+- **No `.reveal` on it, on purpose.** Every other copy block starts at
+  `opacity: 0` and needs the IntersectionObserver to become visible at all.
+  For a choreographed stop that trade is right; for the page's plain-text
+  answers it is not — these paint whatever happens to the JS.
+- **The FAQ answers are mirrored verbatim into the FAQPage JSON-LD** in
+  `<head>`. Google requires the two to match, so they are edited together or
+  not at all. There is no generator: six entries, hand-kept, and the mirror
+  rule is written above the markup. (A quick check in the console:
+  compare `[...document.querySelectorAll('.faq dd')].map(e => e.textContent
+  .replace(/\s+/g,' ').trim())` against the schema's `acceptedAnswer.text`.)
+- **The answers are the short form of `/about` and `/privacy`** and link to
+  them. If the money model, the data story or the cache window changes on
+  those pages, it changes here too — the front door must not be the stalest
+  statement of the site's own commitments.
+- **The head-to-head list is the same six pairs the games site would pick.**
+  Slugs come from the top of `comparePairs()` / `topPairs()` in
+  `games/functions/_middleware.js` — same similarity scoring, so the landing
+  and the games homepage cannot recommend different comparisons. Slugs must be
+  **canonical (ids sorted)** or the app 301s. All twelve ids are in
+  `games/games.json`; `check-sync.ps1` does not cover this list, so verify by
+  hand if you swap a pair.
+- **`.pairs .t { min-width: 0 }` is load-bearing.** The title pair is its own
+  flex item so it can wrap; without `min-width: 0` a flex item refuses to
+  shrink below its longest unbreakable run, which pushed the genre tag out of
+  the row between 900px and ~1150px (where the two-column layout gives the
+  pairs column ~360px). Under 760px the genre tag is dropped entirely rather
+  than letting a two-title link plus a tag wrap into a ragged three-line block.
+- Hover uses `--accent-strong`, not `--accent`: on `--paper-deep` the plain
+  ember is 3.4:1 and fails AA, the strong one is 4.5:1.
+
 ## Landing page notes
 
 - Papercraft three.js world; 5 camera stops map to the 5 `<section>`s. WebGL /
@@ -1118,6 +1161,21 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
   screens must not disagree about the same phone.
 
 ## Changelog
+
+- **2026-08-22** **The landing page ends on answers, not just a CTA.** The
+  front door had roughly 350 words on it, and every one of them was ours: no
+  page on lazycomparo.com answered "how do you make money", "whose prices are
+  these" or "do you want my data" — the three questions a comparison site has
+  to answer before its ranking is worth anything. Those answers existed, on
+  `/about` and `/privacy`, behind a footer link nobody clicks. A closing band
+  between `</main>` and the footer now carries a six-question FAQ (the short
+  form of the trust pages, linking to each) plus six real `/compare/` links,
+  which is the first time the root domain has pointed at the deepest pages the
+  site makes. FAQPage JSON-LD mirrors the visible answers verbatim.
+  Deliberately **not** a sixth `.stop` — `stopProgress()` maps camera
+  positions onto `.stop` centres, so a sixth would have parked the camera where
+  the scene has nothing to show; verified all five stops still land on
+  `p === i` and clamp at 4.0 at max scroll. See "Landing closing band".
 
 - **2026-08-22** **Head-to-head pages, and share cards that are not blank.**
   Two gaps that both cost the site every time someone tried to pass a link on.
