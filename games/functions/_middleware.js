@@ -9,13 +9,19 @@
 // so real users get the full interactive app while crawlers (and JS-less
 // clients) get content. Progressive enhancement / pre-render, not cloaking.
 //
-// TWO ROUTES ARE HANDLED:
+// THE ROUTES HANDLED HERE:
 //   /                -> homepage: ItemList JSON-LD + a linked list of all games
 //   /game/<slug>     -> per-game landing page: unique <title>/description/
 //                       canonical/og, a single-game detail block, and
 //                       VideoGame + BreadcrumbList JSON-LD. The slug is the
 //                       game id. `games/_redirects` rewrites /game/* to the app
 //                       shell so context.next() serves index.html for these.
+//   /compare/<a>-vs-<b> -> head-to-head page for two games, same rewrite trick.
+//                       See "COMPARE PAGES" below for why the app's old
+//                       `#compare=` fragment could never be one of these.
+//   /gog, /deals/all-time-low -> the two hubs, from their own no-React shells.
+//   /sitemap.xml     -> generated here from games.json, because the compare
+//                       URLs are generated too. See "SITEMAP" below.
 //
 // THE CATALOG IS NOT COPIED HERE ANY MORE. Until 2026-08-16 this file held a
 // hand-mirrored, trimmed copy of the GAMES array in ../index.html, plus a
@@ -68,8 +74,16 @@ function trim(raw) {
     hours: g.displayInfo.hoursToBeat,
     players: g.displayInfo.players,
     // The first pro is the one-line "why you'd buy it" the page prints. The
-    // app shows all three; a crawler gets the headline.
+    // app shows all three; a crawler gets the headline. The first con is the
+    // matching "why you might not", which a comparison page needs to be worth
+    // reading - a page that only lists upsides for both games decides nothing.
     pro: (g.pros && g.pros[0]) || '',
+    con: (g.cons && g.cons[0]) || '',
+    // Tags and player count drive which games are offered as head-to-heads
+    // (see comparePartners) - genre alone is too fine-grained here, with 50
+    // genres across 100 games and 20 of them held by a single title.
+    tags: g.tags || [],
+    maxPlayers: g.maxPlayers || 1,
     stores: g.stores || [],
   }));
 }
@@ -144,6 +158,26 @@ const esc = (s) =>
 
 const steamUrl = (appId) => `https://store.steampowered.com/app/${appId}/`;
 const gamePath = (id) => `${SITE}/game/${id}`;
+
+/* ------------------------------ SHARE CARDS ------------------------------- */
+// WHY: index.html declares twitter:card=summary_large_image and, until now, no
+// og:image, so every link to this site posted anywhere rendered as a bare grey
+// box. The static card in index.html covers the app itself; a page about ONE
+// game can do better than a generic card, and Steam already hosts the art.
+//
+// header.jpg is 460x215 and exists for every store app (checked against all
+// 100 AppIDs in the catalog) - capsule art does not. It is hotlinked rather
+// than proxied on purpose: it is fetched by link scrapers, not by visitors, so
+// it costs us no bandwidth, and it is the same "art identifies the product"
+// posture as the store badges. If it ever 404s the scraper falls back to
+// nothing and the card degrades to text, which is where we started.
+const OG = { image: `${SITE}/og-image.png`, width: '1200', height: '630',
+  alt: 'LazyComparo - compare PC game prices across Steam, Epic and GOG' };
+const headerImage = (appId) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`;
+const gameCard = (g) => ({
+  image: headerImage(g.appId), width: '460', height: '215',
+  alt: `${g.title} store artwork`,
+});
 
 // Up to 4 related games: same genre first, then fill from neighbours.
 function relatedGames(game) {
@@ -321,6 +355,9 @@ function homeHtml(region) {
         <li><a href="${SITE}/gog">PC games on GOG — where GOG beats Steam right now</a></li>
         <li><a href="${SITE}/deals/all-time-low">PC games at their all-time low price right now</a></li>
       </ul>
+
+      <h2>Head to head</h2>
+      <ul>${topPairsHtml()}</ul>
       ${videoHtml()}
 
       <h2>Games we compare</h2>
@@ -499,12 +536,22 @@ function gameMeta(g, entry, region) {
     title: `Cheapest price for ${g.title} on PC — Steam vs Epic vs GOG | LazyComparo`,
     description: `Is ${g.title} cheaper on Steam, Epic or GOG? ${priceBit} ${g.rating}% positive, about ${g.hours}h to beat.`,
     canonical: gamePath(g.id),
+    // A page about one game shares as that game, not as the site.
+    card: gameCard(g),
   };
 }
 
 function gameHtml(g, entry, region) {
   const related = relatedGames(g).map((r) =>
     `<li><a href="${gamePath(r.id)}">${esc(r.title)}</a> — ${esc(r.genre)}</li>`).join('');
+
+  /* The head-to-head links. These are the ONLY internal links into
+     /compare/<a>-vs-<b>, so without them those pages exist but are orphans:
+     in the sitemap, linked from nowhere, which is the profile of a page Google
+     crawls once and drops. Same function the sitemap is built from, so the two
+     can never advertise different pairs. */
+  const versus = comparePartners(g).map((p) =>
+    `<li><a href="${comparePath(g, p)}">${esc(g.title)} vs ${esc(p.title)}</a></li>`).join('');
 
   return `
     <nav aria-label="Breadcrumb"><a href="${SITE}/">All games</a> &rsaquo; <span>${esc(g.title)}</span></nav>
@@ -521,6 +568,8 @@ function gameHtml(g, entry, region) {
       <p>${esc(g.title)} is a ${esc(g.genre)} by ${esc(g.studio)}, released ${g.year}. ${esc(g.players)}.
       It holds a ${g.rating}% positive rating on Steam and takes about ${g.hours} hours to beat.</p>
       <p>${esc(g.pro)}</p>
+
+      ${versus ? `<h2>${esc(g.title)} head to head</h2><ul>${versus}</ul>` : ''}
 
       <h2>Similar games to compare</h2>
       <ul>${related}</ul>
@@ -614,6 +663,355 @@ function gameJsonLd(g, entry, region) {
     ],
   };
   return `<script type="application/ld+json">${JSON.stringify(graph)}</script>`;
+}
+
+/* ----------------------------- COMPARE PAGES ------------------------------ */
+// WHY THESE EXIST: "<game A> vs <game B>" is the highest-intent query shape a
+// comparison site can answer, and this one had no page for it. Compare was
+// reachable only as `#compare=a,b` - a fragment, which never reaches the
+// server, so the middleware could not pre-render it, Google folded every
+// shared link back into the homepage, and a link pasted into Discord showed
+// the generic site card instead of the two games in it.
+//
+// The route is /compare/<a>-vs-<b>, served through the same SPA rewrite as
+// /game/<slug> (see games/_redirects). Any valid pair renders on request, so
+// a shared link always works; only the CURATED pairs below go in the sitemap,
+// because 100 games make 4,950 combinations and shipping all of them would be
+// a doorway-page farm rather than a set of pages anyone wants.
+//
+// Ordering is canonical (ids sorted), enforced by a 301 in onRequest, so
+// a-vs-b and b-vs-a can never both be indexed.
+
+const comparePairSlug = (a, b) => (a.id < b.id ? `${a.id}-vs-${b.id}` : `${b.id}-vs-${a.id}`);
+const comparePath = (a, b) => `${SITE}/compare/${comparePairSlug(a, b)}`;
+
+/* Ids contain hyphens ("black-myth-wukong"), so the separator is ambiguous in
+   principle. Rather than ban "-vs-" from ids, try every split and accept the
+   one where BOTH halves are real games. Unknown pairs return null and fall
+   through to the homepage pre-render, which is what an unknown /game/<slug>
+   already does. */
+function parseComparePair(slug) {
+  const parts = decodeURIComponent(slug).split('-vs-');
+  if (parts.length < 2) return null;
+  for (let i = 1; i < parts.length; i++) {
+    const a = BY_ID.get(parts.slice(0, i).join('-vs-'));
+    const b = BY_ID.get(parts.slice(i).join('-vs-'));
+    if (a && b && a.id !== b.id) return [a, b];
+  }
+  return null;
+}
+
+/* Which two games are worth putting head-to-head. Genre alone is too
+   fine-grained - the catalog holds ~50 genres across 100 games and 20 of them
+   belong to a single title - so tags carry most of the weight, with a bonus
+   for games on the same shelf price-wise and for both being (or not being)
+   co-op. The threshold is what keeps the sitemap honest: a pair that clears it
+   shares a genre, or two tags, and is a comparison a buyer might actually be
+   choosing between. */
+const COMPARE_PARTNERS = 3;   // per game -> a couple of hundred pairs, not 4,950
+const COMPARE_MIN_SCORE = 4;
+
+function similarity(a, b) {
+  let score = a.genre === b.genre ? 4 : 0;
+  const mine = new Set((a.tags || []).map((t) => String(t).toLowerCase()));
+  score += 2 * (b.tags || []).filter((t) => mine.has(String(t).toLowerCase())).length;
+  if ((a.maxPlayers > 1) === (b.maxPlayers > 1)) score += 1;
+  const hi = Math.max(a.price, b.price) || 1;
+  if (Math.abs(a.price - b.price) / hi <= 0.3) score += 1;
+  return score;
+}
+
+// Deterministic: score, then rating, then id. The sitemap and the on-page
+// links are both built from this, so an unstable sort would advertise pairs
+// that no page links to.
+function comparePartners(game) {
+  return GAMES
+    .filter((g) => g.id !== game.id)
+    .map((g) => ({ g, score: similarity(game, g) }))
+    .filter((x) => x.score >= COMPARE_MIN_SCORE)
+    .sort((x, y) => y.score - x.score || y.g.rating - x.g.rating || (x.g.id < y.g.id ? -1 : 1))
+    .slice(0, COMPARE_PARTNERS)
+    .map((x) => x.g);
+}
+
+function comparePairs() {
+  const seen = new Set();
+  const out = [];
+  GAMES.forEach((g) => comparePartners(g).forEach((p) => {
+    const [x, y] = g.id < p.id ? [g, p] : [p, g];
+    const key = `${x.id}-vs-${y.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push([x, y]);
+  }));
+  return out;
+}
+
+/* The homepage is the most-crawled page on the site, so it seeds the crawl
+   into the head-to-heads instead of leaving them to the sitemap and the game
+   pages alone. Strongest matches first, tie-broken by how well-reviewed the
+   pair is, so the list reads like comparisons people actually run. */
+function topPairs(n) {
+  return comparePairs()
+    .map(([a, b]) => ({ a, b, score: similarity(a, b), rating: a.rating + b.rating }))
+    .sort((x, y) => y.score - x.score || y.rating - x.rating)
+    .slice(0, n);
+}
+
+function topPairsHtml() {
+  return topPairs(8).map(({ a, b }) =>
+    `<li><a href="${comparePath(a, b)}">${esc(a.title)} vs ${esc(b.title)}</a> — ${esc(a.genre)} vs ${esc(b.genre)}</li>`).join('');
+}
+
+/* The one number every row of this page hangs off: what this game costs the
+   visitor right now. Live cheapest listing when we have one, the catalog's
+   FX-converted reference price when we don't - `live` says which, so the page
+   can hedge its wording instead of quoting a fallback as a live price. */
+function bestAmount(g, entry, region) {
+  const best = cheapestStore(entry);
+  if (best) {
+    return { price: best.price, currency: best.currency || region.currency,
+      approx: best.approx, store: best.store, live: true };
+  }
+  const ref = refAmount(g, region);
+  return { ...ref, store: 'Steam', live: false };
+}
+
+// Cost per hour of playtime - the site's whole thesis, and the row that most
+// often disagrees with the price row.
+const perHour = (amount, g) => amount.price / Math.max(1, g.hours);
+const perHourText = (amount, g, region) =>
+  `${sym(amount.currency, region)}${perHour(amount, g).toFixed(2)}/h`;
+
+// Only meaningful within one currency: /api/deals normalises, but if its FX
+// step failed the two games can arrive quoted differently, and "cheaper"
+// across currencies is not a claim we can make.
+const sameCurrency = (x, y) => (x.currency || '') === (y.currency || '');
+
+function compareVerdict(a, b, amtA, amtB, entryA, entryB, region) {
+  const parts = [];
+  // Without a live feed these are the catalog's reference prices, so the
+  // sentence hedges instead of quoting a fallback as today's price. Not when
+  // the amount is already marked approximate — money() prefixes those with
+  // "~", and "about ~US$10.73" hedges the same thing twice.
+  const at = (amt) => `${amt.live || amt.approx ? '' : 'about '}${money(amt, region)}`;
+
+  if (sameCurrency(amtA, amtB) && amtA.price !== amtB.price) {
+    const [cheap, dear] = amtA.price < amtB.price ? [[a, amtA], [b, amtB]] : [[b, amtB], [a, amtA]];
+    const gap = round2(dear[1].price - cheap[1].price);
+    parts.push(`<strong>${esc(cheap[0].title)} is the cheaper of the two right now</strong> at
+      ${at(cheap[1])}${cheap[1].live ? ` on ${esc(cheap[1].store)}` : ''},
+      ${diffAmount(gap, cheap[1].currency, region)} less than ${esc(dear[0].title)}.`);
+  } else if (sameCurrency(amtA, amtB)) {
+    parts.push(`<strong>${esc(a.title)} and ${esc(b.title)} cost the same today</strong> at
+      ${at(amtA)} each, so price is not the deciding factor.`);
+  } else {
+    parts.push(`<strong>${esc(a.title)} is ${at(amtA)} and ${esc(b.title)} is
+      ${at(amtB)}</strong>.`);
+  }
+
+  // Value can, and often does, contradict the price row - that contradiction
+  // is the reason to read this page rather than the store.
+  if (sameCurrency(amtA, amtB)) {
+    const vA = perHour(amtA, a);
+    const vB = perHour(amtB, b);
+    const [good, bad] = vA < vB ? [[a, amtA], [b, amtB]] : [[b, amtB], [a, amtA]];
+    const cheaper = amtA.price <= amtB.price ? a : b;
+    // "also" only makes sense when one of them was already the cheaper buy;
+    // at an identical price nothing has been claimed yet.
+    const lead = amtA.price === amtB.price
+      ? `Per hour played they are not equal: ${esc(good[0].title)} costs`
+      : good[0].id === cheaper.id
+        ? `On playtime it is also the better value: ${esc(good[0].title)} costs`
+        : `Per hour played the cheaper one loses: ${esc(good[0].title)} costs`;
+    parts.push(`${lead} ${perHourText(good[1], good[0], region)} against
+      ${perHourText(bad[1], bad[0], region)} for ${esc(bad[0].title)} —
+      ${good[0].hours}h to beat versus ${bad[0].hours}h.`);
+  }
+
+  const better = a.rating === b.rating ? null : (a.rating > b.rating ? a : b);
+  if (better) {
+    const other = better.id === a.id ? b : a;
+    parts.push(`Steam players rate ${esc(better.title)} higher: ${better.rating}% positive against
+      ${other.rating}%.`);
+  }
+
+  [[a, entryA], [b, entryB]].forEach(([g, entry]) => {
+    if (atAllTimeLow(entry)) parts.push(`${esc(g.title)} is at its lowest price ever recorded today.`);
+  });
+
+  return `<p>${parts.join(' ')}</p>`;
+}
+
+// Metric | A | B, built from the same amounts as the verdict above so the two
+// can never disagree.
+function compareTableHtml(a, b, amtA, amtB, entryA, entryB, region) {
+  const lowOf = (entry) => {
+    const low = entry && entry.historyLow;
+    if (!low || typeof low.price !== 'number') return 'not recorded';
+    return `${money({ price: low.price, currency: low.currency }, region)}${low.shop ? ` on ${esc(low.shop)}` : ''}`;
+  };
+  const priceOf = (amt) => amt.live
+    ? `${money(amt, region)} on ${esc(amt.store)}`
+    : `${amt.approx ? '' : 'about '}${money(amt, region)}`;
+  const storesOf = (g, entry) => {
+    const live = comparableStores(entry).map((s) => s.store);
+    const list = live.length ? live : ['Steam', ...g.stores];
+    return [...new Set(list)].join(', ');
+  };
+
+  const rows = [
+    ['Price now', priceOf(amtA), priceOf(amtB)],
+    ['All-time low', lowOf(entryA), lowOf(entryB)],
+    ['Steam rating', `${a.rating}% positive`, `${b.rating}% positive`],
+    ['Hours to beat', `${a.hours}h`, `${b.hours}h`],
+    ['Cost per hour', perHourText(amtA, a, region), perHourText(amtB, b, region)],
+    ['Players', esc(a.players), esc(b.players)],
+    ['Available on', esc(storesOf(a, entryA)), esc(storesOf(b, entryB))],
+    ['Released', `${a.year}, ${esc(a.studio)}`, `${b.year}, ${esc(b.studio)}`],
+  ].map(([label, x, y]) => `<tr><th scope="row">${label}</th><td>${x}</td><td>${y}</td></tr>`).join('');
+
+  return `
+    <table>
+      <caption>${esc(a.title)} vs ${esc(b.title)}, ${esc(region.name)} store pricing</caption>
+      <thead><tr><th scope="col">Metric</th><th scope="col">${esc(a.title)}</th><th scope="col">${esc(b.title)}</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function compareMeta(a, b, amtA, amtB, region) {
+  const priceBit = sameCurrency(amtA, amtB)
+    ? `${money(amtA, region)} vs ${money(amtB, region)} right now.`
+    : 'Live prices for both, side by side.';
+  return {
+    title: `${a.title} vs ${b.title} — which is the better buy? | LazyComparo`,
+    description: `${a.title} or ${b.title}? ${priceBit} Cost per hour, Steam rating, hours to beat and which store is cheapest, across Steam, Epic and GOG.`,
+    canonical: comparePath(a, b),
+    // One of the two games, not the generic card: a share of this link should
+    // show a game. The left column wins, and canonical ordering decides which
+    // that is, so one URL always produces one card.
+    card: gameCard(a),
+  };
+}
+
+function compareHtml(a, b, entryA, entryB, region) {
+  const amtA = bestAmount(a, entryA, region);
+  const amtB = bestAmount(b, entryB, region);
+
+  // Other head-to-heads either game is in - the internal links that make these
+  // pages discoverable at all, since nothing else on the site links a pair.
+  const others = [];
+  const seen = new Set([comparePath(a, b)]);
+  [a, b].forEach((g) => comparePartners(g).forEach((p) => {
+    const href = comparePath(g, p);
+    if (seen.has(href)) return;
+    seen.add(href);
+    const [x, y] = g.id < p.id ? [g, p] : [p, g];
+    others.push(`<li><a href="${href}">${esc(x.title)} vs ${esc(y.title)}</a></li>`);
+  }));
+
+  const lower = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : '');
+  // Catalog pros and cons are fragments, not sentences - they carry no closing
+  // punctuation, and without this the next sentence runs straight into them.
+  const stop = (s) => (s && !/[.!?]$/.test(s) ? `${s}.` : s || '');
+
+  return `
+    <nav aria-label="Breadcrumb"><a href="${SITE}/">All games</a> &rsaquo;
+      <a href="${gamePath(a.id)}">${esc(a.title)}</a> &rsaquo; <span>vs ${esc(b.title)}</span></nav>
+    <main>
+      <h1>${esc(a.title)} vs ${esc(b.title)}</h1>
+      ${compareVerdict(a, b, amtA, amtB, entryA, entryB, region)}
+
+      <h2>${esc(a.title)} vs ${esc(b.title)}, side by side</h2>
+      ${compareTableHtml(a, b, amtA, amtB, entryA, entryB, region)}
+
+      <h2>Pick ${esc(a.title)} if</h2>
+      <p>${esc(stop(a.pro))} It is a ${esc(a.genre)} by ${esc(a.studio)}, ${a.year}, and takes about ${a.hours} hours.
+      ${a.con ? `The catch: ${esc(stop(lower(a.con)))}` : ''}
+      <a href="${gamePath(a.id)}">Full ${esc(a.title)} price breakdown</a>.</p>
+
+      <h2>Pick ${esc(b.title)} if</h2>
+      <p>${esc(stop(b.pro))} It is a ${esc(b.genre)} by ${esc(b.studio)}, ${b.year}, and takes about ${b.hours} hours.
+      ${b.con ? `The catch: ${esc(stop(lower(b.con)))}` : ''}
+      <a href="${gamePath(b.id)}">Full ${esc(b.title)} price breakdown</a>.</p>
+
+      ${others.length ? `<h2>Other comparisons</h2><ul>${others.slice(0, 6).join('')}</ul>` : ''}
+
+      <p><a href="${SITE}/deals/all-time-low">Games at their all-time low right now</a> &middot;
+         <a href="${SITE}/gog">Every game we track that's on GOG</a> &middot;
+         <a href="${SITE}/">Browse all ${GAMES.length} PC games</a></p>
+
+      <h2>How this comparison is made</h2>
+      <p>Prices come straight from the stores' own feeds, in ${esc(region.currency)} for
+      ${esc(region.name)}, and are cached for about 30 minutes; hours-to-beat and the pros and cons
+      are our editorial estimates. Cost per hour is the cheapest current price divided by
+      hours-to-beat. No ads, no affiliate links and no paid placement &mdash; a store link earns us
+      nothing. <a href="https://lazycomparo.com/how-we-rank">Every weight and threshold we use is published</a>.</p>
+    </main>`;
+}
+
+function compareJsonLd(a, b, entryA, entryB, region) {
+  const product = (g, entry) => ({
+    '@type': ['VideoGame', 'Product'],
+    name: g.title,
+    genre: g.genre,
+    gamePlatform: 'PC',
+    operatingSystem: 'Windows',
+    datePublished: String(g.year),
+    author: { '@type': 'Organization', name: g.studio },
+    publisher: { '@type': 'Organization', name: g.studio },
+    brand: { '@type': 'Organization', name: g.studio },
+    url: gamePath(g.id),
+    offers: offersFor(g, entry, region),
+  });
+
+  const graph = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'ItemList',
+        name: `${a.title} vs ${b.title}`,
+        itemListOrder: 'https://schema.org/ItemListUnordered',
+        numberOfItems: 2,
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, item: product(a, entryA) },
+          { '@type': 'ListItem', position: 2, item: product(b, entryB) },
+        ],
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'All games', item: `${SITE}/` },
+          { '@type': 'ListItem', position: 2, name: a.title, item: gamePath(a.id) },
+          { '@type': 'ListItem', position: 3, name: `${a.title} vs ${b.title}`, item: comparePath(a, b) },
+        ],
+      },
+    ],
+  };
+  return `<script type="application/ld+json">${JSON.stringify(graph)}</script>`;
+}
+
+/* -------------------------------- SITEMAP --------------------------------- */
+/* Served from here rather than as the static games/sitemap.xml because the
+   compare URLs are generated, and a generated URL set cannot be kept in step
+   by hand. Everything is derived from games.json, so adding a game adds its
+   own page AND its head-to-heads with no second edit. The static file stays in
+   the repo as the fallback: if the catalog fails to load, onRequest passes the
+   request through and Pages serves that file instead. */
+function sitemapXml() {
+  const entry = (loc, freq, pri) =>
+    `  <url><loc>${loc}</loc><changefreq>${freq}</changefreq><priority>${pri}</priority></url>`;
+  const lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    entry(`${SITE}/`, 'daily', '1.0'),
+    entry(`${SITE}/gog`, 'daily', '0.9'),
+    entry(`${SITE}/deals/all-time-low`, 'daily', '0.9'),
+  ];
+  GAMES.forEach((g) => lines.push(entry(gamePath(g.id), 'weekly', '0.8')));
+  comparePairs().forEach(([x, y]) => lines.push(entry(comparePath(x, y), 'weekly', '0.7')));
+  lines.push('</urlset>');
+  return lines.join('\n') + '\n';
 }
 
 /* ------------------------------- HUB PAGES -------------------------------- */
@@ -800,6 +1198,39 @@ function regionScript(region) {
 }
 
 export async function onRequest(context) {
+  const url = new URL(context.request.url);
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+
+  /* Two things are answered BEFORE context.next(), because neither wants the
+     asset Pages would serve: the generated sitemap replaces the static file,
+     and a compare URL written in the wrong order is a redirect, not a page.
+     Both fall through untouched if the catalog cannot be read, so the worst
+     case is exactly the behaviour that shipped before compare pages existed. */
+  const compareSlug = (path.match(/^\/compare\/([^/]+)$/) || [])[1];
+  if (path === '/sitemap.xml' || compareSlug) {
+    await loadCatalog(context, url);
+
+    if (path === '/sitemap.xml' && GAMES.length) {
+      return new Response(sitemapXml(), {
+        headers: {
+          'content-type': 'application/xml; charset=utf-8',
+          // Generated from a file that only changes on deploy.
+          'cache-control': 'public, max-age=3600',
+        },
+      });
+    }
+
+    // One canonical order per pair (ids sorted), so a-vs-b and b-vs-a can
+    // never both be indexed and every share of a pair lands on one URL.
+    const pair = compareSlug ? parseComparePair(compareSlug) : null;
+    if (pair) {
+      // Built on url.origin, not SITE: a preview deployment must redirect to
+      // itself rather than bouncing the visitor to production.
+      const canonical = `/compare/${comparePairSlug(pair[0], pair[1])}`;
+      if (path !== canonical) return Response.redirect(url.origin + canonical + url.search, 301);
+    }
+  }
+
   const response = await context.next();
 
   // Only rewrite the HTML document. API routes (/api/*) and other assets pass
@@ -807,7 +1238,6 @@ export async function onRequest(context) {
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
 
-  const url = new URL(context.request.url);
   const region = await resolveRegion(context.request, url);
 
   // The region goes in first and unconditionally: the React app needs it on
@@ -825,10 +1255,13 @@ export async function onRequest(context) {
   // but the check is here so the flag is set before any branch reads VIDEO.
   await loadVideo(context, url);
 
-  const path = url.pathname.replace(/\/+$/, '') || '/';
   const slugMatch = path.match(/^\/game\/([^/]+)$/);
   const game = slugMatch ? BY_ID.get(decodeURIComponent(slugMatch[1])) : null;
   const hub = HUBS[path];
+  // Already canonical by the time we get here: a wrong-order pair was
+  // redirected above, and an unparseable one is null and falls through to the
+  // homepage pre-render, exactly as an unknown /game/<slug> does.
+  const pair = compareSlug ? parseComparePair(compareSlug) : null;
 
   // Live prices for the pre-render. Bounded and failure-tolerant by design:
   // fetchDeals never throws and returns {} on timeout, so a slow or missing
@@ -837,6 +1270,8 @@ export async function onRequest(context) {
   let deals = {};
   if (game) {
     deals = await fetchDeals(url.origin, [game.appId], DEALS_TIMEOUT_MS.game, region.country);
+  } else if (pair) {
+    deals = await fetchDeals(url.origin, pair.map((g) => g.appId), DEALS_TIMEOUT_MS.game, region.country);
   } else if (hub) {
     deals = await fetchDeals(url.origin, GAMES.map((g) => g.appId), DEALS_TIMEOUT_MS.hub, region.country);
   }
@@ -850,6 +1285,13 @@ export async function onRequest(context) {
     rootHtml = gameHtml(game, entry, region);
     jsonLd = gameJsonLd(game, entry, region);
     meta = gameMeta(game, entry, region);
+  } else if (pair) {
+    const [a, b] = pair;
+    const entryA = dealFor(deals, a);
+    const entryB = dealFor(deals, b);
+    rootHtml = compareHtml(a, b, entryA, entryB, region);
+    jsonLd = compareJsonLd(a, b, entryA, entryB, region);
+    meta = compareMeta(a, b, bestAmount(a, entryA, region), bestAmount(b, entryB, region), region);
   } else if (hub) {
     rootHtml = hubHtml(hub, deals, region);
     jsonLd = hubJsonLd(hub, deals, region);
@@ -866,12 +1308,21 @@ export async function onRequest(context) {
     .on('#root', { element(el) { el.setInnerContent(rootHtml, { html: true }); } });
 
   if (meta) {
+    // HTMLRewriter can only rewrite tags that are already in the document, so
+    // every one of these has a placeholder in index.html (and in the two hub
+    // shells) — including the four og:image lines. Deleting one there silently
+    // stops that field being set here.
+    const card = meta.card || OG;
     rewriter
       .on('title', { element(el) { el.setInnerContent(meta.title); } })
       .on('meta[name="description"]', { element(el) { el.setAttribute('content', meta.description); } })
       .on('meta[property="og:title"]', { element(el) { el.setAttribute('content', meta.title); } })
       .on('meta[property="og:description"]', { element(el) { el.setAttribute('content', meta.description); } })
       .on('meta[property="og:url"]', { element(el) { el.setAttribute('content', meta.canonical); } })
+      .on('meta[property="og:image"]', { element(el) { el.setAttribute('content', card.image); } })
+      .on('meta[property="og:image:width"]', { element(el) { el.setAttribute('content', card.width); } })
+      .on('meta[property="og:image:height"]', { element(el) { el.setAttribute('content', card.height); } })
+      .on('meta[property="og:image:alt"]', { element(el) { el.setAttribute('content', card.alt); } })
       .on('link[rel="canonical"]', { element(el) { el.setAttribute('href', meta.canonical); } });
   }
 

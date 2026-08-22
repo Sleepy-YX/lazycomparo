@@ -7,7 +7,7 @@ Two products live in this repo today. **Games is the current focus; mobile is se
 - **[games/](games/)** — [PcGames.LazyComparo](https://pcgames.lazycomparo.com/), a PC game comparison and value advisor, and the product we're actively building out. Compares games on price, rating, hours-to-beat, and co-op support across **Steam, Epic and GOG** — including live free-game alerts and cross-store price comparison — to help you decide what's worth buying on sale (or claiming for free).
 - **[mobile/](mobile/)** — smartphone comparison and switching advisor (secondary). Weighs priorities, budget, and ecosystem trade-offs (iMessage, DeX, AirDrop, Samsung Cloud, etc.) to tell you whether to upgrade or switch brands.
 
-Each product is a single HTML file plus its catalog as JSON — `games/games.json` (100 games) and `mobile/phones.json` (50 phones) — read by both the app and that site's Cloudflare Pages middleware, which pre-renders crawlable pages at `/game/<id>` and `/phone/<id>`. Roadmap: expand catalogs and migrate to Next.js + Supabase.
+Each product is a single HTML file plus its catalog as JSON — `games/games.json` (100 games) and `mobile/phones.json` (50 phones) — read by both the app and that site's Cloudflare Pages middleware, which pre-renders crawlable pages at `/game/<id>`, `/compare/<a>-vs-<b>` and `/phone/<id>`, and generates the games sitemap. Roadmap: expand catalogs and migrate to Next.js + Supabase.
 
 ---
 
@@ -16,6 +16,7 @@ Each product is a single HTML file plus its catalog as JSON — `games/games.jso
 ### games — PC game comparison & value advisor (primary focus)
 
 - **Browse & compare** — co-op/single-player games side-by-side on price, Steam rating, hours-to-beat, player count, and store availability (Steam / Epic / GOG badges with live per-store prices).
+- **Head-to-head pages** — every comparison has a real URL: [`/compare/balatro-vs-slay-the-spire`](https://pcgames.lazycomparo.com/compare/balatro-vs-slay-the-spire) is a crawlable page with a verdict, live cross-store prices for both, cost per hour, and the pros/cons that decide it. Compare's share button emits that URL, so a link pasted anywhere opens the same comparison — and shows both games rather than a blank card. ~196 curated pairs are in the sitemap; any valid pair renders on request.
 - **Value-focused** — built for the "what's actually worth buying on sale" question, with pros/cons per title, $/hour ranking, all-time-low price flags, and a cheapest-store row in Compare.
 - **Free Games tab** — Epic's weekly freebies (current + upcoming, via Epic's own feed) plus Steam giveaways, with claim links and countdowns.
 - **Stores tab** — editorial Steam vs Epic vs GOG comparison (refunds, DRM, mods, family sharing, free-game cadence).
@@ -69,7 +70,7 @@ The included `.claude/serve.ps1` is a tiny static server built on `System.Net.Ht
 - Tailwind CSS (Play CDN)
 - Babel Standalone (JSX transform, pinned to `runtime: classic`)
 - Inline SVG icons in Lucide style
-- PowerShell static server for local preview
+- PowerShell static server for local preview; PowerShell + `System.Drawing` for the generated assets (`.claude/make-icons.ps1`, `.claude/make-og-images.ps1`)
 
 ## Roadmap
 

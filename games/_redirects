@@ -1,3 +1,6 @@
 # SPA fallback: serve the app shell for per-game landing pages so the SEO
 # middleware can rewrite it. 200 = rewrite (URL stays /game/<slug>).
 /game/* /index.html 200
+# Same trick for head-to-head pages, /compare/<a>-vs-<b>. The app reads the
+# path on boot and opens Compare with those two games already picked.
+/compare/* /index.html 200

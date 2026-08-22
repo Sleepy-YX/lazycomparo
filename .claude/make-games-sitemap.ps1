@@ -12,6 +12,13 @@
     powershell -NoProfile -ExecutionPolicy Bypass -File .claude\make-games-sitemap.ps1
 
   Re-run after ANY edit to games/games.json.
+
+  NOT WHAT GOOGLE READS ANY MORE (since 2026-08-22). The live /sitemap.xml is
+  generated at the edge by games/functions/_middleware.js, because it also
+  lists the ~200 /compare/<a>-vs-<b> head-to-head pages, and those are derived
+  from the catalog by a scoring function that only exists in JavaScript. This
+  file stays because the middleware falls back to it when games.json cannot be
+  read - so it must keep matching the catalog, which check-sync.ps1 enforces.
 #>
 
 [CmdletBinding()]
