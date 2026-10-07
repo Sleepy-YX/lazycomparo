@@ -486,7 +486,7 @@ Publishing is now **append-only**.
 - **The legacy flat shape (a bare `{id, title, …}`) is still parsed** by both
   consumers, so rolling back this file alone cannot blank the section.
 - **Each episode owns its poster** (`poster`, defaulting to `/video-poster.jpg`)
-  — `video-poster.jpg` is EP02's still, `video-poster-ep03.jpg` is EP03's. Do
+  — `video-poster.jpg` is EP02's still, from EP03 on each episode has its own `video-poster-epNN.jpg`. Do
   not overwrite one episode's poster with another's; add a new file.
 - **Click-to-load facade, not an iframe.** Nothing is requested from YouTube
   until the visitor presses play; then it loads from `youtube-nocookie.com`.
@@ -1162,6 +1162,16 @@ Repo-scoped (not global) for privacy: `user.name` `Sleepy-YX`,
 
 ## Changelog
 
+- **2026-10-07** Weekly video #4. `LazyComparoVideo/ep04-short-under-5/`, a
+  58 s Short built from live `/api/steam` + `/api/deals` data pulled that day.
+  The angle is **rated 96%+ and under S$5**: Celeste, Ori and the Will of the
+  Wisps, and Portal 2. None of them repeat EP02 or EP03, all six of whose picks
+  were still on sale. 92 of the 100 games were discounted, which is why the
+  angle sets a quality floor instead of chasing the biggest cut. Vampire
+  Survivors (S$4.49, 98%, only −25%) is credited in the outro instead of ranked.
+  Portal 2 is stated on screen to be *not* an all-time low. The renderer now
+  takes two-line titles. **Published as `2XWqhYpP3eY`**, poster
+  `video-poster-ep04.jpg`.
 - **2026-08-22** **The landing page ends on answers, not just a CTA.** The
   front door had roughly 350 words on it, and every one of them was ours: no
   page on lazycomparo.com answered "how do you make money", "whose prices are

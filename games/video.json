@@ -3,6 +3,15 @@
   "_comment": "Newest first. episodes[0] with a non-empty id becomes the featured card; the rest become the archive list under it. An episode with an empty id renders nowhere -- that is the safe way to land a finished video before it is uploaded. Each episode owns its poster (our own rendered still, never i.ytimg.com); see LazyComparoVideo/<ep>/script.md.",
   "episodes": [
     {
+      "id": "2XWqhYpP3eY",
+      "title": "3 PC games rated 96%+ for under S$5 (live SG prices)",
+      "blurb": "Three of the best-reviewed games on Steam, all under five Singapore dollars this week, with the catch on each one stated out loud.",
+      "picks": ["Celeste", "Ori and the Will of the Wisps", "Portal 2"],
+      "published": "2026-10-07",
+      "durationSeconds": 58,
+      "poster": "/video-poster-ep04.jpg"
+    },
+    {
       "id": "jEeIljpVG7Q",
       "title": "3 PC games under 40 cents an hour (live SG prices)",
       "blurb": "This week's three best-value Steam deals in Singapore, ranked by cost per hour, with the catch on each one stated out loud.",
